@@ -118,6 +118,70 @@ bestätigt die Architektur-Variante A als Ziel.
 
 ---
 
+## 3c. Technische Entscheidung: Cloudflare Quick-Tunnel als Verbindung
+
+**Entscheidung (2026-08):** Der erste Nutzer (Host) startet die Session,
+erzeugt einen **Cloudflare Quick-Tunnel** (`trycloudflare.com`) und zeigt
+die Tunnel-URL als QR-Code. Der zweite Nutzer (Guest) scannt den QR-Code
+und verbindet sich direkt durch den Tunnel. **Kein zentraler Server nötig.**
+
+### Ablauf
+
+```
+[Gerät A - Host]  startet zuerst
+   │  1. startet lokale Pipeline (STT→Übersetzung→TTS)
+   │  2. cloudflared tunnel --url localhost:PORT
+   │     → erzeugt https://xyz.trycloudflare.com (frische, zufällige URL)
+   │  3. QR-Code zeigt auf https://xyz.trycloudflare.com/join?session=...
+   │
+[Gerät B - Guest] scannt QR-Code
+   │  verbindet sich durch den Tunnel → Session läuft
+```
+
+### Warum Quick-Tunnels (trycloudflare)
+
+| Kriterium | Quick-Tunnel | Named Tunnel |
+|-----------|--------------|--------------|
+| Kosten | Kostenlos | Kostenlos (Tunnel), Domain ggf. kostenpflichtig |
+| Account | Keiner nötig | Cloudflare-Account + Domain |
+| URL | Zufällig pro Session | Eigene, feste Domain |
+| Setup | `cloudflared tunnel --url` | Konfiguration + DNS |
+| Für Snail | ✅ **Ideal** | ⚠️ Overkill |
+
+**"Pool"-Gedanke:** Jede Session erzeugt automatisch eine **frische,
+zufällige URL** — das ist de facto ein Pool aus ephemeren Endpunkten, ohne
+dass man URLs manuell verwalten muss. Der Host zieht bei jedem Start eine
+neue URL aus dem "Pool".
+
+### Technische Umsetzung auf Android
+
+- `cloudflared` ist ein Go-Binary → muss **für Android kompiliert** und in
+  die App eingebettet werden (oder als native Bibliothek).
+- Alternativ: `cloudflared` als **separates Binary** mitliefern und per
+  Subprozess starten.
+- Der Host startet den Tunnel, liest die generierte URL aus dem Log/Output
+  und rendert sie als QR-Code.
+
+### Wichtige Einschränkungen
+
+- **Pipeline-Last liegt auf dem Host-Handy** (STT/TTS/Übersetzung) → CPU &
+  Batterie. Für ein Reise-Szenario mit kurzen Sessions akzeptabel, aber
+  nicht für Dauerbetrieb.
+- **Quick-Tunnel-URLs sind ephemer** — sie verschwinden, wenn der
+  `cloudflared`-Prozess endet. Das passt zu einmaligen Reise-Sessions.
+- **Rate-Limits:** trycloudflare kann bei sehr hoher Nutzung drosseln.
+  Für 2-Geräte-Sessions unkritisch.
+- **Kein zentraler Server** → keine zentrale Skalierung, aber auch keine
+  Serverkosten und kein Betriebsaufwand.
+
+### Fazit
+
+Quick-Tunnels machen Snail **serverlos**: Der Host ist zugleich Server und
+Pipeline, der QR-Code trägt die Verbindungs-URL. Das ist die günstigste und
+einfachste Variante für ephemere Reise-Sessions.
+
+---
+
 ## 4. Modul-Auswahl (Optionen je Baustein)
 
 | Baustein | Lokal (offline) | Cloud (beste Qualität) |
