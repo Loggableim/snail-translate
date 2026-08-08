@@ -180,6 +180,96 @@ Quick-Tunnels machen Snail **serverlos**: Der Host ist zugleich Server und
 Pipeline, der QR-Code trägt die Verbindungs-URL. Das ist die günstigste und
 einfachste Variante für ephemere Reise-Sessions.
 
+> **Hinweis:** Abschnitt 3c gilt für ein **persönliches Tool ohne
+> Monetarisierung**. Für ein Produkt mit Free/Paid-Tiers ist er **nicht
+> geeignet** — siehe Abschnitt 3d.
+
+---
+
+## 3d. Technische Entscheidung: Cloudflare Worker + Clerk (kommerziell)
+
+**Entscheidung (2026-08):** Für ein Produkt mit **Free/Paid-Tiers** nutzt
+Snail ein **serverless Backend auf Cloudflare Workers** als Key-Vault und
+Tier-Gateway, mit **Clerk** für Auth & Subscriptions. Die API-Keys liegen
+als Worker-Secrets in der Cloudflare-Umgebung — **nie auf dem Gerät**.
+
+### Warum dieser Ansatz
+
+| Anforderung | Lösung |
+|-------------|--------|
+| Keys sicher | Worker-Secrets in Cloudflare, nie in der App |
+| Kein Server-Betrieb | Cloudflare Workers (serverless, Pay-per-Use) |
+| Free/Paid-Tiers | Worker prüft Quota pro User, wählt API |
+| Auth + Subscriptions | **Clerk** (verwaltet User, Sessions, Abos) |
+| Skalierung | Cloudflare skaliert automatisch |
+
+### Architektur
+
+```
+┌─────────────┐   User-Token   ┌──────────────────────────────┐   API-Keys
+│  App (A)    │ ──────────────▶ │  Cloudflare Worker (Edge)   │ ─────────▶ Deepgram
+│  Flutter    │                │  • Keys als Worker-Secrets   │ ─────────▶ DeepL
+│             │ ◀────────────── │  • Clerk-Auth verifizieren  │ ─────────▶ fish.audio
+└─────────────┘   übersetztes  │  • Tier-Quota prüfen         │
+                 Audio zurück  │  • ruft die APIs auf         │
+┌─────────────┐                └──────────────────────────────┘
+│  App (B)    │ ◀─── gleiche Pipeline, umgekehrte Richtung ────▶
+└─────────────┘
+```
+
+### Rollen der Komponenten
+
+- **Clerk:** User-Auth (Login/Register), Session-Management, Subscription-
+  Status (Free/Paid). Die App bekommt von Clerk ein **JWT-Token**.
+- **Cloudflare Worker:** Verifiziert das Clerk-Token, prüft die Tier-Quota,
+  hält die API-Keys (Worker-Secrets) und ruft die externen APIs auf.
+- **App:** Nutzt nur das Clerk-Token — sieht **nie** einen API-Key.
+
+### Free- vs. Paid-Tier (API-Auswahl pro Tier)
+
+| | **Free Tier** | **Paid Tier** |
+|---|---|---|
+| **Quota** | X Minuten/Monat (z.B. 30) | Unbegrenzt |
+| **Sprachen** | Wenige (DE/EN) | Alle |
+| **STT** | Whisper API (günstig) | Deepgram (beste Qualität) |
+| **Übersetzung** | Google Translate (kostenlos) | DeepL (beste Qualität) |
+| **TTS** | Edge-TTS (kostenlos) | fish.audio (Premium) |
+
+> Der Worker wählt **pro Tier unterschiedliche APIs**. Free-Nutzer
+> bekommen die kostenlosen/günstigen Bausteine, Paid-Nutzer die Premium-
+> Bausteine. So bleibt das Free-Tier ein bewusster Verlustbringer zum
+> Anlocken, ohne die API-Kosten zu sprengen.
+
+### Sicherheit gegen Key-Extraktion
+
+1. **Keys nur als Worker-Secrets** — nie im App-Code oder Client.
+2. **App nutzt nur Clerk-JWT** — keine API-Keys im Client.
+3. **Worker ist der einzige API-Aufrufer** — externe APIs sehen nie die App.
+4. **Rate-Limiting pro User** im Worker (verhindert Missbrauch).
+5. **Quota-Check** vor jedem API-Call.
+
+### Echtzeit-Audio & Worker-Limits (ehrliche Einschränkung)
+
+Cloudflare Workers sind **nicht für langlaufende WebSocket-Audio-Streams**
+optimiert. Für die Echtzeit-Pipeline gibt es zwei Wege:
+
+| Weg | Wie | Für Snail |
+|-----|-----|-----------|
+| **Worker als API-Gateway** | App streamt Audio an Worker, Worker ruft Deepgram/DeepL/fish.audio auf | ⚠️ Latenz + Worker-Limits |
+| **Worker + Durable Objects** | Durable Objects halten WebSocket-Verbindungen | ✅ Besser für Echtzeit |
+
+**Pragmatisch:** Der Worker ist ein **hervorragendes Key-Vault + Tier-
+Gateway**. Die eigentliche Audio-Pipeline (STT/TTS) läuft über die direkten
+Cloud-APIs, die der Worker orchestriert. Für den Prototyp reicht der Worker
+als Gateway; Durable Objects kommen bei Bedarf für Echtzeit-Streaming.
+
+### Fazit
+
+Cloudflare Worker + Clerk geben Snail: **sichere Keys + Free/Paid-Tiers +
+kein Server-Betrieb**. Das ist der richtige Weg für ein kommerzielles
+Produkt. Der Quick-Tunnel-Ansatz (3c) bleibt nur für ein persönliches Tool
+ohne Monetarisierung relevant.
+
 ---
 
 ## 4. Modul-Auswahl (Optionen je Baustein)
