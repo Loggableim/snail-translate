@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snail — Variante B: Automatik</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter','Segoe UI', system-ui, -apple-system, sans-serif; }
+  body { background:#f5f6fa; display:flex; justify-content:center; align-items:center; min-height:100vh; }
+  .phone { width:390px; height:844px; background:#fff; border-radius:40px; overflow:hidden; position:relative; box-shadow:0 20px 60px rgba(0,0,0,.15); display:flex; flex-direction:column; }
+  .phone::before { content:''; position:absolute; inset:0; background-image:radial-gradient(rgba(79,110,247,.06) 1.5px, transparent 1.5px); background-size:16px 16px; pointer-events:none; z-index:5; }
+  .statusbar { display:flex; justify-content:space-between; padding:14px 24px 6px; color:#8a8f9d; font-size:13px; font-weight:500; z-index:6; }
+  .header { display:flex; align-items:center; justify-content:space-between; padding:8px 20px 12px; z-index:6; }
+  .header .title { color:#1a1d29; font-size:20px; font-weight:700; letter-spacing:-.3px; }
+  .header .title span { color:#ff2d55; }
+  .header .icon { width:38px; height:38px; border-radius:12px; background:#f0f1f5; display:flex; align-items:center; justify-content:center; font-size:17px; color:#ff2d55; }
+  .conn { display:flex; align-items:center; gap:8px; background:#fff; border:2px solid #ffd700; border-radius:20px; padding:6px 14px; margin:0 20px 12px; width:fit-content; box-shadow:2px 2px 0 #ffd700; z-index:6; }
+  .conn .dot { width:8px; height:8px; border-radius:50%; background:#22c55e; animation:pulse 1.5s infinite; }
+  .conn span { color:#1a1d29; font-size:13px; font-weight:600; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  /* Status-Banner: "hört zu" */
+  .listening { display:flex; align-items:center; justify-content:center; gap:8px; background:#f0f4ff; border:1px solid #e8edff; border-radius:14px; padding:8px 16px; margin:0 20px 14px; z-index:6; }
+  .listening .wave { display:flex; align-items:flex-end; gap:3px; height:18px; }
+  .listening .wave span { width:4px; background:#ff2d55; border-radius:2px; animation:wave 1s infinite ease-in-out; }
+  .listening .wave span:nth-child(1){height:8px;animation-delay:0s}
+  .listening .wave span:nth-child(2){height:16px;animation-delay:.15s}
+  .listening .wave span:nth-child(3){height:12px;animation-delay:.3s}
+  .listening .wave span:nth-child(4){height:18px;animation-delay:.45s}
+  .listening .wave span:nth-child(5){height:10px;animation-delay:.6s}
+  @keyframes wave { 0%,100%{transform:scaleY(.5)} 50%{transform:scaleY(1)} }
+  .listening span.txt { color:#4f6ef7; font-size:13px; font-weight:600; }
+  /* Sprecher-Karten */
+  .speakers { display:flex; gap:12px; padding:0 20px 14px; z-index:6; }
+  .speaker { flex:1; background:#f8f9fc; border-radius:20px; padding:16px; text-align:center; border:1px solid #eef0f4; }
+  .speaker.active { border:2px solid #ff2d55; background:#fff; box-shadow:2px 2px 0 #ff2d55; }
+  .speaker .avatar { width:60px; height:60px; border-radius:50%; margin:0 auto 10px; display:flex; align-items:center; justify-content:center; font-size:28px; }
+  .speaker.a .avatar { background:#e8edff; }
+  .speaker.b .avatar { background:#ffe8e8; }
+  .speaker .name { color:#1a1d29; font-weight:600; font-size:16px; }
+  .speaker .lang { color:#8a8f9d; font-size:12px; margin-top:2px; }
+  .speaker .mic { margin-top:10px; font-size:22px; }
+  .speaker.active .mic { color:#ff2d55; }
+  .speaker .status-txt { font-size:11px; font-weight:600; margin-top:4px; }
+  .speaker.active .status-txt { color:#ff2d55; }
+  .speaker:not(.active) .status-txt { color:#8a8f9d; }
+  .transcript { flex:1; overflow:hidden; padding:0 20px; display:flex; flex-direction:column; gap:12px; z-index:6; }
+  .bubble { max-width:85%; padding:12px 16px; border-radius:18px; font-size:15px; line-height:1.4; }
+  .bubble.a { align-self:flex-start; background:#f0f4ff; color:#1a1d29; border-bottom-left-radius:4px; }
+  .bubble.b { align-self:flex-end; background:#fff; color:#1a1d29; border:1px solid #ffd700; border-bottom-right-radius:4px; }
+  .bubble .meta { font-size:11px; color:#8a8f9d; margin-bottom:4px; font-weight:600; }
+  .bubble .trans { font-size:12px; color:#ff2d55; margin-top:6px; padding-top:6px; border-top:1px solid #eef0f4; font-weight:600; }
+  .bubble .trans::before { content:"🌐 "; }
+  /* Bottom: nur Stummschalten + Beenden */
+  .bottombar { padding:14px 20px 28px; display:flex; align-items:center; gap:14px; z-index:6; }
+  .btn.mute { flex:0 0 auto; width:56px; height:56px; border-radius:50%; background:#f0f1f5; border:none; color:#1a1d29; font-size:22px; }
+  .btn.end { flex:1; background:#ff2d55; border:2px solid #000; color:#fff; font-weight:700; font-size:16px; padding:15px; border-radius:16px; cursor:pointer; box-shadow:3px 3px 0 #000; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>📶 🔋</span></div>
+  <div class="header">
+    <div class="title">🐌 <span>Snail</span></div>
+    <div class="icon">⚙️</div>
+  </div>
+  <div class="conn"><div class="dot"></div><span>Verbunden · Session #4821</span></div>
+  <div class="listening">
+    <div class="wave"><span></span><span></span><span></span><span></span><span></span></div>
+    <span class="txt">Hört zu · Anna spricht gerade</span>
+  </div>
+  <div class="speakers">
+    <div class="speaker a active">
+      <div class="avatar">👤</div>
+      <div class="name">Anna</div>
+      <div class="lang">Deutsch</div>
+      <div class="mic">🎙️</div>
+      <div class="status-txt">spricht</div>
+    </div>
+    <div class="speaker b">
+      <div class="avatar">👤</div>
+      <div class="name">Luca</div>
+      <div class="lang">English</div>
+      <div class="mic">🔇</div>
+      <div class="status-txt">hört zu</div>
+    </div>
+  </div>
+  <div class="transcript">
+    <div class="bubble a">
+      <div class="meta">Anna · DE</div>
+      Wo ist der Bahnhof?
+      <div class="trans">Where is the train station?</div>
+    </div>
+    <div class="bubble b">
+      <div class="meta">Luca · EN</div>
+      Go straight, then turn left.
+      <div class="trans">Geh geradeaus, dann links abbiegen.</div>
+    </div>
+    <div class="bubble a">
+      <div class="meta">Anna · DE</div>
+      Danke, wie weit ist es?
+      <div class="trans">Thanks, how far is it?</div>
+    </div>
+  </div>
+  <div class="bottombar">
+    <button class="btn mute">🔇</button>
+    <button class="btn end">Session beenden</button>
+  </div>
+</div>
+</body>
+</html>
