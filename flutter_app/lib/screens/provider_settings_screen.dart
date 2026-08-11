@@ -35,7 +35,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
         appBar: AppBar(title: const Text('BYOK-Provider')),
         body: ListView(padding: const EdgeInsets.all(16), children: [
           DropdownButtonFormField<TranslationProvider>(
-            initialValue: _provider,
+            value: _provider,
             decoration:
                 const InputDecoration(labelText: 'Session-Owner-Provider'),
             items: const [
@@ -158,7 +158,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
     }
     if (!options.contains(_model.text)) _model.text = options.first;
     return DropdownButtonFormField<String>(
-      initialValue: _model.text,
+      value: _model.text,
       decoration: const InputDecoration(labelText: 'Modell'),
       items: options
           .map((model) => DropdownMenuItem(value: model, child: Text(model)))
@@ -170,7 +170,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
   }
 
   Widget _chatModelField() => DropdownButtonFormField<String>(
-        initialValue: _chatModel.text,
+        value: _chatModel.text,
         decoration:
             const InputDecoration(labelText: 'Messenger-Übersetzungsmodell'),
         items: const [

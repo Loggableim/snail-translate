@@ -76,7 +76,9 @@ class SnailAudio {
   Future<void> stopStandaloneCapture() async {
     try {
       await _methodChannel.invokeMethod('stopStandaloneCapture');
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[SnailAudio] stopStandaloneCapture error: $e');
+    }
   }
 
   // ── Initialization ─────────────────────────────────────────────────

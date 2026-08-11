@@ -239,7 +239,9 @@ class _ChatScreenState extends State<ChatScreen> {
               height: 96,
               errorBuilder: (_, __, ___) =>
                   Text(sticker.emoji, style: const TextStyle(fontSize: 48)));
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[Chat] sticker base64 decode error: $e');
+        }
       }
     }
     return Image.network(sticker.assetUrl,

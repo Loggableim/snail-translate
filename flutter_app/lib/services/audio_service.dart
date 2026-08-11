@@ -294,7 +294,9 @@ class AudioService extends ChangeNotifier {
           );
           break;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Snail] ws.onMessage decode error: $e');
+    }
   }
 
   void _onError(dynamic error, [StackTrace? st]) {
@@ -460,7 +462,9 @@ class AudioService extends ChangeNotifier {
       try {
         _channel!.sink.add(jsonEncode({'type': 'end'}));
         _channel!.sink.close();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[Snail] ws.sink close error: $e');
+      }
     }
     _channel = null;
     _session = null;
@@ -472,6 +476,7 @@ class AudioService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _reconnectTimer?.cancel();
     disconnect();
     super.dispose();
   }

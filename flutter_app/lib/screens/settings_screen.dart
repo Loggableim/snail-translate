@@ -34,7 +34,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: DropdownButtonFormField<String>(
-                  initialValue: current,
+                  value: current,
                   decoration: const InputDecoration(
                     labelText: 'Ich spreche',
                     border: OutlineInputBorder(),
@@ -62,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             builder: (_, session, __) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: DropdownButtonFormField<String>(
-                initialValue: session.targetLanguage,
+                value: session.targetLanguage,
                 decoration: const InputDecoration(
                     labelText: 'Übersetzen in', border: OutlineInputBorder()),
                 items: const [
@@ -89,7 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             builder: (_, policy, __) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: DropdownButtonFormField<AudioPolicyProfile>(
-                initialValue: policy.profile,
+                value: policy.profile,
                 decoration: const InputDecoration(
                   labelText: 'Audio- und Echo-Profil',
                   border: OutlineInputBorder(),

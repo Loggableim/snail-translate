@@ -151,7 +151,9 @@ class AppShareService extends ChangeNotifier {
           break;
       }
       notifyListeners();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[AppShare] tunnel message decode error: $e');
+    }
   }
 
   Future<void> _sendApk() async {
