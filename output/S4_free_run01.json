@@ -1,0 +1,20 @@
+{
+  "input_file": "S4.wav",
+  "source_lang": "de",
+  "target_lang": "en",
+  "tier": "free",
+  "t_vad": 32.00000000651926,
+  "t_encode": 0.0,
+  "t_stt": 467.99999999348074,
+  "t_mt": 375.0,
+  "t_tts": 1094.0000000409782,
+  "t_decode": 0.0,
+  "t_total": 1969.0000000409782,
+  "transcript": "Einmal Kaffee, bitte, mit Milch.",
+  "translation": "One coffee, please, with milk.",
+  "wer": 0.2,
+  "stt_api": "groq",
+  "mt_api": "groq",
+  "tts_api": "fishaudio",
+  "timestamp": "2026-08-10T15:35:33Z"
+}

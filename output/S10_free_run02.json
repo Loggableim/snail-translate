@@ -1,0 +1,20 @@
+{
+  "input_file": "S10.wav",
+  "source_lang": "de",
+  "target_lang": "en",
+  "tier": "free",
+  "t_vad": 32.00000000651926,
+  "t_encode": 0.0,
+  "t_stt": 530.9999999590218,
+  "t_mt": 609.000000054948,
+  "t_tts": 890.999999945052,
+  "t_decode": 0.0,
+  "t_total": 2062.999999965541,
+  "transcript": "Danke schön, wo ist die Toilette?",
+  "translation": "Thank you, where is the toilet?",
+  "wer": 0.16666666666666666,
+  "stt_api": "groq",
+  "mt_api": "groq",
+  "tts_api": "fishaudio",
+  "timestamp": "2026-08-10T15:34:57Z"
+}

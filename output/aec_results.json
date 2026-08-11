@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-08-11T08:25:58",
+  "input_file": "audio_samples\\S1.wav",
+  "sample_rate": 16000,
+  "duration_s": 2.616,
+  "results": [
+    {
+      "scenario": "E5",
+      "echo_present": true,
+      "echo_energy_db": -14.8,
+      "signal_to_echo_db": 14.8,
+      "feedback_loop": false,
+      "aec_reduction_db": 14.8,
+      "latency_ms": 724.6,
+      "passed": true
+    }
+  ],
+  "all_passed": true,
+  "go_nogo": "GO"
+}

@@ -1,0 +1,20 @@
+{
+  "input_file": "S1.wav",
+  "source_lang": "de",
+  "target_lang": "en",
+  "tier": "free",
+  "t_vad": 2562.999999965541,
+  "t_encode": 0.0,
+  "t_stt": 515.0000000139698,
+  "t_mt": 344.0000000409782,
+  "t_tts": 780.9999999590218,
+  "t_decode": 0.0,
+  "t_total": 4202.999999979511,
+  "transcript": "Hallo, wie geht es dir?",
+  "translation": "Hello, how are you?",
+  "wer": 0.0,
+  "stt_api": "groq",
+  "mt_api": "groq",
+  "tts_api": "fishaudio",
+  "timestamp": "2026-08-10T15:34:37Z"
+}

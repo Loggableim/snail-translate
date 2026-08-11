@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snail — Design 1: AURORA</title>
+<style>
+  /* ============ DESIGN 1: AURORA ============
+     Premium-Tech / Glassmorphism / Neon-Akzente
+     Vorbild: Linear, Raycast, Arc Browser
+  ============================================ */
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0a0a12;
+    --surface: rgba(255,255,255,0.05);
+    --surface-2: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.1);
+    --text: #f5f6fa;
+    --text-dim: #9aa0b4;
+    --text-faint: #5c6278;
+    --accent: #7c5cff;      /* violett */
+    --accent-2: #00e5ff;    /* cyan */
+    --accent-3: #ff3d8a;    /* pink */
+    --success: #34f5c5;
+    --warn: #ffb020;
+    --danger: #ff5c5c;
+    --radius: 20px;
+    --radius-sm: 12px;
+    --font: 'Space Grotesk', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: var(--font);
+    background: #05050a;
+    color: var(--text);
+    display:flex; justify-content:center; align-items:flex-start;
+    min-height:100vh; padding:20px; gap:32px; flex-wrap:wrap;
+  }
+
+  /* Aurora background blobs */
+  .aurora-bg {
+    position: fixed; inset:0; z-index:-1; overflow:hidden;
+    background: radial-gradient(1200px 800px at 20% -10%, rgba(124,92,255,0.25), transparent 60%),
+                radial-gradient(1000px 700px at 90% 10%, rgba(0,229,255,0.15), transparent 55%),
+                radial-gradient(900px 900px at 50% 120%, rgba(255,61,138,0.12), transparent 60%);
+  }
+
+  .phone {
+    width:390px; height:844px;
+    background: rgba(10,10,18,0.9);
+    backdrop-filter: blur(20px);
+    border-radius:48px;
+    border:1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 30px 80px rgba(0,0,0,0.6);
+    overflow:hidden; position:relative; flex-shrink:0;
+  }
+  .phone::before {
+    content:''; position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:120px; height:28px; background:#05050a; border-radius:0 0 18px 18px; z-index:100;
+  }
+  .screen { width:100%; height:100%; overflow-y:auto; overflow-x:hidden; position:relative; scrollbar-width:none; }
+  .screen::-webkit-scrollbar{display:none;}
+  .screen.hidden{display:none;}
+
+  .status-bar{height:50px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 24px 6px;font-size:13px;font-weight:600;position:sticky;top:0;background:rgba(10,10,18,0.7);backdrop-filter:blur(10px);z-index:50;}
+  .status-right{display:flex;gap:6px;align-items:center;font-size:11px;}
+  .screen-content{padding:8px 20px 100px;}
+
+  h1{font-size:28px;font-weight:700;letter-spacing:-0.5px;}
+  h2{font-size:20px;font-weight:600;margin-bottom:12px;}
+  h3{font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:1.5px;}
+  .subtitle{font-size:14px;color:var(--text-dim);margin-top:4px;}
+
+  /* Glass card */
+  .glass{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    backdrop-filter:blur(16px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+
+  .logo{display:flex;align-items:center;gap:10px;margin:12px 0 24px;}
+  .logo-icon{
+    width:44px;height:44px;border-radius:14px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:flex;align-items:center;justify-content:center;font-size:24px;
+    box-shadow:0 0 30px rgba(124,92,255,0.4);
+  }
+  .logo-text{font-size:22px;font-weight:700;letter-spacing:-0.5px;}
+
+  .btn{width:100%;padding:16px;border:none;border-radius:var(--radius-sm);font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font);}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;box-shadow:0 8px 30px rgba(124,92,255,0.4);}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 12px 40px rgba(124,92,255,0.5);}
+  .btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border);}
+  .btn-secondary:hover{background:var(--surface-2);}
+  .btn-ghost{background:transparent;color:var(--text-dim);font-weight:500;}
+  .btn-ghost:hover{color:var(--text);}
+  .btn-danger{background:rgba(255,92,92,0.12);color:var(--danger);border:1px solid rgba(255,92,92,0.2);}
+
+  .card-row{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;cursor:pointer;transition:background .15s;}
+  .card-row:hover{background:var(--surface-2);}
+  .card-row-label{display:flex;align-items:center;gap:12px;}
+  .card-row-icon{font-size:20px;width:28px;text-align:center;}
+  .card-row-value{font-size:14px;color:var(--text-dim);}
+  .card-row-arrow{color:var(--text-faint);font-size:14px;}
+
+  /* Login */
+  .login-hero{text-align:center;padding:60px 0 40px;}
+  .login-hero .logo-icon{width:76px;height:76px;margin:0 auto 20px;font-size:38px;border-radius:22px;}
+  .login-hero h1{font-size:34px;background:linear-gradient(135deg,#fff,var(--accent-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .login-hero .subtitle{font-size:16px;margin-top:8px;}
+  .login-buttons{margin-top:32px;display:flex;flex-direction:column;gap:10px;}
+
+  /* Home */
+  .greeting{margin:8px 0 20px;}
+  .greeting h1{font-size:26px;}
+  .tier-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;margin-top:8px;}
+  .tier-free{background:rgba(255,176,32,0.15);color:var(--warn);}
+  .tier-paid{background:rgba(52,245,197,0.15);color:var(--success);}
+
+  .quota-bar{height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden;margin-top:10px;}
+  .quota-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:4px;transition:width .5s;}
+  .quota-text{display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-top:6px;}
+
+  .big-action{
+    background:linear-gradient(135deg,rgba(124,92,255,0.2),rgba(0,229,255,0.1));
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:28px 20px;text-align:center;margin-bottom:16px;cursor:pointer;
+    transition:transform .2s;position:relative;overflow:hidden;
+  }
+  .big-action::after{
+    content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;
+    background:conic-gradient(from 0deg, transparent, rgba(124,92,255,0.15), transparent 30%);
+    animation:spin 6s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .big-action:hover{transform:translateY(-2px);}
+  .big-action-icon{font-size:40px;margin-bottom:8px;position:relative;z-index:1;}
+  .big-action h2{color:var(--text);margin:0;font-size:20px;position:relative;z-index:1;}
+  .big-action p{color:var(--text-dim);font-size:13px;margin-top:4px;position:relative;z-index:1;}
+
+  /* QR */
+  .qr-container{text-align:center;padding:30px 0;}
+  .qr-box{width:220px;height:220px;background:#fff;border-radius:var(--radius);margin:20px auto;display:grid;grid-template-columns:repeat(21,1fr);grid-template-rows:repeat(21,1fr);padding:12px;box-shadow:0 0 40px rgba(124,92,255,0.3);}
+  .qr-box div{background:#000;border-radius:1px;}
+  .qr-box div.white{background:#fff;}
+  .room-code{font-size:24px;font-weight:700;letter-spacing:2px;color:var(--accent-2);margin:16px 0;}
+  .room-code-label{font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;}
+  .waiting-indicator{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:20px;color:var(--text-dim);font-size:14px;}
+  .pulse-dot{width:10px;height:10px;background:var(--accent-2);border-radius:50%;animation:pulse 1.5s infinite;box-shadow:0 0 10px var(--accent-2);}
+  @keyframes pulse{0%,100%{opacity:.3;transform:scale(.8);}50%{opacity:1;transform:scale(1.2);}}
+
+  .lang-pair{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;}
+  .lang-chip{display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--surface-2);border-radius:20px;font-size:14px;font-weight:600;}
+  .lang-flag{font-size:20px;}
+  .lang-arrow{color:var(--text-faint);font-size:18px;}
+
+  /* Session */
+  .session-header{display:flex;align-items:center;justify-content:space-between;padding:8px 0 16px;}
+  .session-timer{font-size:15px;font-weight:600;color:var(--accent-2);}
+  .session-timer span{color:var(--text-dim);font-weight:400;font-size:12px;}
+  .audio-viz{display:flex;align-items:flex-end;justify-content:center;gap:3px;height:60px;margin:8px 0;}
+  .audio-viz .bar{width:4px;background:linear-gradient(180deg,var(--accent),var(--accent-2));border-radius:2px;animation:viz .8s infinite ease-in-out alternate;}
+  @keyframes viz{0%{height:8px;opacity:.4;}100%{height:50px;opacity:1;}}
+  .speaker-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;backdrop-filter:blur(16px);}
+  .speaker-panel.speaking{border-color:rgba(124,92,255,0.5);box-shadow:0 0 30px rgba(124,92,255,0.15);}
+  .speaker-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .speaker-name{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;}
+  .speaker-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;}
+  .avatar-a{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;}
+  .avatar-b{background:linear-gradient(135deg,var(--accent-3),var(--accent));color:#fff;}
+  .speaker-status{font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:4px;}
+  .transcript{font-size:14px;line-height:1.5;color:var(--text);min-height:24px;padding:8px 0;}
+  .transcript .partial{color:var(--text-dim);font-style:italic;}
+  .translation{font-size:14px;line-height:1.5;color:var(--accent-2);padding:8px 0;border-top:1px solid var(--border);}
+  .pipeline-indicator{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-faint);margin-top:8px;}
+  .pipeline-step{padding:2px 6px;border-radius:4px;background:var(--surface-2);}
+  .pipeline-step.active{background:rgba(124,92,255,0.2);color:var(--accent-2);}
+
+  .session-controls{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-around;align-items:center;padding:16px 20px 30px;background:linear-gradient(180deg,transparent,rgba(10,10,18,0.9) 40%);z-index:50;}
+  .ctrl-btn{width:56px;height:56px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;transition:all .2s;font-family:var(--font);}
+  .ctrl-mic{background:var(--surface-2);color:var(--text);border:1px solid var(--border);}
+  .ctrl-mic.muted{background:rgba(255,92,92,0.15);color:var(--danger);border-color:rgba(255,92,92,0.3);}
+  .ctrl-end{background:linear-gradient(135deg,var(--danger),#ff2d55);color:#fff;width:64px;height:64px;font-size:24px;box-shadow:0 8px 30px rgba(255,92,92,0.4);}
+  .ctrl-swap{background:var(--surface-2);color:var(--text);border:1px solid var(--border);}
+  .ctrl-btn:hover{transform:scale(1.05);}
+
+  /* Settings */
+  .settings-section{margin-bottom:24px;}
+  .toggle{width:44px;height:26px;background:var(--surface-2);border-radius:13px;position:relative;cursor:pointer;transition:background .2s;border:1px solid var(--border);}
+  .toggle.on{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;}
+  .toggle::after{content:'';position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:2px;left:2px;transition:transform .2s;}
+  .toggle.on::after{transform:translateX(18px);}
+
+  /* Paywall */
+  .paywall-hero{text-align:center;padding:30px 0 20px;}
+  .paywall-hero h1{font-size:26px;background:linear-gradient(135deg,#fff,var(--accent-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .plan-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px;cursor:pointer;transition:border-color .2s;backdrop-filter:blur(16px);}
+  .plan-card.selected{border-color:var(--accent);box-shadow:0 0 30px rgba(124,92,255,0.2);}
+  .plan-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .plan-name{font-size:18px;font-weight:700;}
+  .plan-price{font-size:20px;font-weight:700;color:var(--accent-2);}
+  .plan-price small{font-size:13px;color:var(--text-dim);font-weight:400;}
+  .plan-features{list-style:none;margin-top:10px;}
+  .plan-features li{font-size:13px;color:var(--text-dim);padding:4px 0;display:flex;align-items:center;gap:8px;}
+  .plan-features li::before{content:'✓';color:var(--success);font-weight:700;}
+
+  /* Profile */
+  .profile-header{text-align:center;padding:20px 0;}
+  .profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#fff;box-shadow:0 0 30px rgba(124,92,255,0.4);}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:16px 0;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center;}
+  .stat-value{font-size:22px;font-weight:700;color:var(--accent-2);}
+  .stat-label{font-size:11px;color:var(--text-dim);margin-top:2px;}
+
+  .bottom-nav{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-around;padding:12px 0 28px;background:rgba(10,10,18,0.8);backdrop-filter:blur(20px);border-top:1px solid var(--border);z-index:60;}
+  .nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--text-faint);cursor:pointer;padding:4px 12px;border:none;background:none;transition:color .2s;font-family:var(--font);}
+  .nav-item.active{color:var(--accent-2);}
+  .nav-item .nav-icon{font-size:22px;}
+
+  .join-input{width:100%;padding:18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:22px;font-weight:700;text-align:center;letter-spacing:4px;outline:none;font-family:var(--font);}
+  .join-input:focus{border-color:var(--accent);}
+  .divider{height:1px;background:var(--border);margin:16px 0;}
+  .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+  .pill-green{background:rgba(52,245,197,0.15);color:var(--success);}
+  .pill-blue{background:rgba(0,229,255,0.15);color:var(--accent-2);}
+  .pill-yellow{background:rgba(255,176,32,0.15);color:var(--warn);}
+  .pill-red{background:rgba(255,92,92,0.15);color:var(--danger);}
+  .connection-status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);}
+  .conn-dot{width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 6px var(--success);}
+
+  /* Info panel */
+  .info-panel{width:360px;flex-shrink:0;padding:20px;}
+  .info-panel h2{font-size:18px;margin-bottom:16px;color:var(--accent-2);}
+  .info-panel .screen-list{display:flex;flex-direction:column;gap:6px;margin-bottom:24px;}
+  .info-panel .screen-list button{text-align:left;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px;font-family:var(--font);}
+  .info-panel .screen-list button:hover{background:var(--surface-2);border-color:var(--accent);}
+  .info-panel .screen-list button.active{background:rgba(124,92,255,0.15);border-color:var(--accent);color:var(--accent-2);}
+  .info-panel .screen-list .num{width:22px;height:22px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+  .info-panel .legend{font-size:12px;color:var(--text-dim);line-height:1.6;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);}
+  .info-panel .legend b{color:var(--text);}
+</style>
+</head>
+<body>
+<div class="aurora-bg"></div>
+
+<div class="info-panel">
+  <h2>🐌 Snail — Design 1: AURORA</h2>
+  <p style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.5;">
+    Premium-Tech · Glassmorphism · Neon-Akzente<br>
+    Vorbild: Linear, Raycast, Arc Browser
+  </p>
+  <div class="screen-list" id="screenList">
+    <button onclick="show('login')" data-screen="login"><span class="num">1</span> Login</button>
+    <button onclick="show('home')" data-screen="home"><span class="num">2</span> Home</button>
+    <button onclick="show('qr')" data-screen="qr"><span class="num">3</span> QR / Host</button>
+    <button onclick="show('join')" data-screen="join"><span class="num">4</span> Beitreten</button>
+    <button onclick="show('session')" data-screen="session"><span class="num">5</span> Session</button>
+    <button onclick="show('settings')" data-screen="settings"><span class="num">6</span> Einstellungen</button>
+    <button onclick="show('paywall')" data-screen="paywall"><span class="num">7</span> Abo</button>
+    <button onclick="show('profile')" data-screen="profile"><span class="num">8</span> Profil</button>
+  </div>
+  <div class="legend">
+    <b>Design-Sprache:</b><br>
+    • Dunkler Glas-Look mit Aurora-Gradienten<br>
+    • Violett → Cyan → Pink Neon-Akzente<br>
+    • Space Grotesk (geometrisch, technisch)<br>
+    • Glassmorphism, Blur, Glow-Effekte<br>
+    • Konnotiert: High-Tech, Premium, Zukunft
+  </div>
+</div>
+
+<div class="phone">
+  <!-- LOGIN -->
+  <div class="screen" id="screen-login">
+    <div class="status-bar"><span>9:41</span><span class="status-right">📶 5G &nbsp; 🔋 87%</span></div>
+    <div class="screen-content">
+      <div class="login-hero">
+        <div class="logo-icon">🐌</div>
+        <h1>Snail</h1>
+        <p class="subtitle">Konversationsübersetzer<br>für zwei Headsets</p>
+      </div>
+      <div class="login-buttons">
+        <button class="btn btn-primary" onclick="show('home')">🔐 Mit Clerk einloggen</button>
+        <button class="btn btn-secondary" onclick="show('home')">Registrieren</button>
+        <button class="btn btn-ghost" onclick="show('home')">Später — als Gast testen</button>
+      </div>
+      <div style="margin-top:40px;text-align:center;">
+        <p style="font-size:12px;color:var(--text-faint);line-height:1.6;">Auth via Clerk · API-Keys sicher<br>in Cloudflare Workers</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen hidden" id="screen-home">
+    <div class="status-bar"><span>9:41</span><span class="status-right">📶 5G &nbsp; 🔋 87%</span></div>
+    <div class="screen-content">
+      <div class="logo"><div class="logo-icon">🐌</div><div class="logo-text">Snail</div></div>
+      <div class="greeting">
+        <h1>Hallo, Max 👋</h1>
+        <div class="tier-badge tier-free">⭐ Free Tier</div>
+      </div>
+      <div class="glass" style="padding:18px;margin-bottom:16px;">
+        <h3>Quota diese Monat</h3>
+        <div class="quota-bar"><div class="quota-fill" style="width:37%"></div></div>
+        <div class="quota-text"><span>11 / 30 Minuten</span><span>19 min übrig</span></div>
+      </div>
+      <div class="big-action" onclick="show('qr')">
+        <div class="big-action-icon">🎙️</div>
+        <h2>Session starten</h2>
+        <p>Neue Übersetzungs-Session erstellen<br>und QR-Code teilen</p>
+      </div>
+      <div class="big-action" style="background:linear-gradient(135deg,rgba(0,229,255,0.2),rgba(124,92,255,0.1));" onclick="show('join')">
+        <div class="big-action-icon">📱</div>
+        <h2>Session beitreten</h2>
+        <p>QR-Code scannen oder Code eingeben</p>
+      </div>
+      <h3 style="margin-top:20px;">Letzte Sessions</h3>
+      <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🇩🇪↔🇬🇧</span><div><div style="font-weight:600;font-size:14px;">DE ↔ EN</div><div style="font-size:12px;color:var(--text-dim);">Gestern · 12 min</div></div></div><span class="card-row-arrow">›</span></div>
+      <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🇩🇪↔🇫🇷</span><div><div style="font-weight:600;font-size:14px;">DE ↔ FR</div><div style="font-size:12px;color:var(--text-dim);">3 Tage ago · 8 min</div></div></div><span class="card-row-arrow">›</span></div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-item active" onclick="show('home')"><span class="nav-icon">🏠</span>Home</button>
+      <button class="nav-item" onclick="show('settings')"><span class="nav-icon">⚙️</span>Einstellungen</button>
+      <button class="nav-item" onclick="show('profile')"><span class="nav-icon">👤</span>Profil</button>
+    </div>
+  </div>
+
+  <!-- QR -->
+  <div class="screen hidden" id="screen-qr">
+    <div class="status-bar"><span>9:41</span><span class="status-right">📶 5G &nbsp; 🔋 87%</span></div>
+    <div class="screen-content">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+        <button class="btn-ghost" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:4px;" onclick="show('home')">←</button>
+        <h2 style="margin:0;">Session starten</h2>
+      </div>
+      <div class="lang-pair">
+        <div class="lang-chip"><span class="lang-flag">🇩🇪</span> Deutsch</div>
+        <span class="lang-arrow">⇄</span>
+        <div class="lang-chip"><span class="lang-flag">🇬🇧</span> English</div>
+      </div>
+      <div class="qr-container">
+        <p style="font-size:14px;color:var(--text-dim);">Gegenüber zeigt diesen Code:</p>
+        <div class="qr-box" id="qrGrid"></div>
+        <div class="room-code-label">Room-ID</div>
+        <div class="room-code">SNAIL-4821</div>
+      </div>
+      <div class="waiting-indicator"><div class="pulse-dot"></div><span>Warte auf Partner...</span></div>
+      <div class="divider"></div>
+      <h3>Manueller Code</h3>
+      <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Partner kann Code auch eingeben:</p>
+      <div style="display:flex;justify-content:center;gap:8px;margin-bottom:20px;">
+        <div style="background:var(--surface);border:1px solid var(--border);padding:12px 20px;border-radius:10px;font-size:20px;font-weight:700;letter-spacing:3px;color:var(--accent-2);">4821</div>
+      </div>
+      <h3>Session-Einstellungen</h3>
+      <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🎤</span><span style="font-size:14px;">Sprachpaar</span></div><span class="card-row-value">DE ↔ EN</span></div>
+      <div class="card-row"><div class="card-row-label"><span class="card-row-icon">⏱️</span><span style="font-size:14px;">Max. Session-Dauer</span></div><span class="card-row-value">30 min</span></div>
+      <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🔇</span><span style="font-size:14px;">Echo Cancellation</span></div><span class="pill pill-green">AN</span></div>
+      <button class="btn btn-danger" style="margin-top:16px;" onclick="show('home')">Session abbrechen</button>
+    </div>
+  </div>
+
+  <!-- JOIN -->
+  <div class="screen hidden" id="screen-join">
+    <div class="status-bar"><span>9:41</span><span class="status-right">📶 5G &nbsp; 🔋 87%</span></div>
+    <div class="screen-content">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+        <button class="btn-ghost" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:4px;" onclick="show('home')">←</button>
+        <h2 style="margin:0;">Session beitreten</h2>
+      </div>
+      <div style="text-align:center;padding:20px 0;">
+        <div style="width:80px;height:80px;background:var(--surface);border:1px dashed var(--border);border-radius:20px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:36px;">📷</div>
+        <p style="font-size:14px;color:var(--text-dim);">QR-Code des Hosts scannen</p>
+      </div>
+      <div style="text-align:center;margin:24px 0;"><div style="color:var(--text-faint);font-size:13px;">— oder Code eingeben —</div></div>
+      <input class="join-input" type="text" value="SNAIL-4821" placeholder="SNAIL-XXXX" maxlength="10" readonly>
+      <button class="btn btn-primary" onclick="show('session')">Beitreten →</button>
+      <div class="divider"></div>
+      <h3>Verbindung</h3>
+      <div class="glass" style="padding:16px;">
+        <div class="connection-status" style="margin-bottom:8px;"><div class="conn-dot"></div><span>Cloudflare Durable Object · Edge Relay</span></div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">• WebSocket-Verbindung zum Relay-Server<br>• API-Key-Injection serverseitig<br>• Audio-Stream über Opus-Codec</div>
+      </div>
+      <h3 style="margin-top:16px;">Dein Tier</h3>
+      <div class="card-row"><div class="card-row-label"><span class="card-row-icon">⭐</span><span style="font-size:14px;">Free Tier</span></div><span class="card-row-value">19 min übrig</span></div>
+    </div>
+  </div>
+
+  <!-- SESSION -->
+  <div class="screen hidden" id="screen-session">
+    <div class="status-bar"><span>9:41</span><span class="status-right">📶 5G &nbsp; 🔋 85%</span></div>
+    <div class="screen-content" style="padding-bottom:120px;">
+      <div class="session-header">
+        <button class="btn-ghost" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:4px;" onclick="show('home')">←</button>
+        <div class="session-timer">04:23 <span>/ 30:00</span></div>
+        <div class="connection-status"><div class="conn-dot"></div></div>
+      </div>
+      <div class="lang-pair">
+        <div class="lang-chip"><span class="lang-flag">🇩🇪</span> Deutsch</div>
+        <span class="lang-arrow">⇄</span>
+        <div class="lang-chip"><span class="lang-flag">🇬🇧</span> English</div>
+      </div>
+      <div class="speaker-panel speaking">
+        <div class="speaker-header">
+          <div class="speaker-name"><div class="speaker-avatar avatar-a">A</div><span>Du (Max)</span></div>
+          <div class="speaker-status"><div class="pulse-dot"></div>Spricht...</div>
+        </div>
+        <div class="audio-viz" id="vizA"></div>
+        <div class="transcript">Können Sie mir sagen, wo der nächste Bahnhof ist? <span class="partial">Ich brauche auch ein Taxi vom...</span></div>
+        <div class="translation">Can you tell me where the nearest train station is? I also need a taxi from the...</div>
+        <div class="pipeline-indicator"><span class="pipeline-step active">VAD</span>→<span class="pipeline-step active">STT</span>→<span class="pipeline-step active">MT</span>→<span class="pipeline-step">TTS</span>→<span class="pipeline-step">▶</span></div>
+      </div>
+      <div class="speaker-panel">
+        <div class="speaker-header">
+          <div class="speaker-name"><div class="speaker-avatar avatar-b">B</div><span>Partner (Anna)</span></div>
+          <div class="speaker-status"><div style="width:8px;height:8px;border-radius:50%;background:var(--text-faint);"></div>Hört zu</div>
+        </div>
+        <div class="audio-viz" id="vizB" style="opacity:0.3;"></div>
+        <div class="transcript" style="color:var(--text-faint);"><em>Wartet auf Eingabe...</em></div>
+        <div class="translation" style="opacity:0.3;"><em>—</em></div>
+        <div class="pipeline-indicator"><span class="pipeline-step">VAD</span>→<span class="pipeline-step">STT</span>→<span class="pipeline-step">MT</span>→<span class="pipeline-step">TTS</span>→<span class="pipeline-step">▶</span></div>
+      </div>
+      <div class="glass" style="padding:12px;margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);">
+          <span>📊 Latenz: <b style="color:var(--success);">1.4s</b></span>
+          <span>🔌 Relay: <b style="color:var(--accent-2);">DO</b></span>
+          <span>⭐ Tier: <b style="color:var(--warn);">Free</b></span>
+        </div>
+      </div>
+    </div>
+    <div class="session-controls">
+      <button class="ctrl-btn ctrl-mic" title="Mikrofon stumm">🎤</button>
+      <button class="ctrl-btn ctrl-end" title="Session beenden" onclick="show('home')">⏹</button>
+      <button class="ctrl-btn ctrl-swap" title="Sprachen tauschen">⇄</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="screen hidden" id="screen-settings">
+    <div class="status-bar"><span>9:41</span><span class="status-right">📶 5G &nbsp; 🔋 87%</span></div>
+    <div class="screen-content">
+      <div style="display:flex;align-items:center;gap:8px;margin:8px 0 20px;">
+        <button class="btn-ghost" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:4px;" onclick="show('home')">←</button>
+        <h2 style="margin:0;">Einstellungen</h2>
+      </div>
+      <div class="settings-section">
+        <h3>Audio</h3>
+        <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🔇</span><span style="font-size:14px;">Echo Cancellation (AEC)</span></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🎧</span><span style="font-size:14px;">Rauschunterdrückung</span></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🔊</span><span style="font-size:14px;">Lautstärke</span></div><span class="card-row-value">80%</span></div>
+        <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🎵</span><span style="font-size:14px;">Audio-Codec</span></div><span class="card-row-value">Opus 16kHz</span></div>
+      </div>
+      <div class="settings-section">
+        <h3>Sprache</h3>
+        <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🇩🇪</span><span style="font-size:14px;">Meine Sprache</span></div><span class="card-row-value">Deutsch</span></div>
+        <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🇬🇧</span><span style="font-size:14px;">Partner-Sprache</span></div><span class="card-row-value">English</span></div>
+        <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🌐</span><span style="font-size:14px;">Auto-Spracherkennung</span></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="settings-section">
+        <h3>Backend & Sicherheit</h3>
+        <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🔑</span><span style="font-size:14px;">API-Keys</span></div><span class="pill pill-green">Serverseitig</span></div>
+        <div class="card-row"><div class="card-row-label"><span class="card-row-icon">☁️</span><span style="font-size:14px;">Relay</span></div><span class="card-row-value">CF Durable Object</span></div>
+        <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🔐</span><span style="font-size:14px;">Auth Provider</span></div><span class="card-row-value">Clerk</span></div>
+      </div>
+      <div class="settings-section">
+        <h3>Account</h3>
+        <div class="card-row" onclick="show('paywall')"><div class="card-row-label"><span class="card-row-icon">⭐</span><span style="font-size:14px;">Abo verwalten</span></div><span class="card-row-arrow">›</span></div>
+        <div class="card-row"><div class="card-row-label"><span class="card-row-icon">📋</span><span style="font-size:14px;">Datenschutz</span></div><span class="card-row-arrow">›</span></div>
+      </div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="show('home')"><span class="nav-icon">🏠</span>Home</button>
+      <button class="nav-item active" onclick="show('settings')"><span class="nav-icon">⚙️</span>Einstellungen</button>
+      <button class="nav-item" onclick="show('profile')"><span class="nav-icon">👤</span>Profil</button>
+    </div>
+  </div>
+
+  <!-- PAYWALL -->
+  <div class="screen hidden" id="screen-paywall">
+    <div class="status-bar"><span>9:41</span><span class="status-right">📶 5G &nbsp; 🔋 87%</span></div>
+    <div class="screen-content">
+      <div style="display:flex;align-items:center;gap:8px;margin:8px 0 20px;">
+        <button class="btn-ghost" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:4px;" onclick="show('settings')">←</button>
+        <h2 style="margin:0;">Abo verwalten</h2>
+      </div>
+      <div class="paywall-hero">
+        <div style="font-size:48px;">⭐</div>
+        <h1>Snail Pro</h1>
+        <p class="subtitle">Unbegrenzte Übersetzungen<br>mit Premium-APIs</p>
+      </div>
+      <div class="plan-card selected">
+        <div class="plan-header"><span class="plan-name">Free</span><span class="plan-price">€0<small>/Monat</small></span></div>
+        <ul class="plan-features"><li>30 Minuten / Monat</li><li>DE / EN / FR / ES</li><li>Groq Whisper STT</li><li>DeepL Free Übersetzung</li><li>Google Cloud TTS</li></ul>
+      </div>
+      <div class="plan-card" onclick="this.classList.toggle('selected')">
+        <div class="plan-header"><span class="plan-name">Pro</span><span class="plan-price">€9,99<small>/Monat</small></span></div>
+        <ul class="plan-features"><li>Unbegrenzte Minuten</li><li>Alle Sprachen</li><li>Deepgram Nova-2 STT</li><li>DeepL Pro Übersetzung</li><li>fish.audio Premium TTS</li><li>Priorisierter Relay-Zugang</li></ul>
+      </div>
+      <button class="btn btn-primary" style="margin-top:8px;">Jetzt upgraden →</button>
+      <div class="divider"></div>
+      <p style="font-size:12px;color:var(--text-faint);text-align:center;line-height:1.6;">Abonnement via Clerk verwaltet.<br>Jederzeit kündbar.</p>
+    </div>
+  </div>
+
+  <!-- PROFILE -->
+  <div class="screen hidden" id="screen-profile">
+    <div class="status-bar"><span>9:41</span><span class="status-right">📶 5G &nbsp; 🔋 87%</span></div>
+    <div class="screen-content">
+      <div class="profile-header">
+        <div class="profile-avatar">M</div>
+        <h2 style="margin:0;font-size:20px;">Max Mustermann</h2>
+        <p style="font-size:13px;color:var(--text-dim);">max@example.com</p>
+        <div class="tier-badge tier-free" style="margin-top:8px;">⭐ Free Tier</div>
+      </div>
+      <h3>Statistik</h3>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-value">7</div><div class="stat-label">Sessions</div></div>
+        <div class="stat-card"><div class="stat-value">68</div><div class="stat-label">Minuten gesamt</div></div>
+        <div class="stat-card"><div class="stat-value">3</div><div class="stat-label">Sprachpaare</div></div>
+      </div>
+      <h3>Sprachpaare genutzt</h3>
+      <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🇩🇪↔🇬🇧</span><span style="font-size:14px;">DE ↔ EN</span></div><span class="card-row-value">4 Sessions</span></div>
+      <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🇩🇪↔🇫🇷</span><span style="font-size:14px;">DE ↔ FR</span></div><span class="card-row-value">2 Sessions</span></div>
+      <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🇩🇪↔🇪🇸</span><span style="font-size:14px;">DE ↔ ES</span></div><span class="card-row-value">1 Session</span></div>
+      <h3>Account</h3>
+      <div class="card-row" onclick="show('paywall')"><div class="card-row-label"><span class="card-row-icon">⭐</span><span style="font-size:14px;">Abo verwalten</span></div><span class="card-row-arrow">›</span></div>
+      <div class="card-row"><div class="card-row-label"><span class="card-row-icon">🔑</span><span style="font-size:14px;">Passwort ändern</span></div><span class="card-row-arrow">›</span></div>
+      <button class="btn btn-danger" style="margin-top:16px;" onclick="show('login')">Abmelden</button>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="show('home')"><span class="nav-icon">🏠</span>Home</button>
+      <button class="nav-item" onclick="show('settings')"><span class="nav-icon">⚙️</span>Einstellungen</button>
+      <button class="nav-item active" onclick="show('profile')"><span class="nav-icon">👤</span>Profil</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function show(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+    document.getElementById('screen-'+id).classList.remove('hidden');
+    document.getElementById('screen-'+id).scrollTop=0;
+    document.querySelectorAll('.screen-list button').forEach(b=>b.classList.remove('active'));
+    const btn=document.querySelector(`[data-screen="${id}"]`); if(btn)btn.classList.add('active');
+  }
+  const qrGrid=document.getElementById('qrGrid');
+  if(qrGrid){
+    const size=21,pattern=[];
+    for(let y=0;y<size;y++){pattern[y]=[];for(let x=0;x<size;x++)pattern[y][x]=0;}
+    function drawFinder(ox,oy){for(let y=0;y<7;y++)for(let x=0;x<7;x++){if(x===0||x===6||y===0||y===6)pattern[oy+y][ox+x]=1;if(x>=2&&x<=4&&y>=2&&y<=4)pattern[oy+y][ox+x]=1;}}
+    drawFinder(0,0);drawFinder(14,0);drawFinder(0,14);
+    for(let y=0;y<size;y++)for(let x=0;x<size;x++){if((x<8&&y<8)||(x>12&&y<8)||(x<8&&y>12))continue;if(Math.random()>0.5)pattern[y][x]=1;}
+    for(let y=0;y<size;y++)for(let x=0;x<size;x++){const c=document.createElement('div');if(pattern[y][x]===0)c.classList.add('white');qrGrid.appendChild(c);}
+  }
+  function genViz(id,count){const el=document.getElementById(id);if(!el)return;for(let i=0;i<count;i++){const b=document.createElement('div');b.className='bar';b.style.animationDelay=(i*0.08)+'s';b.style.animationDuration=(0.6+Math.random()*0.4)+'s';el.appendChild(b);}}
+  genViz('vizA',24);genViz('vizB',24);
+  show('login');
+</script>
+</body>
+</html>

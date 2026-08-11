@@ -1,0 +1,20 @@
+{
+  "input_file": "S3.wav",
+  "source_lang": "de",
+  "target_lang": "en",
+  "tier": "free",
+  "t_vad": 47.0000000204891,
+  "t_encode": 0.0,
+  "t_stt": 577.9999999795109,
+  "t_mt": 531.0000000754371,
+  "t_tts": 2000.0,
+  "t_decode": 0.0,
+  "t_total": 3156.000000075437,
+  "transcript": "Ich bin vor zwei Tagen in Berlin angekommen und habe mir das Hotel gesucht, aber die Adresse war falsch.",
+  "translation": "I arrived in Berlin two days ago and looked for the hotel, but the address was wrong.",
+  "wer": 0.0,
+  "stt_api": "groq",
+  "mt_api": "groq",
+  "tts_api": "fishaudio",
+  "timestamp": "2026-08-10T15:35:25Z"
+}

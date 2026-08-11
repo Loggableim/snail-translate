@@ -1,0 +1,20 @@
+{
+  "input_file": "S5.wav",
+  "source_lang": "de",
+  "target_lang": "en",
+  "tier": "free",
+  "t_vad": 15.000000013969839,
+  "t_encode": 0.0,
+  "t_stt": 516.0000000614673,
+  "t_mt": 983.9999999385327,
+  "t_tts": 1016.0000000614673,
+  "t_decode": 0.0,
+  "t_total": 2531.000000075437,
+  "transcript": "Can you recommend a good restaurant nearby?",
+  "translation": "Can you recommend a good restaurant nearby?",
+  "wer": 0.0,
+  "stt_api": "groq",
+  "mt_api": "groq",
+  "tts_api": "fishaudio",
+  "timestamp": "2026-08-10T15:35:49Z"
+}

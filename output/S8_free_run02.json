@@ -1,0 +1,20 @@
+{
+  "input_file": "S8.wav",
+  "source_lang": "de",
+  "target_lang": "en",
+  "tier": "free",
+  "t_vad": 15.999999945051968,
+  "t_encode": 0.0,
+  "t_stt": 467.99999999348074,
+  "t_mt": 422.0000000204891,
+  "t_tts": 640.999999945052,
+  "t_decode": 0.0,
+  "t_total": 1546.9999999040738,
+  "transcript": "Guten Tag!",
+  "translation": "Good day!",
+  "wer": 0.5,
+  "stt_api": "groq",
+  "mt_api": "groq",
+  "tts_api": "fishaudio",
+  "timestamp": "2026-08-10T15:36:30Z"
+}

@@ -1,0 +1,20 @@
+{
+  "input_file": "S6.wav",
+  "source_lang": "de",
+  "target_lang": "en",
+  "tier": "free",
+  "t_vad": 77.9999999795109,
+  "t_encode": 0.0,
+  "t_stt": 687.9999999655411,
+  "t_mt": 327.9999999795109,
+  "t_tts": 2640.00000001397,
+  "t_decode": 0.0,
+  "t_total": 3733.9999999385327,
+  "transcript": "Also wir waren dann im Museum und da gab es diese Ausstellung über moderne Kunst und das war wirklich sehr interessant, besonders der Teil mit den Fotografien.",
+  "translation": "Also we were then at the museum and there was this exhibition about modern art and that was really very interesting, especially the part with the photographs.",
+  "wer": 0.037037037037037035,
+  "stt_api": "groq",
+  "mt_api": "groq",
+  "tts_api": "fishaudio",
+  "timestamp": "2026-08-10T15:35:55Z"
+}

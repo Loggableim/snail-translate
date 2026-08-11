@@ -1,0 +1,382 @@
+{
+  "timestamp": "2026-08-10T20:25:27",
+  "samples": 10,
+  "runs_per_sample": 3,
+  "groq": {
+    "count": 21,
+    "min": 453.0,
+    "max": 703.0,
+    "mean": 538.4,
+    "p50": 531.0,
+    "p95": 656.0
+  },
+  "openai": {
+    "count": 30,
+    "min": 781.0,
+    "max": 2218.0,
+    "mean": 1242.8,
+    "p50": 1250.0,
+    "p95": 2079.0
+  },
+  "groq_raw": [
+    {
+      "sample": "S1.wav",
+      "run": 1,
+      "api": "groq",
+      "latency_ms": 578.0,
+      "transcript": "Hallo, wie geht es dir?"
+    },
+    {
+      "sample": "S1.wav",
+      "run": 2,
+      "api": "groq",
+      "latency_ms": 453.0,
+      "transcript": "Hallo, wie geht es dir?"
+    },
+    {
+      "sample": "S1.wav",
+      "run": 3,
+      "api": "groq",
+      "latency_ms": 453.0,
+      "transcript": "Hallo, wie geht es dir?"
+    },
+    {
+      "sample": "S10.wav",
+      "run": 1,
+      "api": "groq",
+      "latency_ms": 562.0,
+      "transcript": "Dankesch\u00f6n. Wo ist die Toilette?"
+    },
+    {
+      "sample": "S10.wav",
+      "run": 2,
+      "api": "groq",
+      "latency_ms": 515.0,
+      "transcript": "Dankesch\u00f6n. Wo ist die Toilette?"
+    },
+    {
+      "sample": "S10.wav",
+      "run": 3,
+      "api": "groq",
+      "latency_ms": 484.0,
+      "transcript": "Dankesch\u00f6n. Wo ist die Toilette?"
+    },
+    {
+      "sample": "S2.wav",
+      "run": 1,
+      "api": "groq",
+      "latency_ms": 484.0,
+      "transcript": "K\u00f6nnen Sie mir sagen, wo der n\u00e4chste Bahnhof ist?"
+    },
+    {
+      "sample": "S2.wav",
+      "run": 2,
+      "api": "groq",
+      "latency_ms": 468.0,
+      "transcript": "K\u00f6nnen Sie mir sagen, wo der n\u00e4chste Bahnhof ist?"
+    },
+    {
+      "sample": "S2.wav",
+      "run": 3,
+      "api": "groq",
+      "latency_ms": 500.0,
+      "transcript": "K\u00f6nnen Sie mir sagen, wo der n\u00e4chste Bahnhof ist?"
+    },
+    {
+      "sample": "S3.wav",
+      "run": 1,
+      "api": "groq",
+      "latency_ms": 625.0,
+      "transcript": "Ich bin vor zwei Tagen in Berlin angekommen und habe mir das Hotel gesucht, aber"
+    },
+    {
+      "sample": "S3.wav",
+      "run": 2,
+      "api": "groq",
+      "latency_ms": 562.0,
+      "transcript": "Ich bin vor zwei Tagen in Berlin angekommen und habe mir das Hotel gesucht, aber"
+    },
+    {
+      "sample": "S3.wav",
+      "run": 3,
+      "api": "groq",
+      "latency_ms": 578.0,
+      "transcript": "Ich bin vor zwei Tagen in Berlin angekommen und habe mir das Hotel gesucht, aber"
+    },
+    {
+      "sample": "S4.wav",
+      "run": 1,
+      "api": "groq",
+      "latency_ms": 609.0,
+      "transcript": "Einmal Kaffee, bitte. Mit Milch."
+    },
+    {
+      "sample": "S4.wav",
+      "run": 2,
+      "api": "groq",
+      "latency_ms": 453.0,
+      "transcript": "Einmal Kaffee, bitte. Mit Milch."
+    },
+    {
+      "sample": "S4.wav",
+      "run": 3,
+      "api": "groq",
+      "latency_ms": 578.0,
+      "transcript": "Einmal Kaffee, bitte. Mit Milch."
+    },
+    {
+      "sample": "S5.wav",
+      "run": 1,
+      "api": "groq",
+      "latency_ms": 531.0,
+      "transcript": "Kannst du dir einen guten Restaurant anbieten?"
+    },
+    {
+      "sample": "S5.wav",
+      "run": 2,
+      "api": "groq",
+      "latency_ms": 594.0,
+      "transcript": "Kannst du dir einen guten Restaurant anbieten?"
+    },
+    {
+      "sample": "S5.wav",
+      "run": 3,
+      "api": "groq",
+      "latency_ms": 468.0,
+      "transcript": "Kannst du dir einen guten Restaurant anbieten?"
+    },
+    {
+      "sample": "S6.wav",
+      "run": 1,
+      "api": "groq",
+      "latency_ms": 703.0,
+      "transcript": "Also wir waren dann im Museum und da gab es diese Ausstellung \u00fcber moderne Kunst"
+    },
+    {
+      "sample": "S6.wav",
+      "run": 2,
+      "api": "groq",
+      "latency_ms": 656.0,
+      "transcript": "Also wir waren dann im Museum und da gab es diese Ausstellung \u00fcber moderne Kunst"
+    },
+    {
+      "sample": "S8.wav",
+      "run": 1,
+      "api": "groq",
+      "latency_ms": 453.0,
+      "transcript": "Guten Tag!"
+    }
+  ],
+  "openai_raw": [
+    {
+      "sample": "S1.wav",
+      "run": 1,
+      "api": "openai",
+      "latency_ms": 2218.0,
+      "transcript": "Hallo, wie geht es dir?"
+    },
+    {
+      "sample": "S1.wav",
+      "run": 2,
+      "api": "openai",
+      "latency_ms": 1578.0,
+      "transcript": "Hallo, wie geht es dir?"
+    },
+    {
+      "sample": "S1.wav",
+      "run": 3,
+      "api": "openai",
+      "latency_ms": 1203.0,
+      "transcript": "Hallo, wie geht es dir?"
+    },
+    {
+      "sample": "S10.wav",
+      "run": 1,
+      "api": "openai",
+      "latency_ms": 812.0,
+      "transcript": "Dankesch\u00f6n. Wo ist die Toilette?"
+    },
+    {
+      "sample": "S10.wav",
+      "run": 2,
+      "api": "openai",
+      "latency_ms": 1125.0,
+      "transcript": "Dankesch\u00f6n. Wo ist die Toilette?"
+    },
+    {
+      "sample": "S10.wav",
+      "run": 3,
+      "api": "openai",
+      "latency_ms": 1469.0,
+      "transcript": "Dankesch\u00f6n. Wo ist die Toilette?"
+    },
+    {
+      "sample": "S2.wav",
+      "run": 1,
+      "api": "openai",
+      "latency_ms": 797.0,
+      "transcript": "K\u00f6nnen Sie mir sagen, wo der n\u00e4chste Bahnhof ist?"
+    },
+    {
+      "sample": "S2.wav",
+      "run": 2,
+      "api": "openai",
+      "latency_ms": 1594.0,
+      "transcript": "K\u00f6nnen Sie mir sagen, wo der n\u00e4chste Bahnhof ist?"
+    },
+    {
+      "sample": "S2.wav",
+      "run": 3,
+      "api": "openai",
+      "latency_ms": 890.0,
+      "transcript": "K\u00f6nnen Sie mir sagen, wo der n\u00e4chste Bahnhof ist?"
+    },
+    {
+      "sample": "S3.wav",
+      "run": 1,
+      "api": "openai",
+      "latency_ms": 1282.0,
+      "transcript": "Ich bin vor zwei Tagen in Berlin angekommen und habe mir das Hotel gesucht, aber"
+    },
+    {
+      "sample": "S3.wav",
+      "run": 2,
+      "api": "openai",
+      "latency_ms": 922.0,
+      "transcript": "Ich bin vor zwei Tagen in Berlin angekommen und habe mir das Hotel gesucht, aber"
+    },
+    {
+      "sample": "S3.wav",
+      "run": 3,
+      "api": "openai",
+      "latency_ms": 1594.0,
+      "transcript": "Ich bin vor zwei Tagen in Berlin angekommen und habe mir das Hotel gesucht, aber"
+    },
+    {
+      "sample": "S4.wav",
+      "run": 1,
+      "api": "openai",
+      "latency_ms": 1484.0,
+      "transcript": "Einmal Kaffee, bitte. Mit Milch."
+    },
+    {
+      "sample": "S4.wav",
+      "run": 2,
+      "api": "openai",
+      "latency_ms": 875.0,
+      "transcript": "Einmal Kaffee, bitte. Mit Milch."
+    },
+    {
+      "sample": "S4.wav",
+      "run": 3,
+      "api": "openai",
+      "latency_ms": 1515.0,
+      "transcript": "Einmal Kaffee, bitte. Mit Milch."
+    },
+    {
+      "sample": "S5.wav",
+      "run": 1,
+      "api": "openai",
+      "latency_ms": 1344.0,
+      "transcript": "Kannst du einen guten Restaurant naheby empfehlen?"
+    },
+    {
+      "sample": "S5.wav",
+      "run": 2,
+      "api": "openai",
+      "latency_ms": 1578.0,
+      "transcript": "Kannst du einen guten Restaurant naheby empfehlen?"
+    },
+    {
+      "sample": "S5.wav",
+      "run": 3,
+      "api": "openai",
+      "latency_ms": 891.0,
+      "transcript": "Kannst du einen guten Restaurant naheby empfehlen?"
+    },
+    {
+      "sample": "S6.wav",
+      "run": 1,
+      "api": "openai",
+      "latency_ms": 2079.0,
+      "transcript": "Also wir waren dann im Museum und da gab es diese Ausstellung \u00fcber moderne Kunst"
+    },
+    {
+      "sample": "S6.wav",
+      "run": 2,
+      "api": "openai",
+      "latency_ms": 1985.0,
+      "transcript": "Also wir waren dann im Museum und da gab es diese Ausstellung \u00fcber moderne Kunst"
+    },
+    {
+      "sample": "S6.wav",
+      "run": 3,
+      "api": "openai",
+      "latency_ms": 1406.0,
+      "transcript": "Also wir waren dann im Museum und da gab es diese Ausstellung \u00fcber moderne Kunst"
+    },
+    {
+      "sample": "S7.wav",
+      "run": 1,
+      "api": "openai",
+      "latency_ms": 829.0,
+      "transcript": "Ich brauche ein Ticket f\u00fcr den Airport Shuttle."
+    },
+    {
+      "sample": "S7.wav",
+      "run": 2,
+      "api": "openai",
+      "latency_ms": 829.0,
+      "transcript": "Ich brauche ein Ticket f\u00fcr den Airport Shuttle."
+    },
+    {
+      "sample": "S7.wav",
+      "run": 3,
+      "api": "openai",
+      "latency_ms": 1000.0,
+      "transcript": "Ich brauche ein Ticket f\u00fcr den Airport Shuttle."
+    },
+    {
+      "sample": "S8.wav",
+      "run": 1,
+      "api": "openai",
+      "latency_ms": 797.0,
+      "transcript": "Guten Tag!"
+    },
+    {
+      "sample": "S8.wav",
+      "run": 2,
+      "api": "openai",
+      "latency_ms": 906.0,
+      "transcript": "Guten Tag!"
+    },
+    {
+      "sample": "S8.wav",
+      "run": 3,
+      "api": "openai",
+      "latency_ms": 1453.0,
+      "transcript": "Guten Tag!"
+    },
+    {
+      "sample": "S9.wav",
+      "run": 1,
+      "api": "openai",
+      "latency_ms": 1250.0,
+      "transcript": "Ich m\u00f6chte zahlen."
+    },
+    {
+      "sample": "S9.wav",
+      "run": 2,
+      "api": "openai",
+      "latency_ms": 781.0,
+      "transcript": "Ich m\u00f6chte zahlen."
+    },
+    {
+      "sample": "S9.wav",
+      "run": 3,
+      "api": "openai",
+      "latency_ms": 797.0,
+      "transcript": "Ich m\u00f6chte zahlen."
+    }
+  ]
+}

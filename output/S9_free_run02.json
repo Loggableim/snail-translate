@@ -1,0 +1,20 @@
+{
+  "input_file": "S9.wav",
+  "source_lang": "de",
+  "target_lang": "en",
+  "tier": "free",
+  "t_vad": 15.000000013969839,
+  "t_encode": 0.0,
+  "t_stt": 454.00000002700835,
+  "t_mt": 609.000000054948,
+  "t_tts": 780.9999999590218,
+  "t_decode": 0.0,
+  "t_total": 1859.000000054948,
+  "transcript": "Ich möchte zahlen.",
+  "translation": "I want to pay.",
+  "wer": 0.0,
+  "stt_api": "groq",
+  "mt_api": "groq",
+  "tts_api": "fishaudio",
+  "timestamp": "2026-08-10T15:36:41Z"
+}

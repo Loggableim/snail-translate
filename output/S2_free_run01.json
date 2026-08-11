@@ -1,0 +1,20 @@
+{
+  "input_file": "S2.wav",
+  "source_lang": "de",
+  "target_lang": "en",
+  "tier": "free",
+  "t_vad": 47.0000000204891,
+  "t_encode": 0.0,
+  "t_stt": 468.99999992456287,
+  "t_mt": 500.0,
+  "t_tts": 1109.000000054948,
+  "t_decode": 0.0,
+  "t_total": 2125.0,
+  "transcript": "Können Sie mir sagen, wo der nächste Bahnhof ist?",
+  "translation": "Can you tell me where the nearest train station is?",
+  "wer": 0.0,
+  "stt_api": "groq",
+  "mt_api": "groq",
+  "tts_api": "fishaudio",
+  "timestamp": "2026-08-10T15:35:05Z"
+}

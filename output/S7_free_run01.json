@@ -1,0 +1,20 @@
+{
+  "input_file": "S7.wav",
+  "source_lang": "de",
+  "target_lang": "en",
+  "tier": "free",
+  "t_vad": 31.00000007543713,
+  "t_encode": 0.0,
+  "t_stt": 593.9999999245629,
+  "t_mt": 452.9999999795109,
+  "t_tts": 1062.000000034459,
+  "t_decode": 0.0,
+  "t_total": 2140.00000001397,
+  "transcript": "Ich brauche ein Ticket für den Airport Shuttle.",
+  "translation": "I need a ticket for the airport shuttle.",
+  "wer": 0.2857142857142857,
+  "stt_api": "groq",
+  "mt_api": "groq",
+  "tts_api": "fishaudio",
+  "timestamp": "2026-08-10T15:36:15Z"
+}

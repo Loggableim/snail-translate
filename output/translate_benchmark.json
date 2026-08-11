@@ -1,0 +1,190 @@
+{
+  "benchmarks": {
+    "groq-gpt-oss-20b": [
+      {
+        "api": "groq",
+        "model": "gpt-oss-20b",
+        "latency_ms": 422.0000000204891,
+        "translation": "Hello, how are you?"
+      },
+      {
+        "api": "groq",
+        "model": "gpt-oss-20b",
+        "latency_ms": 577.9999999795109,
+        "translation": "Can you tell me where the nearest train station is?"
+      },
+      {
+        "api": "groq",
+        "model": "gpt-oss-20b",
+        "latency_ms": 687.0000000344589,
+        "translation": "I arrived in Berlin two days ago and looked for the hotel, but the address was wrong."
+      },
+      {
+        "api": "groq",
+        "model": "gpt-oss-20b",
+        "latency_ms": 359.00000005494803,
+        "translation": "One coffee, please. With milk."
+      },
+      {
+        "api": "groq",
+        "model": "gpt-oss-20b",
+        "latency_ms": 437.00000003445894,
+        "translation": "I need a ticket for the airport shuttle."
+      },
+      {
+        "api": "groq",
+        "model": "gpt-oss-20b",
+        "latency_ms": 202.9999999795109,
+        "translation": "Good day."
+      },
+      {
+        "api": "groq",
+        "model": "gpt-oss-20b",
+        "latency_ms": 405.9999999590218,
+        "translation": "I want to pay."
+      },
+      {
+        "api": "groq",
+        "model": "gpt-oss-20b",
+        "latency_ms": 375.0,
+        "translation": "Thank you. Where is the toilet?"
+      },
+      {
+        "api": "groq",
+        "model": "gpt-oss-20b",
+        "latency_ms": 545.9999999729916,
+        "translation": "Excuse me, can you help me? I am looking for the museum."
+      },
+      {
+        "api": "groq",
+        "model": "gpt-oss-20b",
+        "latency_ms": 515.999999945052,
+        "translation": "The weather is very nice today, isn’t it?"
+      }
+    ],
+    "ollama-deepseek-v4-flash": [
+      {
+        "api": "ollama",
+        "model": "deepseek-v4-flash",
+        "latency_ms": 1329.0000000270084,
+        "translation": "Hello, how are you?"
+      },
+      {
+        "api": "ollama",
+        "model": "deepseek-v4-flash",
+        "latency_ms": 9391.000000061467,
+        "translation": "Could you tell me where the nearest train station is?"
+      },
+      {
+        "api": "ollama",
+        "model": "deepseek-v4-flash",
+        "latency_ms": 1375.0,
+        "translation": "I arrived in Berlin two days ago and looked for the hotel, but the address was wrong."
+      },
+      {
+        "api": "ollama",
+        "model": "deepseek-v4-flash",
+        "latency_ms": 2188.0000000819564,
+        "translation": "One coffee, please. With milk."
+      },
+      {
+        "api": "ollama",
+        "model": "deepseek-v4-flash",
+        "latency_ms": 10625.0,
+        "translation": "I need a ticket for the airport shuttle."
+      },
+      {
+        "api": "ollama",
+        "model": "deepseek-v4-flash",
+        "latency_ms": 1219.0000000409782,
+        "translation": "Good day."
+      },
+      {
+        "api": "ollama",
+        "model": "deepseek-v4-flash",
+        "latency_ms": 1500.0,
+        "translation": "I would like to pay."
+      },
+      {
+        "api": "ollama",
+        "model": "deepseek-v4-flash",
+        "latency_ms": 2375.0,
+        "translation": "Thank you very much. Where is the restroom?"
+      },
+      {
+        "api": "ollama",
+        "model": "deepseek-v4-flash",
+        "latency_ms": 1422.000000020489,
+        "translation": "Excuse me, can you help me? I'm looking for the museum."
+      },
+      {
+        "api": "ollama",
+        "model": "deepseek-v4-flash",
+        "latency_ms": 1375.0,
+        "translation": "The weather is very nice today, isn't it?"
+      }
+    ],
+    "ollama-gpt-oss-20b": [
+      {
+        "api": "ollama",
+        "model": "gpt-oss:20b",
+        "latency_ms": 1342.9999999934807,
+        "translation": "Hello, how are you?"
+      },
+      {
+        "api": "ollama",
+        "model": "gpt-oss:20b",
+        "latency_ms": 1655.9999999590218,
+        "translation": "Can you tell me where the nearest train station is?"
+      },
+      {
+        "api": "ollama",
+        "model": "gpt-oss:20b",
+        "latency_ms": 2687.999999965541,
+        "translation": "I arrived in Berlin two days ago and looked for the hotel, but the address was wrong."
+      },
+      {
+        "api": "ollama",
+        "model": "gpt-oss:20b",
+        "latency_ms": 2141.0000000614673,
+        "translation": "One coffee, please. With milk."
+      },
+      {
+        "api": "ollama",
+        "model": "gpt-oss:20b",
+        "latency_ms": 1437.000000034459,
+        "translation": "I need a ticket for the airport shuttle."
+      },
+      {
+        "api": "ollama",
+        "model": "gpt-oss:20b",
+        "latency_ms": 1390.999999945052,
+        "translation": "Good day."
+      },
+      {
+        "api": "ollama",
+        "model": "gpt-oss:20b",
+        "latency_ms": 1922.000000020489,
+        "translation": "I would like to pay."
+      },
+      {
+        "api": "ollama",
+        "model": "gpt-oss:20b",
+        "latency_ms": 2187.999999965541,
+        "translation": "Thank you. Where is the toilet?"
+      },
+      {
+        "api": "ollama",
+        "model": "gpt-oss:20b",
+        "latency_ms": 2016.0000000614673,
+        "translation": "Excuse me, can you help me? I am looking for the museum."
+      },
+      {
+        "api": "ollama",
+        "model": "gpt-oss:20b",
+        "latency_ms": 1405.9999999590218,
+        "translation": "The weather is very nice today, isn’t it?"
+      }
+    ]
+  }
+}

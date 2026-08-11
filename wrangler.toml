@@ -1,0 +1,63 @@
+# Snail — Cloudflare Wrangler Configuration
+# Worker + Durable Object + KV
+
+name = "snail-worker"
+main = "worker/src/index.ts"
+compatibility_date = "2024-01-01"
+account_id = "6864275679754e2e98c4a76a6b1d66d2"
+workers_dev = true
+
+# ── Durable Objects ──────────────────────────────────────────────────
+
+[[durable_objects.bindings]]
+name = "SNAIL_RELAY"
+class_name = "SnailRelay"
+
+[[durable_objects.bindings]]
+name = "SNAIL_APP_SHARE_RELAY"
+class_name = "AppShareRelay"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SnailRelay"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["AppShareRelay"]
+
+# ── KV Namespace ──────────────────────────────────────────────────────
+
+[[kv_namespaces]]
+binding = "SNAIL_KV"
+id = "9e842997d805491080a5de29544a01c8"
+preview_id = "9e842997d805491080a5de29544a01c8"
+
+
+# ── Routes ─────────────────────────────────────────────────────────────
+
+[[routes]]
+pattern = "snail.dominik.in"
+zone_id = "af40d8b9c34f745e799a0b93d78ac6a1"
+
+# ── Environment Variables (non-secret) ────────────────────────────────
+
+[vars]
+CLERK_JWKS_URL = "https://api.clerk.com/v1/jwks"
+CLERK_ISSUER = "https://clerk.snail.app"
+DEV_MODE = "true"
+DEV_ALLOW_IDENTITY_AUTH = "true"
+# Set DEVICE_ID_AUTH = "true" when running a non-dev deployment without Clerk.
+# Keep it false unless the deployment has the intended device-identity policy.
+DEVICE_ID_AUTH = "false"
+
+# ── Secrets (set via `wrangler secret put`) ──────────────────────────
+# SESSION_SECRET
+# GROQ_API_KEY
+# DEEPGRAM_API_KEY
+# DEEPL_API_KEY
+# FISHAUDIO_API_KEY
+# GOOGLE_APPLICATION_CREDENTIALS
+# OPENAI_API_KEY (optional: platform-owned key for short-lived Realtime secrets)
+# TURN_URL (optional)
+# TURN_USERNAME (optional)
+# TURN_CREDENTIAL (optional; issue short-lived credentials in production)
