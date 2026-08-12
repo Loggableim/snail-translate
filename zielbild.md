@@ -49,7 +49,7 @@ nächsten offenen Punkt.
 - [x] 31. Sprachnachrichten ergänzen.
 - [x] 32. Nachrichtensuche einbauen.
 - [x] 33. Nachrichtenbearbeitung und Löschung spezifizieren und umsetzen.
-- [ ] 34. Kontaktanfragen akzeptierbar oder ablehnbar machen.
+- [x] 34. Kontaktanfragen akzeptierbar oder ablehnbar machen.
 - [ ] 35. Kontakte blockieren können.
 - [ ] 36. Inaktive Sessions automatisch bereinigen.
 - [ ] 37. Große Services in kleinere Komponenten teilen.

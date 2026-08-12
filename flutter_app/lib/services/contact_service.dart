@@ -9,6 +9,14 @@ class ContactService extends ChangeNotifier {
 
   List<SnailContact> get contacts => List.unmodifiable(_contacts);
 
+  /// Contacts that have been accepted (not pending or rejected).
+  List<SnailContact> get acceptedContacts =>
+      _contacts.where((c) => c.isAccepted).toList();
+
+  /// Pending contact requests awaiting user action.
+  List<SnailContact> get pendingRequests =>
+      _contacts.where((c) => c.isPending).toList();
+
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(_storageKey) ?? const [];
@@ -19,6 +27,7 @@ class ContactService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Add a contact from QR payload. New contacts start as pending.
   Future<bool> addFromQr(String payload) async {
     final uri = Uri.tryParse(payload.trim());
     if (uri == null || uri.scheme != 'snail' || uri.host != 'user') {
@@ -29,11 +38,31 @@ class ContactService extends ChangeNotifier {
     final username = uri.queryParameters['name']?.trim();
     if (_contacts.any((contact) => contact.userId == userId)) return true;
     _contacts.add(SnailContact(
-        userId: userId,
-        username: username?.isNotEmpty == true ? username! : 'Snail User'));
+      userId: userId,
+      username: username?.isNotEmpty == true ? username! : 'Snail User',
+      status: ContactStatus.pending,
+    ));
     await _persist();
     notifyListeners();
     return true;
+  }
+
+  /// Accept a pending contact request.
+  Future<void> accept(SnailContact contact) async {
+    final index = _contacts.indexWhere((c) => c.userId == contact.userId);
+    if (index == -1) return;
+    _contacts[index] = _contacts[index].copyWith(status: ContactStatus.accepted);
+    await _persist();
+    notifyListeners();
+  }
+
+  /// Reject a pending contact request.
+  Future<void> reject(SnailContact contact) async {
+    final index = _contacts.indexWhere((c) => c.userId == contact.userId);
+    if (index == -1) return;
+    _contacts[index] = _contacts[index].copyWith(status: ContactStatus.rejected);
+    await _persist();
+    notifyListeners();
   }
 
   Future<void> remove(SnailContact contact) async {
