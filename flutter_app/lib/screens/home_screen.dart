@@ -1,6 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../services/session_service.dart';
+
+Future<void> _showCodeDialog(BuildContext context) async {
+  final controller = TextEditingController();
+  final result = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Session-Code eingeben'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Gib den Session-Code deines Gesprächspartners ein.',
+            style: TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: controller,
+            autofocus: true,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 24,
+              letterSpacing: 4,
+            ),
+            decoration: InputDecoration(
+              hintText: 'snail-XXXX',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+          child: const Text('Beitreten'),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  if (result == null || result.isEmpty || !context.mounted) return;
+
+  // Navigate to join screen with the code pre-filled
+  final session = await context.read<SessionService>().joinRoom(result);
+  if (context.mounted && session != null) {
+    Navigator.pushReplacementNamed(context, '/session');
+  } else if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.read<SessionService>().error ?? 'Beitritt fehlgeschlagen',
+        ),
+      ),
+    );
+  }
+}
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -55,6 +118,17 @@ class HomeScreen extends StatelessWidget {
                       label: 'Beitreten',
                       color: colors.secondary,
                       onTap: () => Navigator.pushNamed(context, '/join'))),
+            ]),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                  child: _QuickAction(
+                      icon: Icons.keyboard_rounded,
+                      label: 'Code eingeben',
+                      color: colors.tertiary,
+                      onTap: () => _showCodeDialog(context))),
+              const SizedBox(width: 12),
+              const Spacer(),
             ]),
             const SizedBox(height: 12),
             Row(children: [

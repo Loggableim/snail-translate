@@ -24,7 +24,7 @@ nächsten offenen Punkt.
 - [x] 06. Mikrofonberechtigungen verständlich begründen.
 - [x] 07. Headset-Prüfung vor der ersten Session durchführen.
 - [x] 08. QR-Scan mit verständlichen Statusschritten versehen.
-- [ ] 09. Session-Code zusätzlich manuell eingeben lassen.
+- [x] 09. Session-Code zusätzlich manuell eingeben lassen.
 - [ ] 10. Gastbeitritt ohne unnötige Login-Hürden ermöglichen.
 - [ ] 11. Sprache automatisch erkennen und bestätigen lassen.
 - [ ] 12. Tutorial für die Sprechrichtung einbauen.
