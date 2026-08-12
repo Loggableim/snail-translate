@@ -64,6 +64,8 @@ class _SessionScreenState extends State<SessionScreen>
   VoidCallback? _fishListener;
   String _fishSourceLanguage = 'en';
   String _fishTargetLanguage = 'de';
+  String _sessionSourceLanguage = 'de';
+  String _sessionTargetLanguage = 'en';
   final _p2p = P2pAudioService();
   VoidCallback? _geminiListener;
   VoidCallback? _openAiListener;
@@ -133,40 +135,26 @@ class _SessionScreenState extends State<SessionScreen>
     }
   }
 
-  Future<void> _showLanguagePicker() async {
-    final sessionService = context.read<SessionService>();
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const ListTile(
-              title: Text('Meine Sprache'),
-              subtitle: Text('Gilt fuer die naechste neue Session.'),
-            ),
-            for (final entry in _languageLabels.entries)
-              ListTile(
-                leading: Icon(entry.key == sessionService.myLanguage
-                    ? Icons.check_circle
-                    : Icons.language),
-                title: Text(entry.value),
-                trailing: Text(entry.key.toUpperCase()),
-                onTap: () => Navigator.pop(sheetContext, entry.key),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (selected == null) return;
-    await sessionService.setMyLanguage(selected);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Sprache gespeichert. Sie wird bei der naechsten Session verwendet.'),
-      ));
+  Future<void> _setSessionLanguagePair(String? source, String? target) async {
+    if (source == null && target == null) return;
+    final nextSource = source ?? _sessionSourceLanguage;
+    final nextTarget = target ?? _sessionTargetLanguage;
+    if (nextSource == nextTarget) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Quell- und Zielsprache müssen unterschiedlich sein.')));
+      }
+      return;
     }
+    setState(() {
+      _sessionSourceLanguage = nextSource;
+      _sessionTargetLanguage = nextTarget;
+      _fishSourceLanguage = nextSource;
+      _fishTargetLanguage = nextTarget;
+    });
+    final sessionService = context.read<SessionService>();
+    await sessionService.setMyLanguage(nextSource);
+    await sessionService.setTargetLanguage(nextTarget);
   }
 
   bool _isConnectionActive(int generation) =>
@@ -177,6 +165,8 @@ class _SessionScreenState extends State<SessionScreen>
     WidgetsBinding.instance.addObserver(this);
     _audioService = context.read<AudioService>();
     _sessionService = context.read<SessionService>();
+    _sessionSourceLanguage = _sessionService.myLanguage;
+    _sessionTargetLanguage = _sessionService.targetLanguage;
     _transcriptHistory = context.read<TranscriptHistory>();
     _audioPolicy = context.read<AudioPolicy>();
     // Keep the session alive while the user is actively translating. This is
@@ -256,9 +246,9 @@ class _SessionScreenState extends State<SessionScreen>
         String? openAiCredential;
         // `handleJoinRoom` already mirrors source/target for the guest. Both
         // devices therefore translate their own microphone into targetLang.
-        final targetLanguage = session.targetLang;
-        _fishSourceLanguage = session.sourceLang;
-        _fishTargetLanguage = session.targetLang;
+        final targetLanguage = _sessionTargetLanguage;
+        _fishSourceLanguage = _sessionSourceLanguage;
+        _fishTargetLanguage = _sessionTargetLanguage;
         final usesWorkerClientSecret =
             provider.provider == TranslationProvider.openAi &&
                 provider.apiKey.trim().isEmpty;
@@ -752,17 +742,54 @@ class _SessionScreenState extends State<SessionScreen>
                     ),
                     const SizedBox(height: 8),
 
-                    TextButton.icon(
-                      onPressed: _showLanguagePicker,
-                      icon: const Icon(Icons.language),
-                      label: Text(
-                        'Meine Sprache: ${session?.sourceLang.toUpperCase() ?? 'DE'}',
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onSurfaceVariant,
-                        textStyle: Theme.of(context).textTheme.titleMedium,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _sessionSourceLanguage,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Ich spreche',
+                              prefixIcon: Icon(Icons.record_voice_over),
+                              border: OutlineInputBorder(),
+                            ),
+                            items: _languageLabels.entries
+                                .map((entry) => DropdownMenuItem<String>(
+                                      value: entry.key,
+                                      child: Text(entry.value),
+                                    ))
+                                .toList(),
+                            onChanged: (value) =>
+                                _setSessionLanguagePair(value, null),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _sessionTargetLanguage,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Ausgabe in',
+                              prefixIcon: Icon(Icons.translate),
+                              border: OutlineInputBorder(),
+                            ),
+                            items: _languageLabels.entries
+                                .map((entry) => DropdownMenuItem<String>(
+                                      value: entry.key,
+                                      child: Text(entry.value),
+                                    ))
+                                .toList(),
+                            onChanged: (value) =>
+                                _setSessionLanguagePair(null, value),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Die Übersetzung läuft auf diesem Gerät: ${_sessionSourceLanguage.toUpperCase()} → ${_sessionTargetLanguage.toUpperCase()}.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                      textAlign: TextAlign.center,
                     ),
 
                     if (context
@@ -772,6 +799,7 @@ class _SessionScreenState extends State<SessionScreen>
                         TranslationProvider.fishAudio) ...[
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
+                        isExpanded: true,
                         value: _fishVoices.containsKey(context
                                 .watch<ProviderConfigService>()
                                 .config
@@ -807,6 +835,7 @@ class _SessionScreenState extends State<SessionScreen>
                         Expanded(
                           child: DropdownButtonFormField<AudioOutput>(
                             value: _audioPolicy.output,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Ausgabe',
                               prefixIcon: Icon(Icons.volume_up),
@@ -831,6 +860,7 @@ class _SessionScreenState extends State<SessionScreen>
                         Expanded(
                           child: DropdownButtonFormField<AudioInput>(
                             value: AudioInput.auto,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Mikrofon',
                               prefixIcon: Icon(Icons.mic),
