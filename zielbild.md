@@ -28,7 +28,7 @@ nächsten offenen Punkt.
 - [x] 10. Gastbeitritt ohne unnötige Login-Hürden ermöglichen.
 - [x] 11. Sprache automatisch erkennen und bestätigen lassen.
 - [x] 12. Tutorial für die Sprechrichtung einbauen.
-- [ ] 13. Verbindungstest vor dem Gespräch anbieten.
+- [x] 13. Verbindungstest vor dem Gespräch anbieten.
 - [ ] 14. Session-Abbruch mit klarer Rückfrage absichern.
 - [ ] 15. Input-, Output- und Gesamtlatenz anzeigen.
 - [ ] 16. Provider-Timeouts mit einer begrenzten Retry-Strategie behandeln.

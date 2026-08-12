@@ -4,6 +4,9 @@ import '../services/session_service.dart';
 import '../services/snail_audio.dart';
 import '../models/snail_contact.dart';
 
+/// Status of the connection test.
+enum _ConnTestState { idle, testing, success, failed }
+
 class QrHostScreen extends StatefulWidget {
   const QrHostScreen({super.key});
 
@@ -17,6 +20,8 @@ class _QrHostScreenState extends State<QrHostScreen> {
   SnailContact? _contact;
   bool _headsetChecked = false;
   bool _hasHeadset = false;
+  _ConnTestState _connTest = _ConnTestState.idle;
+  String? _connError;
 
   @override
   void initState() {
@@ -43,6 +48,29 @@ class _QrHostScreenState extends State<QrHostScreen> {
     }
   }
 
+  Future<void> _testConnection() async {
+    setState(() {
+      _connTest = _ConnTestState.testing;
+      _connError = null;
+    });
+    try {
+      final quota = await context.read<SessionService>().getQuota();
+      if (!mounted) return;
+      setState(() {
+        _connTest = quota != null
+            ? _ConnTestState.success
+            : _ConnTestState.failed;
+        if (quota == null) _connError = 'Keine Antwort vom Server';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _connTest = _ConnTestState.failed;
+        _connError = 'Verbindungsfehler: $e';
+      });
+    }
+  }
+
   Future<void> _createAndGo() async {
     setState(() {
       _isCreating = true;
@@ -63,6 +91,29 @@ class _QrHostScreenState extends State<QrHostScreen> {
       });
     }
   }
+
+  // ── Connection test helpers ──
+
+  IconData _connIcon(_ConnTestState state) => switch (state) {
+        _ConnTestState.idle => Icons.wifi_find_rounded,
+        _ConnTestState.testing => Icons.sync_rounded,
+        _ConnTestState.success => Icons.check_circle_rounded,
+        _ConnTestState.failed => Icons.error_outline_rounded,
+      };
+
+  Color _connColor(_ConnTestState state, ColorScheme colors) => switch (state) {
+        _ConnTestState.idle => colors.primary,
+        _ConnTestState.testing => Colors.orange,
+        _ConnTestState.success => Colors.green,
+        _ConnTestState.failed => colors.error,
+      };
+
+  String _connLabel(_ConnTestState state) => switch (state) {
+        _ConnTestState.idle => 'Verbindung testen',
+        _ConnTestState.testing => 'Teste Verbindung …',
+        _ConnTestState.success => 'Server erreichbar',
+        _ConnTestState.failed => 'Verbindung fehlgeschlagen',
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -129,6 +180,63 @@ class _QrHostScreenState extends State<QrHostScreen> {
                         ),
                       ),
                       const SizedBox(height: 20),
+                    ],
+                    // ── Connection test ──
+                    if (_headsetChecked) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: _connTest == _ConnTestState.testing
+                              ? null
+                              : _testConnection,
+                          icon: _connTest == _ConnTestState.testing
+                              ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: _connColor(_connTest, colors),
+                                  ),
+                                )
+                              : Icon(
+                                  _connIcon(_connTest),
+                                  size: 20,
+                                  color: _connColor(_connTest, colors),
+                                ),
+                          label: Text(
+                            _connLabel(_connTest),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _connColor(_connTest, colors),
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _connColor(_connTest, colors),
+                            side: BorderSide(
+                              color: _connColor(_connTest, colors)
+                                  .withValues(alpha: 0.4),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (_connTest == _ConnTestState.failed &&
+                          _connError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _connError!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colors.error.withValues(alpha: 0.8),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                      const SizedBox(height: 16),
                     ],
                     // ── Start button ──
                     SizedBox(

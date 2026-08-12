@@ -50,7 +50,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Headset warning should appear
     expect(
       find.textContaining('Kein Headset erkannt'),
       findsOneWidget,
@@ -59,7 +58,6 @@ void main() {
       find.textContaining('empfehlen wir ein Headset'),
       findsOneWidget,
     );
-    // Should NOT show "Headset erkannt"
     expect(find.text('Headset erkannt'), findsNothing);
   });
 
@@ -82,12 +80,34 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Should show "Headset erkannt"
     expect(find.text('Headset erkannt'), findsOneWidget);
-    // Should NOT show the warning
     expect(
       find.textContaining('Kein Headset erkannt'),
       findsNothing,
     );
+  });
+
+  testWidgets('qr host screen shows connection test button', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('com.snail.audio/method'),
+      (call) async {
+        if (call.method == 'isHeadsetConnected') return true;
+        return null;
+      },
+    );
+
+    await tester.pumpWidget(
+      _wrapWithProviders(const QrHostScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    // Connection test button should be visible after headset check
+    expect(find.text('Verbindung testen'), findsOneWidget);
+    expect(find.byIcon(Icons.wifi_find_rounded), findsOneWidget);
   });
 }
