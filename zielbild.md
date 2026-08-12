@@ -48,7 +48,7 @@ nächsten offenen Punkt.
 - [x] 30. Anhänge mit einem verbindlichen Größenlimit versehen.
 - [x] 31. Sprachnachrichten ergänzen.
 - [x] 32. Nachrichtensuche einbauen.
-- [ ] 33. Nachrichtenbearbeitung und Löschung spezifizieren und umsetzen.
+- [x] 33. Nachrichtenbearbeitung und Löschung spezifizieren und umsetzen.
 - [ ] 34. Kontaktanfragen akzeptierbar oder ablehnbar machen.
 - [ ] 35. Kontakte blockieren können.
 - [ ] 36. Inaktive Sessions automatisch bereinigen.

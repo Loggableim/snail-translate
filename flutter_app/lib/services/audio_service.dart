@@ -163,6 +163,53 @@ class AudioService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Delete a message by ID. Sends a delete event to the relay/peer.
+  void deleteMessage(String messageId) {
+    final removed = _messages.where((m) => m.id == messageId).toList();
+    if (removed.isEmpty) return;
+    _messages.removeWhere((m) => m.id == messageId);
+    _persistConversation();
+    notifyListeners();
+    // Send delete to relay/peer
+    final message = {
+      'type': 'delete',
+      'messageId': messageId,
+    };
+    if (isP2pConnected?.call() == true) onP2pChatSend?.call(message);
+    if (_isConnected && _isAuthenticated) {
+      _channel?.sink.add(jsonEncode(message));
+    }
+  }
+
+  /// Edit a message's text by ID. Sends an edit event to the relay/peer.
+  void editMessage(String messageId, String newText) {
+    if (newText.trim().isEmpty) return;
+    final index = _messages.indexWhere((m) => m.id == messageId);
+    if (index == -1) return;
+    _messages[index] = ChatMessage(
+      id: _messages[index].id,
+      text: newText.trim(),
+      senderId: _messages[index].senderId,
+      sourceLang: _messages[index].sourceLang,
+      targetLang: _messages[index].targetLang,
+      timestamp: _messages[index].timestamp,
+      outgoing: _messages[index].outgoing,
+      status: _messages[index].status,
+    );
+    _persistConversation();
+    notifyListeners();
+    // Send edit to relay/peer
+    final message = {
+      'type': 'edit',
+      'messageId': messageId,
+      'text': newText.trim(),
+    };
+    if (isP2pConnected?.call() == true) onP2pChatSend?.call(message);
+    if (_isConnected && _isAuthenticated) {
+      _channel?.sink.add(jsonEncode(message));
+    }
+  }
+
   Future<bool> _doConnect() async {
     if (_session == null) return false;
     try {

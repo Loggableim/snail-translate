@@ -37,7 +37,7 @@ interface SessionState {
 }
 
 interface ClientMessage {
-  type: "auth" | "audio" | "pcm_audio" | "fallback_pcm_audio" | "chat" | "sticker" | "voice" | "signal" | "ping" | "end";
+  type: "auth" | "audio" | "pcm_audio" | "fallback_pcm_audio" | "chat" | "sticker" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
   token?: string;
   audio?: number[];
   sampleRate?: number;
@@ -62,7 +62,7 @@ interface ClientMessage {
 }
 
 interface ServerMessage {
-  type: "auth_ok" | "auth_error" | "audio" | "pcm_audio" | "fallback_pcm_audio" | "chat" | "sticker" | "voice" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
+  type: "auth_ok" | "auth_error" | "audio" | "pcm_audio" | "fallback_pcm_audio" | "chat" | "sticker" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
   audio?: number[];
   sampleRate?: number;
   messageId?: string;
@@ -556,6 +556,55 @@ export class SnailRelay implements DurableObject {
           const peer = this.getPeer(ws);
           if (peer) this.send(peer, voiceMessage);
           this.send(ws, { type: "delivery_ack", messageId: voiceMessage.messageId });
+          break;
+        }
+
+        case "edit": {
+          if (!authenticated || !msg.messageId || !msg.text?.trim()) {
+            this.send(ws, { type: "error", error: "Invalid edit message" });
+            return;
+          }
+          // Update in-memory chat history
+          const idx = this.session.chatHistory.findIndex(
+            (m) => m.messageId === msg.messageId
+          );
+          if (idx !== -1) {
+            this.session.chatHistory[idx] = {
+              ...this.session.chatHistory[idx],
+              text: msg.text.trim(),
+            };
+            await this.saveState();
+          }
+          // Forward to peer
+          const peer = this.getPeer(ws);
+          if (peer) {
+            this.send(peer, {
+              type: "edit",
+              messageId: msg.messageId,
+              text: msg.text.trim(),
+            });
+          }
+          break;
+        }
+
+        case "delete": {
+          if (!authenticated || !msg.messageId) {
+            this.send(ws, { type: "error", error: "Invalid delete message" });
+            return;
+          }
+          // Remove from in-memory chat history
+          this.session.chatHistory = this.session.chatHistory.filter(
+            (m) => m.messageId !== msg.messageId
+          );
+          await this.saveState();
+          // Forward to peer
+          const peer = this.getPeer(ws);
+          if (peer) {
+            this.send(peer, {
+              type: "delete",
+              messageId: msg.messageId,
+            });
+          }
           break;
         }
 
