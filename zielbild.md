@@ -47,7 +47,7 @@ nächsten offenen Punkt.
 - [x] 29. Doppelte Nachrichten idempotent behandeln.
 - [x] 30. Anhänge mit einem verbindlichen Größenlimit versehen.
 - [x] 31. Sprachnachrichten ergänzen.
-- [ ] 32. Nachrichtensuche einbauen.
+- [x] 32. Nachrichtensuche einbauen.
 - [ ] 33. Nachrichtenbearbeitung und Löschung spezifizieren und umsetzen.
 - [ ] 34. Kontaktanfragen akzeptierbar oder ablehnbar machen.
 - [ ] 35. Kontakte blockieren können.

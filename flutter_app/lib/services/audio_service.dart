@@ -49,6 +49,15 @@ class AudioService extends ChangeNotifier {
   int get pendingCount => _outbox.length;
   List<Map<String, dynamic>> get signals => List.unmodifiable(_signals);
 
+  /// Search chat messages by text (case-insensitive substring match).
+  List<ChatMessage> searchMessages(String query) {
+    if (query.trim().isEmpty) return List.unmodifiable(_messages);
+    final lower = query.toLowerCase().trim();
+    return _messages
+        .where((m) => m.text.toLowerCase().contains(lower))
+        .toList();
+  }
+
   Future<bool> connect(Session session) async {
     _session = session;
     await _loadConversation(session.inviteeId ?? session.roomId);
