@@ -13,7 +13,7 @@ Disconnect-/Retry-Behandlung sowie Latenz- und Audio-Gap-Messung.
 
 `Mikrofon → STT/Übersetzung → Fish-Audio-Realtime-TTS → Jitter-Queue → Playback`
 
-- [ ] 43. Fish Audio Realtime als eigenen Provider-/Engine-Typ modellieren.
+- [x] 43. Fish Audio Realtime als eigenen Provider-/Engine-Typ modellieren.
 - [ ] 44. Fish Audio als Standalone-Live-Übersetzung neben OpenAI Realtime implementieren.
 - [ ] 45. Fish-Audio-BYOK-Key sicher konfigurieren, testen und niemals loggen.
 - [ ] 46. Fish-WebSocket mit Wiederverwendung, Disconnect-Erkennung und begrenzten Retries implementieren.
