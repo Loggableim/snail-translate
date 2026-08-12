@@ -1,13 +1,36 @@
 import 'package:flutter/material.dart';
 
 /// Paywall screen — Free vs. Pro comparison.
+/// Vorschau: Clerk-Subscription-Flow folgt in einem späteren Update.
 class PaywallScreen extends StatelessWidget {
   const PaywallScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Snail Pro')),
+      appBar: AppBar(
+        title: const Text('Snail Pro'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Vorschau',
+                style: TextStyle(
+                  color: Colors.amber,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(

@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:snail/screens/provider_settings_screen.dart';
 import 'package:snail/services/provider_config_service.dart';
-import 'package:snail/models/provider_config.dart';
 
 Widget _wrapWithProviders(Widget child) {
   return MultiProvider(
