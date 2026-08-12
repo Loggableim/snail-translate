@@ -81,6 +81,8 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
                             ? Colors.green
                             : Colors.red))),
           const SizedBox(height: 12),
+          _ProviderInfo(provider: _provider),
+          const SizedBox(height: 12),
           const Text(
               'Der Key gehört dem Session-Owner. Der eingeladene Teilnehmer benötigt keinen eigenen Provider-Key.'),
         ]),
@@ -210,4 +212,128 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
     _key.dispose();
     super.dispose();
   }
+}
+
+class _ProviderInfo extends StatelessWidget {
+  const _ProviderInfo({required this.provider});
+
+  final TranslationProvider provider;
+
+  static const _descriptions = <TranslationProvider, _ProviderDescription>{
+    TranslationProvider.openAi: _ProviderDescription(
+      title: 'OpenAI Realtime-Übersetzung',
+      subtitle: 'Cloud · niedrigste Latenz · API-Key nötig',
+      body: 'OpenAI übersetzt gesprochene Sprache direkt in Echtzeit — '
+          'ohne Umweg über Text. Das ist der schnellste Weg und die '
+          'empfohlene Wahl für Live-Gespräche. '
+          'Du brauchst einen OpenAI-API-Key (sk-...). '
+          'Kosten: ca. \$0,034 pro Minute Audio.',
+      icon: Icons.bolt_rounded,
+      color: Color(0xFF10A37F),
+    ),
+    TranslationProvider.geminiLive: _ProviderDescription(
+      title: 'Gemini Live',
+      subtitle: 'Cloud · gute Latenz · API-Key nötig',
+      body: 'Google Gemini übersetzt Audio-Streams live. '
+          'Gute Alternative zu OpenAI mit ähnlicher Latenz. '
+          'Du brauchst einen Gemini-API-Key von Google AI Studio. '
+          'Kosten: kostenlos im Rahmen des Google AI Studio-Kontingents.',
+      icon: Icons.auto_awesome_rounded,
+      color: Color(0xFF4285F4),
+    ),
+    TranslationProvider.ollama: _ProviderDescription(
+      title: 'Ollama (lokal)',
+      subtitle: 'Lokal · kein API-Key · höhere Latenz',
+      body: 'Ollama läuft auf deinem eigenen Rechner. '
+          'Deine Daten verlassen dein Netzwerk nicht. '
+          'Ideal, wenn du bereits einen Ollama-Server betreibst. '
+          'Nicht empfohlen für Live-Gespräche — '
+          'die Latenz ist spürbar höher als bei Cloud-Providern. '
+          'Kein API-Key nötig.',
+      icon: Icons.computer_rounded,
+      color: Color(0xFF6F36A7),
+    ),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final desc = _descriptions[provider];
+    if (desc == null) return const SizedBox.shrink();
+
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colors.outline.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: desc.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(desc.icon, color: desc.color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      desc.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    Text(
+                      desc.subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            desc.body,
+            style: TextStyle(
+              fontSize: 13,
+              color: colors.onSurface.withValues(alpha: 0.8),
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProviderDescription {
+  const _ProviderDescription({
+    required this.title,
+    required this.subtitle,
+    required this.body,
+    required this.icon,
+    required this.color,
+  });
+
+  final String title;
+  final String subtitle;
+  final String body;
+  final IconData icon;
+  final Color color;
 }

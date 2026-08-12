@@ -18,7 +18,7 @@ nächsten offenen Punkt.
 
 - [x] 01. Hauptnutzen im ersten Startbild erklären.
 - [x] 02. Unterstützte Sprachen sichtbar dokumentieren.
-- [ ] 03. Provider-Auswahl verständlicher beschreiben.
+- [x] 03. Provider-Auswahl verständlicher beschreiben.
 - [ ] 04. Nicht fertige Features aus der UI entfernen oder eindeutig als Vorschau markieren.
 - [ ] 05. Geführten Erststart mit Testaufnahme einführen.
 - [ ] 06. Mikrofonberechtigungen verständlich begründen.
