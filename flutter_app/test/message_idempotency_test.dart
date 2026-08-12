@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:snail/models/chat_message.dart';
-import 'package:snail/models/message_status.dart';
 import 'package:snail/models/sticker_message.dart';
 
 void main() {

@@ -89,6 +89,10 @@ interface ServerMessage {
 const PING_INTERVAL_MS = 30_000;
 const MAX_QUOTA_SECONDS = 30 * 60;
 const MAX_PCM_SAMPLES_PER_MESSAGE = 16_000; // max 1 s mono PCM at 16 kHz
+const MAX_CHAT_TEXT_LENGTH = 10_000;         // max chars per chat message
+const MAX_STICKER_URL_LENGTH = 2_048;       // max chars for sticker asset URL
+const MAX_STICKER_EMOJI_LENGTH = 10;        // max chars for sticker emoji
+const MAX_STICKER_PACK_NAME_LENGTH = 100;   // max chars for sticker pack name
 
 // ── Durable Object ────────────────────────────────────────────────────
 
@@ -359,6 +363,11 @@ export class SnailRelay implements DurableObject {
             return;
           }
 
+          if (msg.text!.length > MAX_CHAT_TEXT_LENGTH) {
+            this.send(ws, { type: "error", error: `Message too long (max ${MAX_CHAT_TEXT_LENGTH} characters)` });
+            return;
+          }
+
           const messageId = msg.messageId || crypto.randomUUID();
 
           // D1 idempotency check (preferred) or in-memory fallback
@@ -429,6 +438,19 @@ export class SnailRelay implements DurableObject {
         case "sticker": {
           if (!authenticated || !msg.assetUrl || !msg.mimeType) {
             this.send(ws, { type: "error", error: "Invalid sticker" });
+            return;
+          }
+
+          if (msg.assetUrl.length > MAX_STICKER_URL_LENGTH) {
+            this.send(ws, { type: "error", error: `Sticker URL too long (max ${MAX_STICKER_URL_LENGTH} characters)` });
+            return;
+          }
+          if (msg.emoji && msg.emoji.length > MAX_STICKER_EMOJI_LENGTH) {
+            this.send(ws, { type: "error", error: `Sticker emoji too long (max ${MAX_STICKER_EMOJI_LENGTH} characters)` });
+            return;
+          }
+          if (msg.packShortName && msg.packShortName.length > MAX_STICKER_PACK_NAME_LENGTH) {
+            this.send(ws, { type: "error", error: `Sticker pack name too long (max ${MAX_STICKER_PACK_NAME_LENGTH} characters)` });
             return;
           }
           const messageId = msg.messageId || crypto.randomUUID();

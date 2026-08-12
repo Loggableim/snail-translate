@@ -45,7 +45,7 @@ nächsten offenen Punkt.
 - [x] 27. Offline-Nachrichten persistent speichern.
 - [x] 28. D1 als Message Store implementieren.
 - [x] 29. Doppelte Nachrichten idempotent behandeln.
-- [ ] 30. Anhänge mit einem verbindlichen Größenlimit versehen.
+- [x] 30. Anhänge mit einem verbindlichen Größenlimit versehen.
 - [ ] 31. Sprachnachrichten ergänzen.
 - [ ] 32. Nachrichtensuche einbauen.
 - [ ] 33. Nachrichtenbearbeitung und Löschung spezifizieren und umsetzen.
