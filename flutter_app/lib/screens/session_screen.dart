@@ -600,6 +600,13 @@ class _SessionScreenState extends State<SessionScreen> {
                           ),
                         ),
                       ),
+                      // ── Latency panel ──
+                      const SizedBox(height: 12),
+                      ListenableBuilder(
+                        listenable: _openAi!,
+                        builder: (context, _) =>
+                            _LatencyPanel(service: _openAi!),
+                      ),
                     ],
 
                     // Show room code + QR while waiting (host only)
@@ -675,6 +682,111 @@ class _SessionScreenState extends State<SessionScreen> {
           },
         ),
       ),
+    );
+  }
+}
+
+/// Compact latency display showing input, output, and total round-trip time.
+class _LatencyPanel extends StatelessWidget {
+  const _LatencyPanel({required this.service});
+
+  final OpenAiRealtimeService service;
+
+  String _fmt(Duration? d) {
+    if (d == null) return '—';
+    final ms = d.inMilliseconds;
+    if (ms < 1000) return '$ms ms';
+    return '${(ms / 1000).toStringAsFixed(1)} s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final tfa = service.timeToFirstAudio;
+    final tft = service.timeToFirstTranscript;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.speed_rounded, size: 18, color: colors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _LatencyChip(
+                  label: 'Input',
+                  value: _fmt(tfa),
+                  icon: Icons.mic_rounded,
+                  colors: colors,
+                ),
+                _LatencyChip(
+                  label: 'Output',
+                  value: _fmt(tft),
+                  icon: Icons.headphones_rounded,
+                  colors: colors,
+                ),
+                _LatencyChip(
+                  label: 'Gesamt',
+                  value: tfa != null && tft != null
+                      ? _fmt(Duration(
+                          milliseconds:
+                              tfa.inMilliseconds + tft.inMilliseconds))
+                      : '—',
+                  icon: Icons.timer_rounded,
+                  colors: colors,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LatencyChip extends StatelessWidget {
+  const _LatencyChip({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.colors,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final ColorScheme colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: colors.onSurface.withValues(alpha: 0.5)),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'monospace',
+            color: colors.onSurface,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: colors.onSurface.withValues(alpha: 0.5),
+          ),
+        ),
+      ],
     );
   }
 }

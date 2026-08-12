@@ -30,7 +30,7 @@ nächsten offenen Punkt.
 - [x] 12. Tutorial für die Sprechrichtung einbauen.
 - [x] 13. Verbindungstest vor dem Gespräch anbieten.
 - [x] 14. Session-Abbruch mit klarer Rückfrage absichern.
-- [ ] 15. Input-, Output- und Gesamtlatenz anzeigen.
+- [x] 15. Input-, Output- und Gesamtlatenz anzeigen.
 - [ ] 16. Provider-Timeouts mit einer begrenzten Retry-Strategie behandeln.
 - [ ] 17. Reconnect ohne doppelte Audioausgabe implementieren.
 - [ ] 18. Sample-Rate-Konvertierung zentralisieren.
