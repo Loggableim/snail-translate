@@ -409,6 +409,9 @@ class OpenAiRealtimeService extends ChangeNotifier {
     if (_closing || _apiKey == null || _reconnectTimer != null) return;
     if (_reconnectAttempts >= _maxReconnectAttempts) return;
     _state = 'reconnecting';
+    // Discard any audio still buffered from the old connection to prevent
+    // double playback when the new connection starts producing output.
+    _audioChunks.clear();
     notifyListeners();
     final delay = Duration(milliseconds: 500 * (1 << _reconnectAttempts));
     _reconnectAttempts++;

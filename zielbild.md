@@ -32,7 +32,7 @@ nächsten offenen Punkt.
 - [x] 14. Session-Abbruch mit klarer Rückfrage absichern.
 - [x] 15. Input-, Output- und Gesamtlatenz anzeigen.
 - [x] 16. Provider-Timeouts mit einer begrenzten Retry-Strategie behandeln.
-- [ ] 17. Reconnect ohne doppelte Audioausgabe implementieren.
+- [x] 17. Reconnect ohne doppelte Audioausgabe implementieren.
 - [ ] 18. Sample-Rate-Konvertierung zentralisieren.
 - [ ] 19. Audiopegel visualisieren.
 - [ ] 20. Clipping erkennen und verständlich melden.

@@ -223,6 +223,10 @@ class _SessionScreenState extends State<SessionScreen> {
             if (!_isConnectionActive(generation)) return;
             _openAiListener = () {
               if (!_isConnectionActive(generation) || _openAi == null) return;
+              // Clear local playback queue on reconnect to prevent double audio.
+              if (_openAi!.state == 'reconnecting') {
+                _playbackQueue.clear();
+              }
               if (_openAi!.speechStarts > _lastOpenAiSpeechStarts) {
                 _lastOpenAiSpeechStarts = _openAi!.speechStarts;
                 // Barge-in is local and conservative: discard only audio that
