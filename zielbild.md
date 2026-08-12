@@ -38,6 +38,12 @@ aktualisiert den Status und committet nur die zu diesem Punkt gehörenden Dateie
 
 ## Arbeitsregel für Agenten
 
+Bei den Fish-Audio-Punkten ist die offizielle Dokumentation verbindliche
+technische Referenz: [Fish Audio – Real-time Voice Streaming](https://docs.fish.audio/developer-guide/best-practices/real-time-streaming).
+Der Agent soll daraus insbesondere Streaming-Textpuffer, `reference_id`,
+Latenzmodus, Connection-Management, Retry-Verhalten und Audio-Playback ableiten
+und die aktuelle API-Signatur vor dem Implementieren erneut prüfen.
+
 Bearbeite immer den ersten offenen Punkt in der Reihenfolge. Analysiere zuerst den
 Ist-Zustand, ändere nur den gewählten Punkt, erhalte vorhandene Nutzeränderungen,
 führe fokussierte Tests aus und dokumentiere verbleibende Einschränkungen. Nach
@@ -98,5 +104,7 @@ nächsten offenen Punkt.
 > sichtbare/runtime-relevante Wirkung. Setze den Punkt erst nach erfolgreicher
 > Verifikation auf `✅`, dokumentiere kurz die Prüfung und committe ausschließlich
 > die zugehörigen Änderungen. Beende den Run danach; im nächsten Run folgt der
-> nächste offene Punkt. Bei Blockade nichts vortäuschen: Ursache und benötigte
+> nächste offene Punkt. Für Fish-Audio-Punkte verwende zusätzlich die offizielle
+> Referenz https://docs.fish.audio/developer-guide/best-practices/real-time-streaming
+> und prüfe daraus den aktuellen Realtime-Vertrag. Bei Blockade nichts vortäuschen: Ursache und benötigte
 > Entscheidung dokumentieren.
