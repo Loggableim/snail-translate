@@ -29,6 +29,8 @@ void main() {
       find.text('Kein Konto nötig. Deine Daten bleiben auf deinem Gerät.'),
       findsOneWidget,
     );
+    // Guest quick-join button
+    expect(find.text('Ich habe einen Code'), findsOneWidget);
   });
 
   testWidgets('welcome screen page 2 shows microphone test', (tester) async {

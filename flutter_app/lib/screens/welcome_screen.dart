@@ -189,12 +189,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   children: [
                     // ── Page 1: Value proposition ──
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Spacer(flex: 2),
-                          ClipRRect(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 16),
+                            ClipRRect(
                             borderRadius: BorderRadius.circular(24),
                             child: Image.asset(
                               'assets/branding/snail-logo.png',
@@ -261,7 +262,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               ],
                             ),
                           ),
-                          const Spacer(flex: 2),
+                          const SizedBox.shrink(),
                           SizedBox(
                             width: double.infinity,
                             height: 56,
@@ -282,6 +283,32 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               ),
                             ),
                           ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 40,
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                await WelcomeScreen.markShown();
+                                if (!context.mounted) return;
+                                Navigator.of(context)
+                                    .pushReplacementNamed('/join');
+                              },
+                              icon: const Icon(Icons.login_rounded, size: 20),
+                              label: const Text(
+                                'Ich habe einen Code',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             'Kein Konto nötig. '
@@ -295,17 +322,18 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                       .withValues(alpha: 0.5),
                                 ),
                           ),
-                          const Spacer(),
+                          const SizedBox(height: 16),
                         ],
+                      ),
                       ),
                     ),
                     // ── Page 2: Microphone test ──
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Spacer(flex: 2),
+                          const SizedBox.shrink(),
                           // ── Mic icon with state ──
                           _MicIcon(state: _micState, colors: colors),
                           const SizedBox(height: 24),
@@ -367,7 +395,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                       .withValues(alpha: 0.7),
                                 ),
                           ),
-                          const Spacer(flex: 2),
+                          const SizedBox.shrink(),
                           // ── Action buttons ──
                           _MicActionButton(
                             state: _micState,
