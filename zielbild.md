@@ -26,7 +26,7 @@ Disconnect-/Retry-Behandlung sowie Latenz- und Audio-Gap-Messung.
 - [x] 53. Voice-Metadaten cachen und Stimmen für schnelle Sessions vorbereiten.
 - [x] 54. Voice-Wechsel zwischen abgeschlossenen Turns ermöglichen.
 - [x] 55. Temperatur, Top-p und Sprechgeschwindigkeit begrenzt anbieten.
-- [ ] 56. Fish-Audio-Key-Test mit Voice-, Verbindungs- und Latenzdiagnose ergänzen.
+- [x] 56. Fish-Audio-Key-Test mit Voice-, Verbindungs- und Latenzdiagnose ergänzen.
 - [ ] 57. Fish-vs.-OpenAI-Test für TTFA, Turn-Latenz und Audio-Gaps durchführen.
 - [ ] 58. Fish-Fehler, Retry-Zustände und Providerwechsel verständlich anzeigen.
 - [ ] 59. Fish-Integration mit Protokoll-, Audio-Queue- und Widget-Tests absichern.

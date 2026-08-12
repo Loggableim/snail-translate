@@ -484,6 +484,14 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
       diagnostics['HTTP-Status'] = '${response.statusCode}';
       diagnostics['Endpoint'] = base;
       diagnostics['Zeitpunkt'] = DateTime.now().toIso8601String();
+      if (_provider == TranslationProvider.fishAudio) {
+        final voiceId = _fishVoiceId.trim();
+        diagnostics['Voice-ID'] = voiceId.isEmpty ? 'nicht gesetzt' : voiceId;
+        diagnostics['Voice im Katalog'] = voiceId.isNotEmpty &&
+                response.body.contains(voiceId)
+            ? 'ja'
+            : 'nein (Voice-ID prüfen)';
+      }
 
       final ok = response.statusCode >= 200 && response.statusCode < 300;
       if (ok) {
