@@ -22,7 +22,7 @@ nächsten offenen Punkt.
 - [x] 04. Nicht fertige Features aus der UI entfernen oder eindeutig als Vorschau markieren.
 - [x] 05. Geführten Erststart mit Testaufnahme einführen.
 - [x] 06. Mikrofonberechtigungen verständlich begründen.
-- [ ] 07. Headset-Prüfung vor der ersten Session durchführen.
+- [x] 07. Headset-Prüfung vor der ersten Session durchführen.
 - [ ] 08. QR-Scan mit verständlichen Statusschritten versehen.
 - [ ] 09. Session-Code zusätzlich manuell eingeben lassen.
 - [ ] 10. Gastbeitritt ohne unnötige Login-Hürden ermöglichen.
