@@ -299,6 +299,37 @@ class _SessionScreenState extends State<SessionScreen> {
     }
   }
 
+  Future<void> _confirmEndSession(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Session beenden?'),
+        content: const Text(
+          'Bist du sicher, dass du die Session beenden möchtest? '
+          'Die Verbindung wird getrennt und die Übersetzung gestoppt.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Beenden'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      _audioService.disconnect();
+      context.read<SessionService>().endSession();
+      Navigator.popUntil(context, (route) => route.isFirst);
+    }
+  }
+
   @override
   void dispose() {
     _connectionGeneration++;
@@ -628,11 +659,7 @@ class _SessionScreenState extends State<SessionScreen> {
 
                     // End session
                     OutlinedButton.icon(
-                      onPressed: () {
-                        audio.disconnect();
-                        context.read<SessionService>().endSession();
-                        Navigator.popUntil(context, (route) => route.isFirst);
-                      },
+                      onPressed: () => _confirmEndSession(context),
                       icon: const Icon(Icons.call_end, color: Colors.red),
                       label: const Text('Session beenden'),
                       style: OutlinedButton.styleFrom(

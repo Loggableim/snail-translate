@@ -29,7 +29,7 @@ nächsten offenen Punkt.
 - [x] 11. Sprache automatisch erkennen und bestätigen lassen.
 - [x] 12. Tutorial für die Sprechrichtung einbauen.
 - [x] 13. Verbindungstest vor dem Gespräch anbieten.
-- [ ] 14. Session-Abbruch mit klarer Rückfrage absichern.
+- [x] 14. Session-Abbruch mit klarer Rückfrage absichern.
 - [ ] 15. Input-, Output- und Gesamtlatenz anzeigen.
 - [ ] 16. Provider-Timeouts mit einer begrenzten Retry-Strategie behandeln.
 - [ ] 17. Reconnect ohne doppelte Audioausgabe implementieren.
