@@ -179,6 +179,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     _PageDot(active: _currentPage == 0),
                     const SizedBox(width: 8),
                     _PageDot(active: _currentPage == 1),
+                    const SizedBox(width: 8),
+                    _PageDot(active: _currentPage == 2),
                   ],
                 ),
               ),
@@ -420,6 +422,157 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           ),
                           const Spacer(),
                         ],
+                      ),
+                    ),
+                    // ── Page 3: Speaking direction tutorial ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 16),
+                            Icon(
+                              Icons.swap_horiz_rounded,
+                              size: 64,
+                              color: colors.primary,
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'So funktioniert Snail',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Zwei Personen, zwei Sprachen — '
+                              'Snail übersetzt in beide Richtungen.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.copyWith(
+                                    color: colors.onSurface
+                                        .withValues(alpha: 0.7),
+                                  ),
+                            ),
+                            const SizedBox(height: 24),
+                            // ── Visual flow ──
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? colors.surfaceContainerHighest
+                                        .withValues(alpha: 0.5)
+                                    : colors.primaryContainer
+                                        .withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(22),
+                              ),
+                              child: Column(
+                                children: [
+                                  // Person A speaks
+                                  _TutorialStep(
+                                    icon: Icons.person_rounded,
+                                    color: AppTheme.lilac,
+                                    label: 'Person A',
+                                    detail: 'Spricht in ihrer Sprache',
+                                    arrow: Icons.arrow_downward_rounded,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Translation
+                                  _TutorialStep(
+                                    icon: Icons.translate_rounded,
+                                    color: AppTheme.mint,
+                                    label: 'Snail',
+                                    detail: 'Übersetzt live in Echtzeit',
+                                    arrow: Icons.arrow_downward_rounded,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Person B hears
+                                  _TutorialStep(
+                                    icon: Icons.headphones_rounded,
+                                    color: AppTheme.deepMint,
+                                    label: 'Person B',
+                                    detail: 'Hört die Übersetzung',
+                                    arrow: Icons.arrow_upward_rounded,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // And back
+                                  _TutorialStep(
+                                    icon: Icons.swap_horiz_rounded,
+                                    color: colors.primary,
+                                    label: '… und zurück',
+                                    detail:
+                                        'Die Übersetzung läuft in beide '
+                                        'Richtungen',
+                                    arrow: null,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            // ── Tip ──
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: colors.primary
+                                    .withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.lightbulb_outline_rounded,
+                                    size: 20,
+                                    color: colors.primary,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Tipp: Sprich in kurzen, klaren Sätzen. '
+                                      'Warte kurz, bis die Übersetzung fertig '
+                                      'ist, bevor du weitersprichst.',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: colors.onSurface
+                                            .withValues(alpha: 0.7),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            // ── Finish button ──
+                            SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: FilledButton.icon(
+                                onPressed: _finish,
+                                icon: const Icon(
+                                    Icons.check_rounded),
+                                label: const Text(
+                                  'Los geht\'s!',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                style: FilledButton.styleFrom(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(18),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -867,5 +1020,66 @@ class _LanguageConfirmation extends StatelessWidget {
     if (selected != null && context.mounted) {
       await session.setMyLanguage(selected);
     }
+  }
+}
+
+/// A single step in the speaking direction tutorial flow.
+class _TutorialStep extends StatelessWidget {
+  const _TutorialStep({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.detail,
+    this.arrow,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String detail;
+  final IconData? arrow;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+              Text(
+                detail,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (arrow != null)
+          Icon(arrow, size: 20, color: color.withValues(alpha: 0.5)),
+      ],
+    );
   }
 }

@@ -23,7 +23,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Page 1 is visible by default
     expect(find.text('Snail'), findsOneWidget);
     expect(
       find.text('Echtzeit-Sprachübersetzung\nfür zwei Personen.'),
@@ -35,13 +34,10 @@ void main() {
       find.text('Dein Gegenüber hört die Übersetzung'),
       findsOneWidget,
     );
-    // Language confirmation
     expect(find.text('Deine Sprache'), findsOneWidget);
     expect(find.text('automatisch erkannt'), findsOneWidget);
     expect(find.text('Ändern'), findsOneWidget);
-    // Guest quick-join button
     expect(find.text('Ich habe einen Code'), findsOneWidget);
-    // Privacy note
     expect(
       find.text('Kein Konto nötig. Deine Daten bleiben auf deinem Gerät.'),
       findsOneWidget,
@@ -55,12 +51,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Jump to page 2 via PageController
     final pageView = tester.widget<PageView>(find.byType(PageView));
     pageView.controller!.jumpToPage(1);
     await tester.pumpAndSettle();
 
-    // Page 2 content
     expect(find.text('Mikrofon testen'), findsOneWidget);
     expect(
       find.textContaining('Snail braucht dein Mikrofon'),
@@ -77,6 +71,33 @@ void main() {
     expect(find.text('Aufnahme starten'), findsOneWidget);
   });
 
+  testWidgets('welcome screen page 3 shows tutorial', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      _wrapWithProviders(const WelcomeScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    final pageView = tester.widget<PageView>(find.byType(PageView));
+    pageView.controller!.jumpToPage(2);
+    await tester.pumpAndSettle();
+
+    // Page 3 content
+    expect(find.text('So funktioniert Snail'), findsOneWidget);
+    expect(
+      find.textContaining('Snail übersetzt in beide Richtungen'),
+      findsOneWidget,
+    );
+    expect(find.text('Person A'), findsOneWidget);
+    expect(find.text('Person B'), findsOneWidget);
+    expect(find.text('… und zurück'), findsOneWidget);
+    // Tip
+    expect(
+      find.textContaining('Sprich in kurzen, klaren Sätzen'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('welcome screen shows page dots', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
@@ -84,7 +105,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Jump to page 2
     final pageView = tester.widget<PageView>(find.byType(PageView));
     pageView.controller!.jumpToPage(1);
     await tester.pumpAndSettle();
@@ -101,12 +121,11 @@ void main() {
 
     expect(await WelcomeScreen.hasBeenShown(), isFalse);
 
-    // Jump to page 2
+    // Jump to page 2 and tap "Überspringen" to finish
     final pageView = tester.widget<PageView>(find.byType(PageView));
     pageView.controller!.jumpToPage(1);
     await tester.pumpAndSettle();
 
-    // Tap "Überspringen" to finish
     await tester.tap(find.text('Überspringen'));
     await tester.pumpAndSettle();
 

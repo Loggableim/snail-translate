@@ -27,7 +27,7 @@ nächsten offenen Punkt.
 - [x] 09. Session-Code zusätzlich manuell eingeben lassen.
 - [x] 10. Gastbeitritt ohne unnötige Login-Hürden ermöglichen.
 - [x] 11. Sprache automatisch erkennen und bestätigen lassen.
-- [ ] 12. Tutorial für die Sprechrichtung einbauen.
+- [x] 12. Tutorial für die Sprechrichtung einbauen.
 - [ ] 13. Verbindungstest vor dem Gespräch anbieten.
 - [ ] 14. Session-Abbruch mit klarer Rückfrage absichern.
 - [ ] 15. Input-, Output- und Gesamtlatenz anzeigen.
