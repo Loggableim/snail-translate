@@ -1,5 +1,36 @@
 # Snail – verbindliches Zielbild
 
+## Fish Audio Realtime als zusätzliche Standalone-Engine
+
+Fish Audio Realtime Streaming wird als eigenständige Live-Audio-Lösung neben
+OpenAI Realtime Translation vorgesehen. Die Engine wird bewusst in der GUI
+gewählt und nicht als stiller Fallback vermischt. Referenz:
+[Fish-Audio-Best-Practices für Realtime Streaming](https://docs.fish.audio/developer-guide/best-practices/real-time-streaming).
+
+Leitplanken sind vollständige Wörter bzw. Wortgruppen mit Leerzeichen, 5–10-
+Wort-Puffer, 2–3 Audio-Chunks Prebuffer, wiederverwendete Verbindungen,
+Disconnect-/Retry-Behandlung sowie Latenz- und Audio-Gap-Messung.
+
+`Mikrofon → STT/Übersetzung → Fish-Audio-Realtime-TTS → Jitter-Queue → Playback`
+
+- [ ] 43. Fish Audio Realtime als eigenen Provider-/Engine-Typ modellieren.
+- [ ] 44. Fish Audio als Standalone-Live-Übersetzung neben OpenAI Realtime implementieren.
+- [ ] 45. Fish-Audio-BYOK-Key sicher konfigurieren, testen und niemals loggen.
+- [ ] 46. Fish-WebSocket mit Wiederverwendung, Disconnect-Erkennung und begrenzten Retries implementieren.
+- [ ] 47. Übersetzungstext in vollständigen Wörtern bzw. 5–10-Wort-Puffern streamen.
+- [ ] 48. Fish-Audio-Chunks mit Prebuffer und Jitter-/Playback-Handling abspielen.
+- [ ] 49. Fish-Latenzmodus `balanced` und Qualitätsmodus in der GUI anbieten.
+- [ ] 50. Fish Audio in Session, Standalone-Modus, Quota und Verlauf kennzeichnen.
+- [ ] 51. Mehrere auswählbare Fish-Audio-Stimmen in der GUI anzeigen.
+- [ ] 52. Voice-Auswahl über `reference_id`/Voice-ID konfigurieren und persistieren.
+- [ ] 53. Voice-Metadaten cachen und Stimmen für schnelle Sessions vorbereiten.
+- [ ] 54. Voice-Wechsel zwischen abgeschlossenen Turns ermöglichen.
+- [ ] 55. Temperatur, Top-p und Sprechgeschwindigkeit begrenzt anbieten.
+- [ ] 56. Fish-Audio-Key-Test mit Voice-, Verbindungs- und Latenzdiagnose ergänzen.
+- [ ] 57. Fish-vs.-OpenAI-Test für TTFA, Turn-Latenz und Audio-Gaps durchführen.
+- [ ] 58. Fish-Fehler, Retry-Zustände und Providerwechsel verständlich anzeigen.
+- [ ] 59. Fish-Integration mit Protokoll-, Audio-Queue- und Widget-Tests absichern.
+
 Dieses Dokument ist die fortlaufende Zielbild- und Umsetzungs-Checkliste für Snail.
 Jeder Punkt ist ein eigenständiges Ziel. Ein Agent bearbeitet pro Run genau einen
 offenen Punkt, verifiziert ihn mit passenden Tests oder sichtbarer Laufzeitprüfung,
@@ -69,4 +100,3 @@ nächsten offenen Punkt.
 > die zugehörigen Änderungen. Beende den Run danach; im nächsten Run folgt der
 > nächste offene Punkt. Bei Blockade nichts vortäuschen: Ursache und benötigte
 > Entscheidung dokumentieren.
-
