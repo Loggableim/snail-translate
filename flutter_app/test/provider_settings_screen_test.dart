@@ -116,6 +116,19 @@ void main() {
     expect(find.textContaining('Fish Audio Realtime'), findsWidgets);
   });
 
+  testWidgets('Fish voice browser shows curated selectable voices',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      _wrapWithProviders(const ProviderSettingsScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cid'), findsOneWidget);
+    expect(find.text('Mr. Fox'), findsOneWidget);
+    expect(find.textContaining('reference_id:'), findsOneWidget);
+  });
+
   testWidgets('Fish latency menu exposes only supported modes', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
