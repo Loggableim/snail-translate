@@ -41,7 +41,7 @@ nächsten offenen Punkt.
 - [x] 23. Audio-Wiedergabe bei App-Wechsel absichern.
 - [x] 24. Provider-Key-Test mit Diagnosebericht anbieten.
 - [x] 25. Nachrichten mit eindeutigen IDs versehen.
-- [ ] 26. Nachrichtenstatus `queued`, `sent`, `delivered`, `read` einführen.
+- [x] 26. Nachrichtenstatus `queued`, `sent`, `delivered`, `read` einführen.
 - [ ] 27. Offline-Nachrichten persistent speichern.
 - [ ] 28. D1 als Message Store implementieren.
 - [ ] 29. Doppelte Nachrichten idempotent behandeln.

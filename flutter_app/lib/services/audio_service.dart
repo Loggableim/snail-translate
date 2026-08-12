@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/session.dart';
 import '../models/chat_message.dart';
+import '../models/message_status.dart';
 import '../models/sticker_message.dart';
 import 'error_logger.dart';
 
@@ -146,6 +147,13 @@ class AudioService extends ChangeNotifier {
     _stickers.add(sticker);
   }
 
+  void _updateMessageStatus(String messageId, MessageStatus status) {
+    final index = _messages.indexWhere((m) => m.id == messageId);
+    if (index == -1) return;
+    _messages[index] = _messages[index].copyWith(status: status);
+    notifyListeners();
+  }
+
   Future<bool> _doConnect() async {
     if (_session == null) return false;
     try {
@@ -231,6 +239,7 @@ class AudioService extends ChangeNotifier {
           final messageId = msg['messageId'] as String?;
           if (messageId != null) {
             _outbox.removeWhere((item) => item['messageId'] == messageId);
+            _updateMessageStatus(messageId, MessageStatus.delivered);
             _persistOutbox();
           }
           break;
@@ -356,16 +365,18 @@ class AudioService extends ChangeNotifier {
   void sendChat(String text,
       {String sourceLang = 'de', String targetLang = 'en'}) {
     if (text.trim().isEmpty) return;
+    final messageId = _uuid.v4();
     final message = {
       'type': 'chat',
-      'messageId': _uuid.v4(),
+      'messageId': messageId,
       'text': text.trim(),
       'sourceLang': sourceLang,
       'targetLang': targetLang,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     };
+    final canSend = _isConnected && _isAuthenticated;
     _messages.add(ChatMessage(
-      id: message['messageId']! as String,
+      id: messageId,
       text: text.trim(),
       senderId: 'local',
       sourceLang: sourceLang,
@@ -373,12 +384,13 @@ class AudioService extends ChangeNotifier {
       timestamp:
           DateTime.fromMillisecondsSinceEpoch(message['timestamp']! as int),
       outgoing: true,
+      status: canSend ? MessageStatus.sent : MessageStatus.queued,
     ));
     notifyListeners();
     if (isP2pConnected?.call() == true) onP2pChatSend?.call(message);
     // P2P is the low-latency delivery route; the relay still receives the
     // idempotent copy so it can provide offline history and re-delivery.
-    if (!_isConnected || !_isAuthenticated) {
+    if (!canSend) {
       _queue(message);
     } else {
       _channel?.sink.add(jsonEncode(message));
