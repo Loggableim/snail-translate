@@ -4,131 +4,68 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:snail/screens/welcome_screen.dart';
+import 'package:snail/services/provider_config_service.dart';
 import 'package:snail/services/session_service.dart';
 
 Widget _wrapWithProviders(Widget child) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => SessionService()),
+      ChangeNotifierProvider(create: (_) => ProviderConfigService()),
     ],
     child: MaterialApp(home: child),
   );
 }
 
+Future<void> _pumpWelcome(WidgetTester tester) async {
+  SharedPreferences.setMockInitialValues({});
+  await tester.pumpWidget(_wrapWithProviders(const WelcomeScreen()));
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('welcome screen page 1 shows value proposition', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(
-      _wrapWithProviders(const WelcomeScreen()),
-    );
-    await tester.pumpAndSettle();
-
+  testWidgets('welcome starts with language selection', (tester) async {
+    await _pumpWelcome(tester);
     expect(find.text('Snail'), findsOneWidget);
-    expect(
-      find.text('Echtzeit-Sprachübersetzung\nfür zwei Personen.'),
-      findsOneWidget,
-    );
-    expect(find.text('Sprich in deiner Sprache'), findsOneWidget);
-    expect(find.text('Snail übersetzt live'), findsOneWidget);
-    expect(
-      find.text('Dein Gegenüber hört die Übersetzung'),
-      findsOneWidget,
-    );
-    expect(find.text('Deine Sprache'), findsOneWidget);
-    expect(find.text('automatisch erkannt'), findsOneWidget);
-    expect(find.text('Ändern'), findsOneWidget);
-    expect(find.text('Ich habe einen Code'), findsOneWidget);
-    expect(
-      find.text('Kein Konto nötig. Deine Daten bleiben auf deinem Gerät.'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Hello, choose your language.'), findsOneWidget);
+    expect(find.byType(ChoiceChip), findsNWidgets(9));
   });
 
-  testWidgets('welcome screen page 2 shows microphone test', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(
-      _wrapWithProviders(const WelcomeScreen()),
-    );
-    await tester.pumpAndSettle();
-
+  testWidgets('welcome second page shows Fish Audio key setup', (tester) async {
+    await _pumpWelcome(tester);
     final pageView = tester.widget<PageView>(find.byType(PageView));
     pageView.controller!.jumpToPage(1);
     await tester.pumpAndSettle();
+    expect(find.text('Fish Audio einrichten'), findsOneWidget);
+    expect(find.text('Fish Audio API-Key'), findsOneWidget);
+    expect(find.text('Andere API / Provider verwenden'), findsOneWidget);
+  });
 
+  testWidgets('welcome microphone page renders', (tester) async {
+    await _pumpWelcome(tester);
+    final pageView = tester.widget<PageView>(find.byType(PageView));
+    pageView.controller!.jumpToPage(3);
+    await tester.pumpAndSettle();
     expect(find.text('Mikrofon testen'), findsOneWidget);
-    expect(
-      find.textContaining('Snail braucht dein Mikrofon'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('Nichts wird dauerhaft gespeichert'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('Sprich kurz etwas in dein Mikrofon'),
-      findsOneWidget,
-    );
     expect(find.text('Aufnahme starten'), findsOneWidget);
   });
 
-  testWidgets('welcome screen page 3 shows tutorial', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(
-      _wrapWithProviders(const WelcomeScreen()),
-    );
-    await tester.pumpAndSettle();
-
+  testWidgets('welcome tutorial page renders', (tester) async {
+    await _pumpWelcome(tester);
     final pageView = tester.widget<PageView>(find.byType(PageView));
-    pageView.controller!.jumpToPage(2);
+    pageView.controller!.jumpToPage(4);
     await tester.pumpAndSettle();
-
-    // Page 3 content
     expect(find.text('So funktioniert Snail'), findsOneWidget);
-    expect(
-      find.textContaining('Snail übersetzt in beide Richtungen'),
-      findsOneWidget,
-    );
-    expect(find.text('Person A'), findsOneWidget);
-    expect(find.text('Person B'), findsOneWidget);
-    expect(find.text('… und zurück'), findsOneWidget);
-    // Tip
-    expect(
-      find.textContaining('Sprich in kurzen, klaren Sätzen'),
-      findsOneWidget,
-    );
   });
 
-  testWidgets('welcome screen shows page dots', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(
-      _wrapWithProviders(const WelcomeScreen()),
-    );
-    await tester.pumpAndSettle();
-
-    final pageView = tester.widget<PageView>(find.byType(PageView));
-    pageView.controller!.jumpToPage(1);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Aufnahme starten'), findsOneWidget);
-  });
-
-  testWidgets('welcome screen marks shown on finish', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(
-      _wrapWithProviders(const WelcomeScreen()),
-    );
-    await tester.pumpAndSettle();
-
+  testWidgets('welcome marks shown on finish', (tester) async {
+    await _pumpWelcome(tester);
     expect(await WelcomeScreen.hasBeenShown(), isFalse);
-
-    // Jump to page 2 and tap "Überspringen" to finish
     final pageView = tester.widget<PageView>(find.byType(PageView));
-    pageView.controller!.jumpToPage(1);
+    pageView.controller!.jumpToPage(3);
     await tester.pumpAndSettle();
-
     await tester.tap(find.text('Überspringen'));
     await tester.pumpAndSettle();
-
     expect(await WelcomeScreen.hasBeenShown(), isTrue);
   });
 

@@ -60,6 +60,7 @@ class _SessionScreenState extends State<SessionScreen>
   Timer? _fishProcessTimer;
   bool _fishBusy = false;
   bool _fishSpeechDetected = false;
+  bool _fishRelayAudioOnly = false;
   VoidCallback? _fishListener;
   String _fishSourceLanguage = 'en';
   String _fishTargetLanguage = 'de';
@@ -227,7 +228,7 @@ class _SessionScreenState extends State<SessionScreen>
       relayAudio.onSignal = (type, signal) => _p2p.acceptSignal(type, signal);
       relayAudio.onPcmAudio = (bytes, sampleRate) {
         // Relay PCM is a fallback while ICE is negotiating.
-        if (!_p2p.isConnected) {
+        if (!_p2p.isConnected || _fishRelayAudioOnly) {
           _enqueueSessionPlayback(bytes, sampleRate);
         }
       };
@@ -382,6 +383,7 @@ class _SessionScreenState extends State<SessionScreen>
               }
             });
           } else {
+            _fishRelayAudioOnly = true;
             _fish = FishAudioRealtimeService();
             await _fish!.connect(
               apiKey: provider.apiKey,
@@ -484,6 +486,7 @@ class _SessionScreenState extends State<SessionScreen>
     unawaited(_snailAudio.stopSessionKeepAlive());
     _audioSubscription?.cancel();
     _fishProcessTimer?.cancel();
+    _fishRelayAudioOnly = false;
     if (_fish != null && _fishListener != null) {
       _fish!.removeListener(_fishListener!);
     }
@@ -557,7 +560,9 @@ class _SessionScreenState extends State<SessionScreen>
       return;
     }
     for (final chunk in _fish!.takeAudioChunks()) {
-      _p2p.sendPcm16(chunk, sampleRate: 24000);
+      // Fish uses the reliable relay path for complete PCM chunks. Sending
+      // the same stream through WebRTC as well caused packet-loss gaps and
+      // duplicate/overlapping playback on the receiver.
       _audioService.sendPcmAudio(chunk, sampleRate: 24000);
     }
   }

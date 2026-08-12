@@ -7,9 +7,9 @@ class ProviderConfigService extends ChangeNotifier {
   static const _storageKey = 'snail_provider_config';
   static const _secureStorage = FlutterSecureStorage();
   ProviderConfig _config = const ProviderConfig(
-    provider: TranslationProvider.ollama,
-    endpoint: 'http://127.0.0.1:11434',
-    model: 'llama3.2:3b',
+    provider: TranslationProvider.fishAudio,
+    endpoint: 'wss://api.fish.audio/v1/tts/live',
+    model: 's2-pro',
   );
 
   ProviderConfig get config => _config;

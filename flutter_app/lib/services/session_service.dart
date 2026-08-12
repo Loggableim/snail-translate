@@ -21,7 +21,16 @@ class SessionService extends ChangeNotifier {
     'ja',
     'ko',
     'zh',
-    'uk'
+    'uk',
+    'ar',
+    'pt',
+    'ru',
+    'nl',
+    'tr',
+    'hi',
+    'vi',
+    'pl',
+    'sv'
   ];
 
   Session? _currentSession;

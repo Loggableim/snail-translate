@@ -88,6 +88,7 @@ interface ServerMessage {
   // Voice message fields
   audioData?: string;
   durationMs?: number;
+  [key: string]: unknown;
 }
 
 // ── Constants ────────────────────────────────────────────────────────
@@ -324,7 +325,10 @@ export class SnailRelay implements DurableObject {
                 this.session.roomId
               );
               if (d1History.length > 0) {
-                this.send(ws, { type: "chat_history", history: d1History });
+                this.send(ws, {
+                  type: "chat_history",
+                  history: d1History as ServerMessage[],
+                });
               }
             } else if (this.session.chatHistory.length > 0) {
               this.send(ws, { type: "chat_history", history: this.session.chatHistory });
@@ -428,6 +432,7 @@ export class SnailRelay implements DurableObject {
           this.session.chatHistory.push(chatMessage);
           this.session.chatHistory = this.session.chatHistory.slice(-500);
           if (!this.messageStore) {
+            this.session.deliveredMessageIds ??= [];
             this.session.deliveredMessageIds.push(messageId);
             this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
           }
@@ -517,6 +522,7 @@ export class SnailRelay implements DurableObject {
           this.session.chatHistory.push(stickerMessage);
           this.session.chatHistory = this.session.chatHistory.slice(-500);
           if (!this.messageStore) {
+            this.session.deliveredMessageIds ??= [];
             this.session.deliveredMessageIds.push(messageId);
             this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
           }
@@ -568,6 +574,7 @@ export class SnailRelay implements DurableObject {
           this.session.chatHistory.push(voiceMessage);
           this.session.chatHistory = this.session.chatHistory.slice(-500);
           if (!this.messageStore) {
+            this.session.deliveredMessageIds ??= [];
             this.session.deliveredMessageIds.push(messageId);
             this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
           }

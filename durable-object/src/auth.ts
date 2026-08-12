@@ -15,6 +15,18 @@ export interface SessionTokenPayload {
   iat: number;
 }
 
+/** Bind a signed token to this room before admitting its WebSocket. */
+export function validateSessionTokenForRoom(
+  payload: SessionTokenPayload,
+  roomId: string,
+): void {
+  if (payload.room !== roomId) throw new Error("Token room mismatch");
+  if (payload.role !== "host" && payload.role !== "guest") {
+    throw new Error("Invalid token role");
+  }
+  if (!payload.sub) throw new Error("Missing token subject");
+}
+
 export async function verifySessionToken(
   token: string,
   secret: string

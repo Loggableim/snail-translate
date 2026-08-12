@@ -5,7 +5,10 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../services/snail_audio.dart';
+import '../services/fish_audio_asr_service.dart';
 import '../services/session_service.dart';
+import '../services/provider_config_service.dart';
+import '../models/provider_config.dart';
 
 /// One-time guided onboarding shown on first app launch.
 ///
@@ -50,13 +53,32 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   // ── Microphone test state ──
   final _audio = SnailAudio();
+  final _fishAsr = FishAudioAsrService();
   bool _micInitialized = false;
   bool _micAvailable = false;
   _MicTestState _micState = _MicTestState.idle;
   Timer? _recordingTimer;
   StreamSubscription<Uint8List>? _micSubscription;
   final List<Uint8List> _recordedChunks = [];
+  int _recordedBytes = 0;
   bool _playingBack = false;
+  String? _micError;
+  String? _micResult;
+  String? _micTranscript;
+  Timer? _greetingTimer;
+  int _greetingIndex = 0;
+
+  static const _greetings = <({String flag, String text, String code})>[
+    (flag: '🇬🇧', text: 'Hello, choose your language.', code: 'en'),
+    (flag: '🇩🇪', text: 'Hallo, wähle deine Sprache.', code: 'de'),
+    (flag: '🇫🇷', text: 'Bonjour, choisis ta langue.', code: 'fr'),
+    (flag: '🇪🇸', text: 'Hola, elige tu idioma.', code: 'es'),
+    (flag: '🇮🇹', text: 'Ciao, scegli la tua lingua.', code: 'it'),
+    (flag: '🇯🇵', text: 'こんにちは、言語を選んでください。', code: 'ja'),
+    (flag: '🇰🇷', text: '안녕하세요, 언어를 선택하세요.', code: 'ko'),
+    (flag: '🇨🇳', text: '你好，请选择你的语言。', code: 'zh'),
+    (flag: '🇺🇦', text: 'Привіт, оберіть мову.', code: 'uk'),
+  ];
 
   @override
   void initState() {
@@ -67,6 +89,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
     _opacity = CurvedAnimation(parent: _fade, curve: Curves.easeIn);
     _fade.forward();
+    _greetingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted) return;
+      setState(() => _greetingIndex = (_greetingIndex + 1) % _greetings.length);
+    });
   }
 
   @override
@@ -75,6 +101,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     _micSubscription?.cancel();
     _audio.stopCapture();
     _audio.dispose();
+    _greetingTimer?.cancel();
     _pageController.dispose();
     _fade.dispose();
     super.dispose();
@@ -100,15 +127,30 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     if (_micInitialized) return;
     setState(() => _micState = _MicTestState.initializing);
     try {
+      final permission = await _audio.requestMicrophonePermission();
+      if (!permission) {
+        if (!mounted) return;
+        _micInitialized = true;
+        _micAvailable = false;
+        _micError =
+            'Snail benötigt den Mikrofonzugriff für die Testaufnahme und die Live-Übersetzung. Erlaube ihn bitte im Systemdialog oder in den Android-Einstellungen.';
+        setState(() => _micState = _MicTestState.idle);
+        return;
+      }
       final ok = await _audio.initialize(sampleRate: 16000);
       if (!mounted) return;
       _micInitialized = true;
       _micAvailable = ok;
+      _micError = ok
+          ? null
+          : 'Das Mikrofon konnte auf diesem Gerät nicht gestartet werden.';
       setState(() => _micState = _MicTestState.idle);
     } catch (_) {
       if (!mounted) return;
       _micInitialized = true;
       _micAvailable = false;
+      _micError =
+          'Das Mikrofon konnte nicht vorbereitet werden. Prüfe die Berechtigung in den Android-Einstellungen.';
       setState(() => _micState = _MicTestState.idle);
     }
   }
@@ -118,15 +160,34 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     if (!_micAvailable || !mounted) return;
 
     _recordedChunks.clear();
+    _recordedBytes = 0;
+    _micResult = null;
+    _micTranscript = null;
     setState(() => _micState = _MicTestState.recording);
 
     _micSubscription = _audio.audioStream?.listen((chunk) {
       if (_micState == _MicTestState.recording) {
         _recordedChunks.add(chunk);
+        _recordedBytes += chunk.length;
       }
     });
+    // EventChannel installs its native listener asynchronously. Give it a
+    // moment before opening AudioRecord, otherwise the first device buffers
+    // can be produced before Flutter is listening.
+    await Future<void>.delayed(const Duration(milliseconds: 120));
 
-    await _audio.startCapture();
+    final started = await _audio.startCapture();
+    if (!started) {
+      await _micSubscription?.cancel();
+      _micSubscription = null;
+      if (!mounted) return;
+      setState(() {
+        _micState = _MicTestState.idle;
+        _micError =
+            'Die Aufnahme konnte nicht gestartet werden. Prüfe, ob kein anderes Programm das Mikrofon verwendet.';
+      });
+      return;
+    }
 
     // Record for 3 seconds
     _recordingTimer = Timer(const Duration(seconds: 3), () async {
@@ -137,24 +198,82 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   Future<void> _stopRecording() async {
     _recordingTimer?.cancel();
     _recordingTimer = null;
+    await _audio.stopCapture();
+    // Native capture stops on another thread and may have one final event
+    // queued on the main looper. Drain it before cancelling the subscription.
+    await Future<void>.delayed(const Duration(milliseconds: 120));
     await _micSubscription?.cancel();
     _micSubscription = null;
-    await _audio.stopCapture();
     if (!mounted) return;
-    setState(() => _micState = _MicTestState.recorded);
+    setState(() {
+      _micState =
+          _recordedBytes > 0 ? _MicTestState.recorded : _MicTestState.idle;
+      if (_recordedBytes > 0) {
+        _micResult =
+            'Aufnahme erhalten: ${(_recordedBytes / 1024).round()} KB PCM. Wiedergabe wird gestartet …';
+      }
+      if (_recordedBytes == 0) {
+        _micError =
+            'Es wurden keine Audiodaten empfangen. Prüfe die Mikrofonberechtigung und versuche es erneut.';
+      }
+    });
+    if (_recordedBytes > 0) {
+      await _playRecording();
+      await _transcribeRecording();
+    }
+  }
+
+  Future<void> _transcribeRecording() async {
+    final apiKey = context.read<ProviderConfigService>().config.apiKey.trim();
+    if (apiKey.isEmpty || _recordedChunks.isEmpty) {
+      if (mounted) {
+        setState(() => _micResult =
+            'Aufnahme erfolgreich. Für die Transkription zuerst einen Fish-Audio-Key speichern.');
+      }
+      return;
+    }
+    final bytes = BytesBuilder(copy: false);
+    for (final chunk in _recordedChunks) bytes.add(chunk);
+    try {
+      final transcript = await _fishAsr.transcribe(
+        apiKey: apiKey,
+        pcm16: bytes.takeBytes(),
+        sampleRate: 16000,
+        language: context.read<SessionService>().myLanguage,
+      );
+      if (!mounted) return;
+      setState(() {
+        _micTranscript =
+            transcript.isEmpty ? '(keine Sprache erkannt)' : transcript;
+        _micResult = 'Aufnahme und Transkription erfolgreich.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _micResult =
+          'Aufnahme abgespielt, Transkription fehlgeschlagen: ${_shortError(error)}');
+    }
+  }
+
+  String _shortError(Object error) {
+    final text = error.toString().replaceFirst(RegExp(r'^Exception: '), '');
+    return text.length > 120 ? '${text.substring(0, 120)}…' : text;
   }
 
   Future<void> _playRecording() async {
     if (_recordedChunks.isEmpty || _playingBack) return;
     _playingBack = true;
     setState(() => _micState = _MicTestState.playing);
-    for (final chunk in _recordedChunks) {
-      if (!mounted) break;
-      await _audio.playPcm16(chunk, sampleRate: 16000);
-    }
+    final bytes = BytesBuilder(copy: false);
+    for (final chunk in _recordedChunks) bytes.add(chunk);
+    final pcm = bytes.takeBytes();
+    await _audio.playPcm16(pcm, sampleRate: 16000, output: AudioOutput.speaker);
     _playingBack = false;
     if (!mounted) return;
-    setState(() => _micState = _MicTestState.recorded);
+    setState(() {
+      _micState = _MicTestState.recorded;
+      _micResult =
+          'Aufnahme erfolgreich abgespielt (${(pcm.length / 1024).round()} KB).';
+    });
   }
 
   // ── Build ──
@@ -181,6 +300,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     _PageDot(active: _currentPage == 1),
                     const SizedBox(width: 8),
                     _PageDot(active: _currentPage == 2),
+                    const SizedBox(width: 8),
+                    _PageDot(active: _currentPage == 3),
+                    const SizedBox(width: 8),
+                    _PageDot(active: _currentPage == 4),
                   ],
                 ),
               ),
@@ -188,9 +311,23 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               Expanded(
                 child: PageView(
                   controller: _pageController,
-                  onPageChanged: (page) =>
-                      setState(() => _currentPage = page),
+                  onPageChanged: (page) => setState(() => _currentPage = page),
                   children: [
+                    // ── Page 0: language selection ──
+                    _LanguageSplash(
+                      greetings: _greetings,
+                      greetingIndex: _greetingIndex,
+                      onLanguageSelected: (code) async {
+                        await context
+                            .read<SessionService>()
+                            .setMyLanguage(code);
+                        if (mounted) setState(() {});
+                      },
+                      selectedLanguage:
+                          context.watch<SessionService>().myLanguage,
+                      onContinue: () => _goToPage(1),
+                    ),
+                    _ProviderKeyWelcome(onContinue: () => _goToPage(2)),
                     // ── Page 1: Value proposition ──
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -200,138 +337,137 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           children: [
                             const SizedBox(height: 16),
                             ClipRRect(
-                            borderRadius: BorderRadius.circular(24),
-                            child: Image.asset(
-                              'assets/branding/snail-logo.png',
-                              width: 96,
-                              height: 96,
-                              fit: BoxFit.cover,
-                              filterQuality: FilterQuality.high,
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                          Text(
-                            'Snail',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: colors.primary,
-                                ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Echtzeit-Sprachübersetzung\nfür zwei Personen.',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: colors.onSurface,
-                                ),
-                          ),
-                          const SizedBox(height: 20),
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? colors.surfaceContainerHighest
-                                      .withValues(alpha: 0.5)
-                                  : colors.primaryContainer
-                                      .withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(22),
-                            ),
-                            child: const Column(
-                              children: [
-                                _FeatureRow(
-                                  icon: Icons.mic_rounded,
-                                  color: AppTheme.lilac,
-                                  text: 'Sprich in deiner Sprache',
-                                ),
-                                SizedBox(height: 14),
-                                _FeatureRow(
-                                  icon: Icons.translate_rounded,
-                                  color: AppTheme.mint,
-                                  text: 'Snail übersetzt live',
-                                ),
-                                SizedBox(height: 14),
-                                _FeatureRow(
-                                  icon: Icons.headphones_rounded,
-                                  color: AppTheme.deepMint,
-                                  text:
-                                      'Dein Gegenüber hört die Übersetzung',
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // ── Language confirmation ──
-                          _LanguageConfirmation(),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: FilledButton.icon(
-                              onPressed: () => _goToPage(1),
-                              icon: const Icon(Icons.arrow_forward_rounded),
-                              label: const Text(
-                                'Weiter',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              style: FilledButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
+                              borderRadius: BorderRadius.circular(24),
+                              child: Image.asset(
+                                'assets/branding/snail-logo.png',
+                                width: 96,
+                                height: 96,
+                                fit: BoxFit.cover,
+                                filterQuality: FilterQuality.high,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 40,
-                            child: OutlinedButton.icon(
-                              onPressed: () async {
-                                await WelcomeScreen.markShown();
-                                if (!context.mounted) return;
-                                Navigator.of(context)
-                                    .pushReplacementNamed('/join');
-                              },
-                              icon: const Icon(Icons.login_rounded, size: 20),
-                              label: const Text(
-                                'Ich habe einen Code',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            const SizedBox(height: 32),
+                            Text(
+                              'Snail',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: colors.primary,
+                                  ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Echtzeit-Sprachübersetzung\nfür zwei Personen.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: colors.onSurface,
+                                  ),
+                            ),
+                            const SizedBox(height: 20),
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? colors.surfaceContainerHighest
+                                        .withValues(alpha: 0.5)
+                                    : colors.primaryContainer
+                                        .withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(22),
                               ),
-                              style: OutlinedButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18),
+                              child: const Column(
+                                children: [
+                                  _FeatureRow(
+                                    icon: Icons.mic_rounded,
+                                    color: AppTheme.lilac,
+                                    text: 'Sprich in deiner Sprache',
+                                  ),
+                                  SizedBox(height: 14),
+                                  _FeatureRow(
+                                    icon: Icons.translate_rounded,
+                                    color: AppTheme.mint,
+                                    text: 'Snail übersetzt live',
+                                  ),
+                                  SizedBox(height: 14),
+                                  _FeatureRow(
+                                    icon: Icons.headphones_rounded,
+                                    color: AppTheme.deepMint,
+                                    text: 'Dein Gegenüber hört die Übersetzung',
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            // ── Language confirmation ──
+                            _LanguageConfirmation(),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: FilledButton.icon(
+                                onPressed: () => _goToPage(3),
+                                icon: const Icon(Icons.arrow_forward_rounded),
+                                label: const Text(
+                                  'Weiter',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                style: FilledButton.styleFrom(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Kein Konto nötig. '
-                            'Deine Daten bleiben auf deinem Gerät.',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: colors.onSurface
-                                      .withValues(alpha: 0.5),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 40,
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  await WelcomeScreen.markShown();
+                                  if (!context.mounted) return;
+                                  Navigator.of(context)
+                                      .pushReplacementNamed('/join');
+                                },
+                                icon: const Icon(Icons.login_rounded, size: 20),
+                                label: const Text(
+                                  'Ich habe einen Code',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      ),
+                                style: OutlinedButton.styleFrom(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Kein Konto nötig. '
+                              'Deine Daten bleiben auf deinem Gerät.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color:
+                                        colors.onSurface.withValues(alpha: 0.5),
+                                  ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
                     ),
                     // ── Page 2: Microphone test ──
@@ -398,10 +534,30 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 .textTheme
                                 .bodyLarge
                                 ?.copyWith(
-                                  color: colors.onSurface
-                                      .withValues(alpha: 0.7),
+                                  color:
+                                      colors.onSurface.withValues(alpha: 0.7),
                                 ),
                           ),
+                          if (_micResult != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              _micResult!,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: colors.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                          if (_micTranscript != null) ...[
+                            const SizedBox(height: 10),
+                            SelectableText(
+                              'Transkription: „$_micTranscript“',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
                           const SizedBox.shrink(),
                           // ── Action buttons ──
                           _MicActionButton(
@@ -454,8 +610,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   .textTheme
                                   .bodyLarge
                                   ?.copyWith(
-                                    color: colors.onSurface
-                                        .withValues(alpha: 0.7),
+                                    color:
+                                        colors.onSurface.withValues(alpha: 0.7),
                                   ),
                             ),
                             const SizedBox(height: 24),
@@ -504,8 +660,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                     icon: Icons.swap_horiz_rounded,
                                     color: colors.primary,
                                     label: '… und zurück',
-                                    detail:
-                                        'Die Übersetzung läuft in beide '
+                                    detail: 'Die Übersetzung läuft in beide '
                                         'Richtungen',
                                     arrow: null,
                                   ),
@@ -517,13 +672,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: colors.primary
-                                    .withValues(alpha: 0.08),
+                                color: colors.primary.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Row(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Icon(
                                     Icons.lightbulb_outline_rounded,
@@ -553,8 +706,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               height: 56,
                               child: FilledButton.icon(
                                 onPressed: _finish,
-                                icon: const Icon(
-                                    Icons.check_rounded),
+                                icon: const Icon(Icons.check_rounded),
                                 label: const Text(
                                   'Los geht\'s!',
                                   style: TextStyle(
@@ -564,8 +716,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 ),
                                 style: FilledButton.styleFrom(
                                   shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(18),
+                                    borderRadius: BorderRadius.circular(18),
                                   ),
                                 ),
                               ),
@@ -586,13 +737,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   String _micStateDescription() {
+    if (_micError != null && _micState == _MicTestState.idle) return _micError!;
     return switch (_micState) {
-      _MicTestState.idle =>
-        'Sprich kurz etwas in dein Mikrofon, '
-            'damit du sicher bist, dass alles funktioniert.',
+      _MicTestState.idle => 'Sprich kurz etwas in dein Mikrofon, '
+          'damit du sicher bist, dass alles funktioniert.',
       _MicTestState.initializing => 'Mikrofon wird vorbereitet …',
-      _MicTestState.recording =>
-        'Aufnahme läuft — sprich jetzt! (3 Sekunden)',
+      _MicTestState.recording => 'Aufnahme läuft — sprich jetzt! (3 Sekunden)',
       _MicTestState.recorded =>
         'Aufnahme gespeichert. Hör sie dir an oder fahre fort.',
       _MicTestState.playing => 'Aufnahme wird abgespielt …',
@@ -618,9 +768,8 @@ class _PageDot extends StatelessWidget {
       width: active ? 24 : 8,
       height: 8,
       decoration: BoxDecoration(
-        color: active
-            ? colors.primary
-            : colors.onSurface.withValues(alpha: 0.2),
+        color:
+            active ? colors.primary : colors.onSurface.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(4),
       ),
     );
@@ -675,13 +824,17 @@ class _MicIconState extends State<_MicIcon>
   @override
   Widget build(BuildContext context) {
     final (icon, color) = switch (widget.state) {
-      _MicTestState.initializing => (Icons.mic_rounded,
-          widget.colors.onSurface.withValues(alpha: 0.4)),
+      _MicTestState.initializing => (
+          Icons.mic_rounded,
+          widget.colors.onSurface.withValues(alpha: 0.4)
+        ),
       _MicTestState.recording => (Icons.mic_rounded, Colors.red),
       _MicTestState.recorded => (Icons.check_circle_rounded, Colors.green),
       _MicTestState.playing => (Icons.volume_up_rounded, widget.colors.primary),
-      _MicTestState.idle => (Icons.mic_none_rounded,
-          widget.colors.onSurface.withValues(alpha: 0.4)),
+      _MicTestState.idle => (
+          Icons.mic_none_rounded,
+          widget.colors.onSurface.withValues(alpha: 0.4)
+        ),
     };
 
     return ScaleTransition(
@@ -717,9 +870,7 @@ class _MicActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (state) {
-      _MicTestState.idle ||
-      _MicTestState.initializing =>
-        SizedBox(
+      _MicTestState.idle || _MicTestState.initializing => SizedBox(
           width: double.infinity,
           height: 56,
           child: FilledButton.icon(
@@ -875,6 +1026,207 @@ class _FeatureRow extends StatelessWidget {
 }
 
 /// Shows the auto-detected language and lets the user confirm or change it.
+class _LanguageSplash extends StatelessWidget {
+  const _LanguageSplash({
+    required this.greetings,
+    required this.greetingIndex,
+    required this.selectedLanguage,
+    required this.onLanguageSelected,
+    required this.onContinue,
+  });
+
+  final List<({String flag, String text, String code})> greetings;
+  final int greetingIndex;
+  final String selectedLanguage;
+  final Future<void> Function(String code) onLanguageSelected;
+  final VoidCallback onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final greeting = greetings[greetingIndex];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: Image.asset('assets/branding/snail-logo.png',
+                width: 132, height: 132, fit: BoxFit.cover),
+          ),
+          const SizedBox(height: 28),
+          Text('Snail',
+              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                  fontWeight: FontWeight.w800, color: colors.primary)),
+          const SizedBox(height: 14),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            child: Text('${greeting.flag}  ${greeting.text}',
+                key: ValueKey(greetingIndex),
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(height: 28),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: greetings
+                .map((language) => ChoiceChip(
+                      label: Text(language.flag),
+                      selected: selectedLanguage == language.code,
+                      tooltip: language.code.toUpperCase(),
+                      onSelected: (_) => onLanguageSelected(language.code),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 30),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: FilledButton(
+              onPressed: onContinue,
+              child: const Text('Weiter',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProviderKeyWelcome extends StatefulWidget {
+  const _ProviderKeyWelcome({required this.onContinue});
+
+  final VoidCallback onContinue;
+
+  @override
+  State<_ProviderKeyWelcome> createState() => _ProviderKeyWelcomeState();
+}
+
+class _ProviderKeyWelcomeState extends State<_ProviderKeyWelcome> {
+  late final TextEditingController _key;
+  ProviderConfig _config = const ProviderConfig(
+    provider: TranslationProvider.fishAudio,
+    endpoint: 'wss://api.fish.audio/v1/tts/live',
+    model: 's2-pro',
+  );
+  bool _obscure = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      _config =
+          Provider.of<ProviderConfigService>(context, listen: false).config;
+    } catch (_) {
+      // The onboarding widget is also usable in isolation (e.g. previews/tests).
+    }
+    _key = TextEditingController(text: _config.apiKey);
+  }
+
+  @override
+  void dispose() {
+    _key.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveAndContinue() async {
+    setState(() => _saving = true);
+    final current = _config;
+    final updated = ProviderConfig(
+      provider: TranslationProvider.fishAudio,
+      endpoint: 'wss://api.fish.audio/v1/tts/live',
+      model: 's2-pro',
+      apiKey: _key.text.trim(),
+      voiceId: current.voiceId,
+      latencyMode: current.latencyMode,
+      temperature: current.temperature,
+      topP: current.topP,
+      speed: current.speed,
+      translationEndpoint: current.translationEndpoint,
+      translationModel: current.translationModel,
+    );
+    _config = updated;
+    try {
+      await Provider.of<ProviderConfigService>(context, listen: false)
+          .save(updated);
+    } catch (_) {
+      // Keep onboarding functional when embedded without the app providers.
+    }
+    if (mounted) {
+      setState(() => _saving = false);
+      widget.onContinue();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(Icons.key_rounded, size: 64, color: colors.primary),
+        const SizedBox(height: 20),
+        Text('Fish Audio einrichten',
+            textAlign: TextAlign.center,
+            style: Theme.of(context)
+                .textTheme
+                .headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 10),
+        const Text(
+            'Snail nutzt standardmäßig Fish Audio für die günstige Echtzeit-Sprachausgabe.\nDein Schlüssel bleibt auf diesem Gerät.',
+            textAlign: TextAlign.center),
+        const SizedBox(height: 22),
+        TextField(
+          controller: _key,
+          obscureText: _obscure,
+          decoration: InputDecoration(
+            labelText: 'Fish Audio API-Key',
+            hintText: 'sk-fish-…',
+            prefixIcon: const Icon(Icons.lock_outline_rounded),
+            suffixIcon: IconButton(
+              onPressed: () => setState(() => _obscure = !_obscure),
+              icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextButton.icon(
+          onPressed: () =>
+              Navigator.of(context).pushNamed('/provider-settings'),
+          icon: const Icon(Icons.tune_rounded),
+          label: const Text('Andere API / Provider verwenden'),
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: FilledButton(
+            onPressed: _saving ? null : _saveAndContinue,
+            child: _saving
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Weiter',
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
 class _LanguageConfirmation extends StatelessWidget {
   const _LanguageConfirmation();
 
@@ -914,8 +1266,7 @@ class _LanguageConfirmation extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.language_rounded,
-                  size: 18, color: colors.primary),
+              Icon(Icons.language_rounded, size: 18, color: colors.primary),
               const SizedBox(width: 8),
               Text(
                 'Deine Sprache',
@@ -1009,8 +1360,7 @@ class _LanguageConfirmation extends StatelessWidget {
                 const Spacer(),
                 if (lang.code == session.myLanguage)
                   Icon(Icons.check_rounded,
-                      size: 20,
-                      color: Theme.of(ctx).colorScheme.primary),
+                      size: 20, color: Theme.of(ctx).colorScheme.primary),
               ],
             ),
           );

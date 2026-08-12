@@ -7,6 +7,7 @@ import 'services/contact_service.dart';
 import 'services/provider_config_service.dart';
 import 'services/gemini_live_service.dart';
 import 'services/openai_realtime_service.dart';
+import 'services/fish_audio_realtime_service.dart';
 import 'services/transcript_history.dart';
 import 'services/audio_policy.dart';
 import 'services/error_logger.dart';
@@ -82,6 +83,7 @@ class SnailApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: providerConfigService),
         ChangeNotifierProvider(create: (_) => GeminiLiveService()),
         ChangeNotifierProvider(create: (_) => OpenAiRealtimeService()),
+        ChangeNotifierProvider(create: (_) => FishAudioRealtimeService()),
         ChangeNotifierProvider(create: (_) => AudioService()),
         ChangeNotifierProvider.value(value: ErrorLogger.I),
         ChangeNotifierProvider.value(value: history),
