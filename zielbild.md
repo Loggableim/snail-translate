@@ -55,7 +55,7 @@ nächsten offenen Punkt.
 - [x] 37. Große Services in kleinere Komponenten teilen.
 - [x] 38. UI, Domain-Logik und Transport konsequenter trennen.
 - [x] 39. Gemeinsame DTOs zwischen Flutter und Worker versionieren.
-- [ ] 40. Fehlerklassen statt freier Fehlermeldungen verwenden.
+- [x] 40. Fehlerklassen statt freier Fehlermeldungen verwenden.
 - [ ] 41. Historische Pipeline eindeutig als Legacy markieren.
 - [ ] 42. Lifecycle- und Dispose-Verhalten aller Services testen.
 
