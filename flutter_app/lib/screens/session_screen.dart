@@ -34,7 +34,8 @@ class _SessionPlaybackChunk {
   final int sampleRate;
 }
 
-class _SessionScreenState extends State<SessionScreen> {
+class _SessionScreenState extends State<SessionScreen>
+    with WidgetsBindingObserver {
   // Cache provider-owned services before the route starts unmounting. Reading
   // an inherited provider from dispose() can race with Provider's own teardown
   // and trigger Flutter's `_dependents.isEmpty` assertion.
@@ -116,6 +117,7 @@ class _SessionScreenState extends State<SessionScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _audioService = context.read<AudioService>();
     _sessionService = context.read<SessionService>();
     _transcriptHistory = context.read<TranscriptHistory>();
@@ -124,6 +126,26 @@ class _SessionScreenState extends State<SessionScreen> {
     // intentionally scoped to the session route and released on exit.
     WakelockPlus.enable();
     unawaited(_connect(_connectionGeneration));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+        // Stop capture and drain playback when app goes to background.
+        _snailAudio.pauseCapture();
+        _playbackQueue.clear();
+        _playbackDraining = false;
+        break;
+      case AppLifecycleState.resumed:
+        // Resume capture when app returns to foreground.
+        _snailAudio.resumeCapture();
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        break;
+    }
   }
 
   Future<void> _connect(int generation) async {
@@ -367,6 +389,7 @@ class _SessionScreenState extends State<SessionScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _connectionGeneration++;
     WakelockPlus.disable();
     unawaited(_snailAudio.stopSessionKeepAlive());

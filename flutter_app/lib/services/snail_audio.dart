@@ -150,6 +150,26 @@ class SnailAudio {
     _isCapturing = false;
   }
 
+  /// Pause audio capture without full teardown (app background).
+  Future<void> pauseCapture() async {
+    if (!_isCapturing) return;
+    try {
+      await _methodChannel.invokeMethod('pauseCapture');
+    } catch (e) {
+      debugPrint('SnailAudio pauseCapture error: $e');
+    }
+  }
+
+  /// Resume audio capture after pause (app foreground).
+  Future<void> resumeCapture() async {
+    if (!_isCapturing) return;
+    try {
+      await _methodChannel.invokeMethod('resumeCapture');
+    } catch (e) {
+      debugPrint('SnailAudio resumeCapture error: $e');
+    }
+  }
+
   /// Plays raw mono PCM16. Gemini Live outputs 24-kHz PCM; callers must not
   /// pass MP3/container bytes to this method.
   Future<void> playPcm16(Uint8List bytes,

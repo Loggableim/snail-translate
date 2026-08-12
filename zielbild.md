@@ -38,7 +38,7 @@ nächsten offenen Punkt.
 - [x] 20. Clipping erkennen und verständlich melden.
 - [x] 21. Stille-Erkennung lokal optimieren.
 - [x] 22. Lautsprecher- und Kopfhörermodus sauber trennen.
-- [ ] 23. Audio-Wiedergabe bei App-Wechsel absichern.
+- [x] 23. Audio-Wiedergabe bei App-Wechsel absichern.
 - [ ] 24. Provider-Key-Test mit Diagnosebericht anbieten.
 - [ ] 25. Nachrichten mit eindeutigen IDs versehen.
 - [ ] 26. Nachrichtenstatus `queued`, `sent`, `delivered`, `read` einführen.
