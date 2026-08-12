@@ -20,22 +20,30 @@ class ErrorLogger extends ChangeNotifier {
     required Object error,
     StackTrace? stackTrace,
   }) {
+    final safeMessage = _redact(error.toString());
+    final safeStack = _redact(stackTrace?.toString() ?? "");
     _logs.insert(
       0,
       ErrorEntry(
         timestamp: DateTime.now(),
         provider: provider,
         context: context,
-        message: error.toString(),
-        stackTrace: stackTrace?.toString() ?? "",
+        message: safeMessage,
+        stackTrace: safeStack,
       ),
     );
     if (_logs.length > _maxEntries) {
       _logs.removeRange(_maxEntries, _logs.length);
     }
     notifyListeners();
-    debugPrint("[Snail:Error] $provider/$context: $error");
+    debugPrint("[Snail:Error] $provider/$context: $safeMessage");
   }
+
+  static String _redact(String value) => value
+      .replaceAll(RegExp(r'Bearer\s+[A-Za-z0-9._-]+', caseSensitive: false),
+          'Bearer [REDACTED]')
+      .replaceAll(RegExp(r'(sk-fish-|sk-proj-|gsk_)[A-Za-z0-9._-]+'),
+          '[REDACTED_KEY]');
 
   /// Get all logged errors (newest first).
   List<ErrorEntry> getLogs() => List.unmodifiable(_logs);
