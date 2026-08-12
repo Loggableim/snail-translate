@@ -8,6 +8,9 @@ enum ContactStatus {
 
   /// Contact request has been rejected.
   rejected,
+
+  /// Contact has been blocked.
+  blocked,
 }
 
 class SnailContact {
@@ -24,6 +27,7 @@ class SnailContact {
   bool get isPending => status == ContactStatus.pending;
   bool get isAccepted => status == ContactStatus.accepted;
   bool get isRejected => status == ContactStatus.rejected;
+  bool get isBlocked => status == ContactStatus.blocked;
 
   SnailContact copyWith({ContactStatus? status}) => SnailContact(
         userId: userId,

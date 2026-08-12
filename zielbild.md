@@ -50,7 +50,7 @@ nächsten offenen Punkt.
 - [x] 32. Nachrichtensuche einbauen.
 - [x] 33. Nachrichtenbearbeitung und Löschung spezifizieren und umsetzen.
 - [x] 34. Kontaktanfragen akzeptierbar oder ablehnbar machen.
-- [ ] 35. Kontakte blockieren können.
+- [x] 35. Kontakte blockieren können.
 - [ ] 36. Inaktive Sessions automatisch bereinigen.
 - [ ] 37. Große Services in kleinere Komponenten teilen.
 - [ ] 38. UI, Domain-Logik und Transport konsequenter trennen.

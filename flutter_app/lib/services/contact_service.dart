@@ -65,6 +65,28 @@ class ContactService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Block a contact. Blocked contacts cannot send messages or session requests.
+  Future<void> block(SnailContact contact) async {
+    final index = _contacts.indexWhere((c) => c.userId == contact.userId);
+    if (index == -1) return;
+    _contacts[index] = _contacts[index].copyWith(status: ContactStatus.blocked);
+    await _persist();
+    notifyListeners();
+  }
+
+  /// Unblock a previously blocked contact.
+  Future<void> unblock(SnailContact contact) async {
+    final index = _contacts.indexWhere((c) => c.userId == contact.userId);
+    if (index == -1) return;
+    _contacts[index] = _contacts[index].copyWith(status: ContactStatus.accepted);
+    await _persist();
+    notifyListeners();
+  }
+
+  /// Check if a user ID is blocked.
+  bool isBlocked(String userId) =>
+      _contacts.any((c) => c.userId == userId && c.isBlocked);
+
   Future<void> remove(SnailContact contact) async {
     _contacts.removeWhere((value) => value.userId == contact.userId);
     await _persist();
