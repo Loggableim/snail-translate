@@ -24,7 +24,7 @@ Disconnect-/Retry-Behandlung sowie Latenz- und Audio-Gap-Messung.
 - [x] 51. Mehrere auswählbare Fish-Audio-Stimmen in der GUI anzeigen.
 - [x] 52. Voice-Auswahl über `reference_id`/Voice-ID konfigurieren und persistieren.
 - [x] 53. Voice-Metadaten cachen und Stimmen für schnelle Sessions vorbereiten.
-- [ ] 54. Voice-Wechsel zwischen abgeschlossenen Turns ermöglichen.
+- [x] 54. Voice-Wechsel zwischen abgeschlossenen Turns ermöglichen.
 - [ ] 55. Temperatur, Top-p und Sprechgeschwindigkeit begrenzt anbieten.
 - [ ] 56. Fish-Audio-Key-Test mit Voice-, Verbindungs- und Latenzdiagnose ergänzen.
 - [ ] 57. Fish-vs.-OpenAI-Test für TTFA, Turn-Latenz und Audio-Gaps durchführen.

@@ -35,6 +35,7 @@ class FishAudioRealtimeService extends ChangeNotifier {
   String? get lastError => _lastError;
   bool get hasPendingAudio => _audioChunks.isNotEmpty;
   int get pendingTextWords => _wordCount(_textBuffer.toString());
+  String get voiceId => _voiceId;
 
   Future<void> connect({
     required String apiKey,
@@ -57,6 +58,25 @@ class FishAudioRealtimeService extends ChangeNotifier {
     _speed = speed.clamp(0.5, 2.0);
     _reconnectAttempts = 0;
     _lastError = null;
+    await _open();
+  }
+
+  /// Switches voice between completed turns without losing provider settings.
+  /// Fish binds the voice to the TTS session, so a fresh session is required.
+  Future<void> switchVoice(String voiceId) async {
+    final nextVoice = voiceId.trim();
+    if (nextVoice.isEmpty) throw ArgumentError('Fish-Voice-ID fehlt');
+    final key = _apiKey;
+    if (key == null || !_connected) {
+      _voiceId = nextVoice;
+      return;
+    }
+    flush();
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    await disconnect();
+    _apiKey = key;
+    _voiceId = nextVoice;
+    _reconnectAttempts = 0;
     await _open();
   }
 
