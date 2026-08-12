@@ -45,6 +45,7 @@ class _SessionScreenState extends State<SessionScreen> {
   final _snailAudio = SnailAudio();
   StreamSubscription? _audioSubscription;
   final _micLevel = ValueNotifier<double>(0.0);
+  bool _clippingDetected = false;
   GeminiLiveService? _gemini;
   OpenAiRealtimeService? _openAi;
   OpenAiRealtimeService? _guestFallbackOpenAi;
@@ -246,6 +247,29 @@ class _SessionScreenState extends State<SessionScreen> {
             _audioSubscription = _snailAudio.audioStream?.listen((chunk) {
               // Compute mic level for visualization
               _micLevel.value = AudioProcessor.computeLevel(chunk);
+              // Detect clipping
+              if (!_clippingDetected && AudioProcessor.detectClipping(chunk)) {
+                _clippingDetected = true;
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                        'Mikrofon übersteuert! Sprich etwas leiser oder '
+                        'vergrößere den Abstand zum Mikrofon.',
+                      ),
+                      backgroundColor:
+                          Theme.of(context).colorScheme.error,
+                      duration: const Duration(seconds: 4),
+                      action: SnackBarAction(
+                        label: 'OK',
+                        textColor: Colors.white,
+                        onPressed: () =>
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+                      ),
+                    ),
+                  );
+                }
+              }
               // Do not feed the phone speaker's translated output back into
               // the realtime translator when devices are close together.
               if (!echoGuardEnabled || !_snailAudio.isPlaybackActive) {

@@ -72,4 +72,19 @@ class AudioProcessor {
     final rms = (sumSquares / int16.length).clamp(0.0, 1.0);
     return rms;
   }
+
+  /// Detect clipping in raw 16-bit PCM audio.
+  ///
+  /// Returns true if any sample reaches the maximum amplitude (±32767),
+  /// indicating the microphone input is too loud.
+  static bool detectClipping(Uint8List rawPcm) {
+    if (rawPcm.length < 2) return false;
+    final int16 =
+        Int16List.view(rawPcm.buffer, rawPcm.offsetInBytes, rawPcm.length ~/ 2);
+    for (var i = 0; i < int16.length; i++) {
+      final s = int16[i];
+      if (s == 32767 || s == -32768) return true;
+    }
+    return false;
+  }
 }
