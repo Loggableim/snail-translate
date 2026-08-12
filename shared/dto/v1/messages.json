@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snail-translate.github.io/dto/v1/messages.json",
+  "title": "Snail Message DTOs",
+  "description": "Versioned message types shared between Flutter client and Cloudflare Worker.",
+  "version": "1.0.0",
+  "definitions": {
+    "MessageType": {
+      "type": "string",
+      "enum": [
+        "auth", "auth_ok", "auth_error",
+        "audio", "pcm_audio", "fallback_pcm_audio",
+        "chat", "sticker", "voice",
+        "edit", "delete",
+        "signal",
+        "ping",
+        "chat_history", "delivery_ack",
+        "peer_joined", "peer_left", "session_end",
+        "error"
+      ]
+    },
+    "ChatMessage": {
+      "type": "object",
+      "required": ["type", "messageId", "text", "timestamp"],
+      "properties": {
+        "type": { "const": "chat" },
+        "messageId": { "type": "string", "format": "uuid" },
+        "text": { "type": "string", "maxLength": 10000 },
+        "senderId": { "type": "string" },
+        "sourceLang": { "type": "string", "minLength": 2, "maxLength": 5 },
+        "targetLang": { "type": "string", "minLength": 2, "maxLength": 5 },
+        "timestamp": { "type": "integer" }
+      }
+    },
+    "StickerMessage": {
+      "type": "object",
+      "required": ["type", "messageId", "assetUrl", "mimeType", "timestamp"],
+      "properties": {
+        "type": { "const": "sticker" },
+        "messageId": { "type": "string", "format": "uuid" },
+        "assetUrl": { "type": "string", "maxLength": 2048 },
+        "mimeType": { "type": "string" },
+        "emoji": { "type": "string", "maxLength": 10 },
+        "packShortName": { "type": "string", "maxLength": 100 },
+        "stickerId": { "type": "string" },
+        "fileUniqueId": { "type": "string" },
+        "isAnimated": { "type": "boolean" },
+        "isVideo": { "type": "boolean" },
+        "timestamp": { "type": "integer" }
+      }
+    },
+    "VoiceMessage": {
+      "type": "object",
+      "required": ["type", "messageId", "audioData", "durationMs", "timestamp"],
+      "properties": {
+        "type": { "const": "voice" },
+        "messageId": { "type": "string", "format": "uuid" },
+        "audioData": { "type": "string", "description": "base64-encoded audio" },
+        "mimeType": { "type": "string", "enum": ["audio/pcm16", "audio/opus", "audio/webm"] },
+        "sampleRate": { "type": "integer", "enum": [8000, 16000, 24000, 48000] },
+        "durationMs": { "type": "integer", "minimum": 0, "maximum": 60000 },
+        "timestamp": { "type": "integer" }
+      }
+    },
+    "EditMessage": {
+      "type": "object",
+      "required": ["type", "messageId", "text"],
+      "properties": {
+        "type": { "const": "edit" },
+        "messageId": { "type": "string", "format": "uuid" },
+        "text": { "type": "string", "maxLength": 10000 }
+      }
+    },
+    "DeleteMessage": {
+      "type": "object",
+      "required": ["type", "messageId"],
+      "properties": {
+        "type": { "const": "delete" },
+        "messageId": { "type": "string", "format": "uuid" }
+      }
+    },
+    "DeliveryAck": {
+      "type": "object",
+      "required": ["type", "messageId"],
+      "properties": {
+        "type": { "const": "delivery_ack" },
+        "messageId": { "type": "string", "format": "uuid" }
+      }
+    },
+    "ErrorMessage": {
+      "type": "object",
+      "required": ["type", "error"],
+      "properties": {
+        "type": { "const": "error" },
+        "error": { "type": "string" }
+      }
+    }
+  }
+}
