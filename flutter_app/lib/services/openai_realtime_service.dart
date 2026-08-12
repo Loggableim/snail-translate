@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/io.dart';
 
+import 'audio_processor.dart';
 import 'error_logger.dart';
 
 /// Immutable, completed section of one continuous translation stream.
@@ -223,7 +224,7 @@ class OpenAiRealtimeService extends ChangeNotifier {
     }
     final pcm24 = inputSampleRate == 24000
         ? bytes
-        : _resamplePcm16(bytes, inputSampleRate, 24000);
+        : AudioProcessor.processAudioChunk(bytes, inputSampleRate, 24000);
     try {
       _channel!.sink.add(jsonEncode({
         'type': 'session.input_audio_buffer.append',
@@ -239,25 +240,6 @@ class OpenAiRealtimeService extends ChangeNotifier {
       _state = 'streaming';
       notifyListeners();
     }
-  }
-
-  Uint8List _resamplePcm16(Uint8List source, int fromRate, int toRate) {
-    if (fromRate <= 0 || toRate <= 0 || source.length < 2) return source;
-    final input = ByteData.sublistView(source);
-    final inputSamples = source.length ~/ 2;
-    final outputSamples = (inputSamples * toRate / fromRate).round();
-    final output = ByteData(outputSamples * 2);
-    for (var i = 0; i < outputSamples; i++) {
-      final position = i * fromRate / toRate;
-      final left = position.floor().clamp(0, inputSamples - 1);
-      final right = (left + 1).clamp(0, inputSamples - 1);
-      final fraction = position - left;
-      final a = input.getInt16(left * 2, Endian.little);
-      final b = input.getInt16(right * 2, Endian.little);
-      output.setInt16(i * 2,
-          (a + (b - a) * fraction).round().clamp(-32768, 32767), Endian.little);
-    }
-    return output.buffer.asUint8List();
   }
 
   void _onMessage(dynamic raw) {
