@@ -43,7 +43,7 @@ nächsten offenen Punkt.
 - [x] 25. Nachrichten mit eindeutigen IDs versehen.
 - [x] 26. Nachrichtenstatus `queued`, `sent`, `delivered`, `read` einführen.
 - [x] 27. Offline-Nachrichten persistent speichern.
-- [ ] 28. D1 als Message Store implementieren.
+- [x] 28. D1 als Message Store implementieren.
 - [ ] 29. Doppelte Nachrichten idempotent behandeln.
 - [ ] 30. Anhänge mit einem verbindlichen Größenlimit versehen.
 - [ ] 31. Sprachnachrichten ergänzen.

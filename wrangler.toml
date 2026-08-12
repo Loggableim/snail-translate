@@ -32,6 +32,14 @@ binding = "SNAIL_KV"
 id = "9e842997d805491080a5de29544a01c8"
 preview_id = "9e842997d805491080a5de29544a01c8"
 
+# ── D1 Database ───────────────────────────────────────────────────────
+
+[[d1_databases]]
+binding = "SNAIL_DB"
+database_name = "snail-messages"
+database_id = "PLACEHOLDER"  # Run: wrangler d1 create snail-messages
+preview_database_id = "PLACEHOLDER"
+
 
 # ── Routes ─────────────────────────────────────────────────────────────
 

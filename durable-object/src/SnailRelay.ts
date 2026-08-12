@@ -8,8 +8,13 @@
  * - Quota tracking (per session)
  */
 
-import { verifySessionToken, type SessionTokenPayload } from "./auth";
+import {
+  validateSessionTokenForRoom,
+  verifySessionToken,
+  type SessionTokenPayload,
+} from "./auth";
 import { processAudioPipeline } from "./pipeline";
+import { D1MessageStore } from "./d1-store";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -83,6 +88,7 @@ interface ServerMessage {
 
 const PING_INTERVAL_MS = 30_000;
 const MAX_QUOTA_SECONDS = 30 * 60;
+const MAX_PCM_SAMPLES_PER_MESSAGE = 16_000; // max 1 s mono PCM at 16 kHz
 
 // ── Durable Object ────────────────────────────────────────────────────
 
@@ -90,8 +96,10 @@ export class SnailRelay implements DurableObject {
   private state: DurableObjectState;
   private session: SessionState;
   private secret: string = "";
+  private pingIntervals = new Map<WebSocket, ReturnType<typeof setInterval>>();
+  private messageStore: D1MessageStore | null = null;
 
-  constructor(state: DurableObjectState, _env: any) {
+  constructor(state: DurableObjectState, env: any) {
     this.state = state;
     this.session = {
       roomId: "",
@@ -110,6 +118,11 @@ export class SnailRelay implements DurableObject {
       chatHistory: [],
       deliveredMessageIds: [],
     };
+
+    // Initialize D1 message store if binding is available
+    if (env.SNAIL_DB) {
+      this.messageStore = new D1MessageStore(env.SNAIL_DB);
+    }
 
     this.state.blockConcurrencyWhile(async () => {
       const saved = await this.state.storage.get<SessionState>("session");
@@ -251,6 +264,7 @@ export class SnailRelay implements DurableObject {
             } else {
               payload = await verifySessionToken(msg.token, this.secret);
             }
+            validateSessionTokenForRoom(payload, this.session.roomId);
             userId = payload.sub;
             peerRole = payload.role;
 
@@ -274,7 +288,16 @@ export class SnailRelay implements DurableObject {
 
             authenticated = true;
             this.send(ws, { type: "auth_ok", peerId: payload.role });
-            if (this.session.chatHistory.length > 0) {
+
+            // Load chat history from D1 (preferred) or in-memory fallback
+            if (this.messageStore && this.session.roomId) {
+              const d1History = await this.messageStore.getHistory(
+                this.session.roomId
+              );
+              if (d1History.length > 0) {
+                this.send(ws, { type: "chat_history", history: d1History });
+              }
+            } else if (this.session.chatHistory.length > 0) {
               this.send(ws, { type: "chat_history", history: this.session.chatHistory });
             }
 
@@ -337,11 +360,22 @@ export class SnailRelay implements DurableObject {
           }
 
           const messageId = msg.messageId || crypto.randomUUID();
-          this.session.deliveredMessageIds ??= [];
-          if (this.session.deliveredMessageIds.includes(messageId)) {
-            this.send(ws, { type: "delivery_ack", messageId });
-            break;
+
+          // D1 idempotency check (preferred) or in-memory fallback
+          if (this.messageStore) {
+            const exists = await this.messageStore.exists(messageId);
+            if (exists) {
+              this.send(ws, { type: "delivery_ack", messageId });
+              break;
+            }
+          } else {
+            this.session.deliveredMessageIds ??= [];
+            if (this.session.deliveredMessageIds.includes(messageId)) {
+              this.send(ws, { type: "delivery_ack", messageId });
+              break;
+            }
           }
+
           const chatMessage: ServerMessage = {
             type: "chat",
             messageId,
@@ -351,13 +385,18 @@ export class SnailRelay implements DurableObject {
             targetLang: msg.targetLang || this.session.targetLang,
             timestamp: msg.timestamp || Date.now(),
           };
-          // The relay is the durable store-and-forward path. Persist before
-          // looking up the peer so a message sent while the recipient is
-          // offline is available immediately after the next authentication.
+
+          // Persist to D1 (preferred) and in-memory (fallback)
+          if (this.messageStore && this.session.roomId) {
+            await this.messageStore.insert(chatMessage, this.session.roomId);
+          }
+          // Always keep in-memory for backward compat and fast access
           this.session.chatHistory.push(chatMessage);
           this.session.chatHistory = this.session.chatHistory.slice(-500);
-          this.session.deliveredMessageIds.push(messageId);
-          this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
+          if (!this.messageStore) {
+            this.session.deliveredMessageIds.push(messageId);
+            this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
+          }
           await this.saveState();
           const peer = this.getPeer(ws);
           if (peer) this.send(peer, chatMessage);
@@ -366,7 +405,8 @@ export class SnailRelay implements DurableObject {
         }
 
         case "pcm_audio": {
-          if (!authenticated || !msg.audio?.length || !msg.sampleRate) {
+          if (!authenticated || !msg.audio?.length || !msg.sampleRate ||
+              msg.audio.length > MAX_PCM_SAMPLES_PER_MESSAGE) {
             this.send(ws, { type: "error", error: "Invalid PCM audio" });
             return;
           }
@@ -376,7 +416,8 @@ export class SnailRelay implements DurableObject {
         }
 
         case "fallback_pcm_audio": {
-          if (!authenticated || !msg.audio?.length || !msg.sampleRate) {
+          if (!authenticated || !msg.audio?.length || !msg.sampleRate ||
+              msg.audio.length > MAX_PCM_SAMPLES_PER_MESSAGE) {
             this.send(ws, { type: "error", error: "Invalid fallback PCM audio" });
             return;
           }
@@ -391,11 +432,22 @@ export class SnailRelay implements DurableObject {
             return;
           }
           const messageId = msg.messageId || crypto.randomUUID();
-          this.session.deliveredMessageIds ??= [];
-          if (this.session.deliveredMessageIds.includes(messageId)) {
-            this.send(ws, { type: "delivery_ack", messageId });
-            break;
+
+          // D1 idempotency check (preferred) or in-memory fallback
+          if (this.messageStore) {
+            const exists = await this.messageStore.exists(messageId);
+            if (exists) {
+              this.send(ws, { type: "delivery_ack", messageId });
+              break;
+            }
+          } else {
+            this.session.deliveredMessageIds ??= [];
+            if (this.session.deliveredMessageIds.includes(messageId)) {
+              this.send(ws, { type: "delivery_ack", messageId });
+              break;
+            }
           }
+
           const stickerMessage = {
             type: "sticker",
             messageId,
@@ -410,10 +462,17 @@ export class SnailRelay implements DurableObject {
             mimeType: msg.mimeType,
             timestamp: msg.timestamp || Date.now(),
           } as ServerMessage;
+
+          // Persist to D1 (preferred) and in-memory (fallback)
+          if (this.messageStore && this.session.roomId) {
+            await this.messageStore.insert(stickerMessage, this.session.roomId);
+          }
           this.session.chatHistory.push(stickerMessage);
           this.session.chatHistory = this.session.chatHistory.slice(-500);
-          this.session.deliveredMessageIds.push(messageId);
-          this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
+          if (!this.messageStore) {
+            this.session.deliveredMessageIds.push(messageId);
+            this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
+          }
           await this.saveState();
           const peer = this.getPeer(ws);
           if (peer) this.send(peer, stickerMessage);
@@ -451,6 +510,7 @@ export class SnailRelay implements DurableObject {
     });
 
     ws.addEventListener("close", async () => {
+      this.stopPingInterval(ws);
       // Resolve the counterpart before clearing the closing socket. Looking it
       // up afterwards always returns null, which leaves the other device
       // visually stuck on "Verbunden" after a peer disconnects.
@@ -502,8 +562,19 @@ export class SnailRelay implements DurableObject {
 
   private startPingInterval(ws: WebSocket): void {
     const interval = setInterval(() => {
-      try { ws.send(JSON.stringify({ type: "ping" })); } catch { clearInterval(interval); }
+      try {
+        ws.send(JSON.stringify({ type: "ping" }));
+      } catch {
+        this.stopPingInterval(ws);
+      }
     }, PING_INTERVAL_MS);
+    this.pingIntervals.set(ws, interval);
+  }
+
+  private stopPingInterval(ws: WebSocket): void {
+    const interval = this.pingIntervals.get(ws);
+    if (interval) clearInterval(interval);
+    this.pingIntervals.delete(ws);
   }
 
   private async saveState(): Promise<void> {
