@@ -42,7 +42,7 @@ nächsten offenen Punkt.
 - [x] 24. Provider-Key-Test mit Diagnosebericht anbieten.
 - [x] 25. Nachrichten mit eindeutigen IDs versehen.
 - [x] 26. Nachrichtenstatus `queued`, `sent`, `delivered`, `read` einführen.
-- [ ] 27. Offline-Nachrichten persistent speichern.
+- [x] 27. Offline-Nachrichten persistent speichern.
 - [ ] 28. D1 als Message Store implementieren.
 - [ ] 29. Doppelte Nachrichten idempotent behandeln.
 - [ ] 30. Anhänge mit einem verbindlichen Größenlimit versehen.
