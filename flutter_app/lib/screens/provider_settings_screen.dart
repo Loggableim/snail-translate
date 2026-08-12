@@ -18,6 +18,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
   late TextEditingController _key;
   bool _testing = false;
   String? _testResult;
+  Map<String, String>? _diagnostics;
 
   @override
   void initState() {
@@ -80,6 +81,45 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
                         color: _testResult!.startsWith('OK')
                             ? Colors.green
                             : Colors.red))),
+          if (_diagnostics != null) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Diagnosebericht',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 8),
+                    ..._diagnostics!.entries.map((e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: 110,
+                                child: Text('${e.key}:',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.6))),
+                              ),
+                              Expanded(
+                                child: Text(e.value,
+                                    style: const TextStyle(fontSize: 12)),
+                              ),
+                            ],
+                          ),
+                        )),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           _ProviderInfo(provider: _provider),
           const SizedBox(height: 12),
@@ -106,6 +146,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
         _chatModel.text = 'gpt-5.6-luna';
       }
       _testResult = null;
+      _diagnostics = null;
     });
   }
 
@@ -113,7 +154,10 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
     setState(() {
       _testing = true;
       _testResult = null;
+      _diagnostics = null;
     });
+    final diagnostics = <String, String>{};
+    final stopwatch = Stopwatch()..start();
     try {
       late http.Response response;
       final base = _endpoint.text.trim().replaceFirst(RegExp(r'/$'), '');
@@ -131,13 +175,43 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
                 '$base/v1beta/models?key=${Uri.encodeQueryComponent(_key.text.trim())}'))
             .timeout(const Duration(seconds: 8));
       }
+      stopwatch.stop();
+      final latencyMs = stopwatch.elapsedMilliseconds;
+      diagnostics['Latenz'] = '$latencyMs ms';
+      diagnostics['HTTP-Status'] = '${response.statusCode}';
+      diagnostics['Endpoint'] = base;
+      diagnostics['Zeitpunkt'] = DateTime.now().toIso8601String();
+
+      final ok = response.statusCode >= 200 && response.statusCode < 300;
+      if (ok) {
+        diagnostics['Key-Status'] = 'gültig';
+        // Check if the selected model is in the response
+        final body = response.body.toLowerCase();
+        final model = _model.text.trim().toLowerCase();
+        diagnostics['Modell gefunden'] =
+            body.contains(model) ? 'ja' : 'nein (Modellname prüfen)';
+      } else {
+        diagnostics['Key-Status'] = response.statusCode == 401 || response.statusCode == 403
+            ? 'ungültig (Key prüfen)'
+            : 'Fehler (HTTP ${response.statusCode})';
+      }
+
       if (!mounted) return;
-      setState(() => _testResult =
-          response.statusCode >= 200 && response.statusCode < 300
-              ? 'OK – Provider erreichbar'
-              : 'Fehler – HTTP ${response.statusCode}');
+      setState(() {
+        _testResult = ok ? 'OK – Provider erreichbar' : 'Fehler – HTTP ${response.statusCode}';
+        _diagnostics = diagnostics;
+      });
     } catch (error) {
-      if (mounted) setState(() => _testResult = 'Fehler – $error');
+      stopwatch.stop();
+      diagnostics['Fehler'] = '$error';
+      diagnostics['Latenz'] = '${stopwatch.elapsedMilliseconds} ms (Timeout/Fehler)';
+      diagnostics['Zeitpunkt'] = DateTime.now().toIso8601String();
+      if (mounted) {
+        setState(() {
+          _testResult = 'Fehler – $error';
+          _diagnostics = diagnostics;
+        });
+      }
     } finally {
       if (mounted) setState(() => _testing = false);
     }
