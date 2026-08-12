@@ -1,4 +1,17 @@
 /**
+ * ⚠️ LEGACY — DO NOT EXTEND ⚠️
+ *
+ * This is the historical STT → MT → TTS pipeline (Groq Whisper → DeepL →
+ * Google TTS / fish.audio). It has been superseded by the realtime translation
+ * approach (Gemini Live, OpenAI Realtime) where audio is translated directly
+ * without intermediate text steps.
+ *
+ * This file is kept for reference and backward compatibility only.
+ * New features MUST use the realtime path in SnailRelay.ts.
+ *
+ * @deprecated Use the realtime translation path (Gemini Live / OpenAI Realtime)
+ *             via the client-side provider services instead.
+ *
  * Audio pipeline proxy for Durable Object.
  *
  * Routes audio through STT → MT → TTS APIs.

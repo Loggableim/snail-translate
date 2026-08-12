@@ -56,7 +56,7 @@ nächsten offenen Punkt.
 - [x] 38. UI, Domain-Logik und Transport konsequenter trennen.
 - [x] 39. Gemeinsame DTOs zwischen Flutter und Worker versionieren.
 - [x] 40. Fehlerklassen statt freier Fehlermeldungen verwenden.
-- [ ] 41. Historische Pipeline eindeutig als Legacy markieren.
+- [x] 41. Historische Pipeline eindeutig als Legacy markieren.
 - [ ] 42. Lifecycle- und Dispose-Verhalten aller Services testen.
 
 ## Kurzer Persistent-Goal-Prompt für andere Agenten
