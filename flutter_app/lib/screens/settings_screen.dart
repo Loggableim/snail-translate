@@ -84,6 +84,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
 
+          _sectionHeader('Unterstützte Sprachen'),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Snail übersetzt live zwischen diesen Sprachen. '
+              'Weitere Sprachen folgen mit kommenden Updates.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const _LanguageChips(),
+          const SizedBox(height: 16),
+
           _sectionHeader('Audio'),
           Consumer<AudioPolicy>(
             builder: (_, policy, __) => Padding(
@@ -270,5 +283,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     controller.dispose();
+  }
+}
+
+class _LanguageChips extends StatelessWidget {
+  const _LanguageChips();
+
+  static const _languages = <({String code, String name, String native})>[
+    (code: 'de', name: 'Deutsch', native: 'Deutsch'),
+    (code: 'en', name: 'English', native: 'English'),
+    (code: 'fr', name: 'Français', native: 'Français'),
+    (code: 'es', name: 'Español', native: 'Español'),
+    (code: 'it', name: 'Italiano', native: 'Italiano'),
+    (code: 'ja', name: 'Japanese', native: '日本語'),
+    (code: 'ko', name: 'Korean', native: '한국어'),
+    (code: 'zh', name: 'Chinese', native: '中文'),
+    (code: 'uk', name: 'Ukrainian', native: 'Українська'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _languages.map((lang) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  lang.native,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  lang.code.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colors.onSurface.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 }
