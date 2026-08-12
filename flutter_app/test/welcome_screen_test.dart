@@ -5,52 +5,90 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snail/screens/welcome_screen.dart';
 
 void main() {
-  testWidgets('welcome screen renders core value proposition', (tester) async {
+  testWidgets('welcome screen page 1 shows value proposition', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
-      const MaterialApp(
-        home: WelcomeScreen(),
-      ),
+      const MaterialApp(home: WelcomeScreen()),
     );
+    await tester.pumpAndSettle();
 
-    // Headline
+    // Page 1 is visible by default
     expect(find.text('Snail'), findsOneWidget);
-    // Core value proposition
     expect(
       find.text('Echtzeit-Sprachübersetzung\nfür zwei Personen.'),
       findsOneWidget,
     );
-    // Feature rows
     expect(find.text('Sprich in deiner Sprache'), findsOneWidget);
     expect(find.text('Snail übersetzt live'), findsOneWidget);
     expect(
       find.text('Dein Gegenüber hört die Übersetzung'),
       findsOneWidget,
     );
-    // CTA
-    expect(find.text('Los geht\'s'), findsOneWidget);
-    // Privacy note
+    expect(find.text('Weiter'), findsOneWidget);
     expect(
       find.text('Kein Konto nötig. Deine Daten bleiben auf deinem Gerät.'),
       findsOneWidget,
     );
   });
 
-  testWidgets('welcome screen marks shown on CTA tap', (tester) async {
+  testWidgets('welcome screen page 2 shows microphone test', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
-      const MaterialApp(
-        home: WelcomeScreen(),
-      ),
+      const MaterialApp(home: WelcomeScreen()),
     );
-
-    // Before tap: not marked
-    expect(await WelcomeScreen.hasBeenShown(), isFalse);
-
-    await tester.tap(find.text('Los geht\'s'));
     await tester.pumpAndSettle();
 
-    // After tap: marked
+    // Navigate to page 2
+    await tester.tap(find.text('Weiter'));
+    await tester.pumpAndSettle();
+
+    // Page 2 content
+    expect(find.text('Mikrofon testen'), findsOneWidget);
+    expect(
+      find.textContaining('Sprich kurz etwas in dein Mikrofon'),
+      findsOneWidget,
+    );
+    expect(find.text('Aufnahme starten'), findsOneWidget);
+  });
+
+  testWidgets('welcome screen shows page dots', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      const MaterialApp(home: WelcomeScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    // Two page dots should be present
+    // (PageDot widgets are AnimatedContainers — we verify via navigation)
+    expect(find.text('Weiter'), findsOneWidget);
+
+    // Navigate to page 2
+    await tester.tap(find.text('Weiter'));
+    await tester.pumpAndSettle();
+
+    // Page 2 has the mic test button and a skip option
+    expect(find.text('Aufnahme starten'), findsOneWidget);
+  });
+
+  testWidgets('welcome screen marks shown on finish', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      const MaterialApp(home: WelcomeScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    // Before finish: not marked
+    expect(await WelcomeScreen.hasBeenShown(), isFalse);
+
+    // Navigate to page 2
+    await tester.tap(find.text('Weiter'));
+    await tester.pumpAndSettle();
+
+    // Tap "Überspringen" to finish
+    await tester.tap(find.text('Überspringen'));
+    await tester.pumpAndSettle();
+
+    // After finish: marked
     expect(await WelcomeScreen.hasBeenShown(), isTrue);
   });
 

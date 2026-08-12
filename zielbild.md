@@ -20,7 +20,7 @@ nächsten offenen Punkt.
 - [x] 02. Unterstützte Sprachen sichtbar dokumentieren.
 - [x] 03. Provider-Auswahl verständlicher beschreiben.
 - [x] 04. Nicht fertige Features aus der UI entfernen oder eindeutig als Vorschau markieren.
-- [ ] 05. Geführten Erststart mit Testaufnahme einführen.
+- [x] 05. Geführten Erststart mit Testaufnahme einführen.
 - [ ] 06. Mikrofonberechtigungen verständlich begründen.
 - [ ] 07. Headset-Prüfung vor der ersten Session durchführen.
 - [ ] 08. QR-Scan mit verständlichen Statusschritten versehen.
