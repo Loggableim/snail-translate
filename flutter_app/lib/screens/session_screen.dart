@@ -949,7 +949,10 @@ class _SessionScreenState extends State<SessionScreen>
 
                     // Mute button
                     IconButton.filled(
-                      onPressed: () => audio.toggleMute(),
+                      onPressed: () async {
+                        audio.toggleMute();
+                        if (audio.isMuted) await _snailAudio.stopPlayback();
+                      },
                       icon: Icon(audio.isMuted ? Icons.mic_off : Icons.mic,
                           size: 32),
                       style: IconButton.styleFrom(

@@ -165,6 +165,10 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             case "playPcm16":
                 handlePlayPcm16(call, result);
                 break;
+            case "stopPlayback":
+                stopPlayback();
+                result.success(null);
+                break;
             case "playTestTone":
                 handlePlayTestTone(result);
                 break;
@@ -323,6 +327,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 // the actual media device list for PCM session playback.
                 output = findOutputDevice("headset") != null ? "headset" : "speaker";
             }
+            applyPlaybackRoute(output);
             if ("speaker".equals(output)) amplifyPcm16InPlace(bytes, 1.8);
             ensurePlaybackTrack(outputRate, bytes.length, output);
             Log.d(TAG, "Playing " + bytes.length + " PCM bytes at " + outputRate
@@ -564,6 +569,27 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         }
         playbackTrack.setVolume(1.0f);
         playbackTrack.play();
+    }
+
+    /** Re-apply the user-selected media route for every chunk. The communication
+     * device may be reset to the speaker when Android recreates the Bluetooth
+     * SCO/A2DP route, so doing this only once during capture is insufficient. */
+    private void applyPlaybackRoute(String output) {
+        if (audioManager == null) return;
+        if ("headset".equals(output)) {
+            android.media.AudioDeviceInfo mediaHeadset = findOutputDevice("headset");
+            if (mediaHeadset != null && mediaHeadset.getType() == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                // A2DP is a media route, not a communication route. Keeping
+                // MODE_IN_COMMUNICATION here makes some vendor drivers reject
+                // AudioTrack writes with -22 and fall back to the speaker.
+                audioManager.setMode(AudioManager.MODE_NORMAL);
+                audioManager.setSpeakerphoneOn(false);
+                Log.i(TAG, "Playback route selected: Bluetooth A2DP " + mediaHeadset.getProductName());
+            }
+        } else if ("speaker".equals(output)) {
+            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+            audioManager.setSpeakerphoneOn(true);
+        }
     }
 
     private android.media.AudioDeviceInfo findOutputDevice(String output) {

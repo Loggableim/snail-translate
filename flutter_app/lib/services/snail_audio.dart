@@ -205,6 +205,15 @@ class SnailAudio {
     }
   }
 
+  /// Immediately clears already queued translated speech when the user mutes.
+  Future<void> stopPlayback() async {
+    try {
+      await _methodChannel.invokeMethod('stopPlayback');
+    } catch (e) {
+      debugPrint('SnailAudio stop playback error: $e');
+    }
+  }
+
   /// Plays a short 660-Hz tone through the phone speaker. This is a local
   /// diagnostic only: no microphone, provider, or network is used.
   Future<bool> playTestTone() async {
