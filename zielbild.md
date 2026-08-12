@@ -31,7 +31,7 @@ nächsten offenen Punkt.
 - [x] 13. Verbindungstest vor dem Gespräch anbieten.
 - [x] 14. Session-Abbruch mit klarer Rückfrage absichern.
 - [x] 15. Input-, Output- und Gesamtlatenz anzeigen.
-- [ ] 16. Provider-Timeouts mit einer begrenzten Retry-Strategie behandeln.
+- [x] 16. Provider-Timeouts mit einer begrenzten Retry-Strategie behandeln.
 - [ ] 17. Reconnect ohne doppelte Audioausgabe implementieren.
 - [ ] 18. Sample-Rate-Konvertierung zentralisieren.
 - [ ] 19. Audiopegel visualisieren.

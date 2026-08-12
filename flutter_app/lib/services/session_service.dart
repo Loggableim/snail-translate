@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/session.dart';
 import 'api_keys.dart';
 import 'error_logger.dart';
+import 'retry.dart';
 import 'user_identity_service.dart';
 
 /// Manages session lifecycle: create room, join room.
@@ -82,9 +83,15 @@ class SessionService extends ChangeNotifier {
 
   Future<Quota?> getQuota() async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiKeys.workerUrl}/api/quota'),
-        headers: await _authHeaders(method: 'GET', path: '/api/quota'),
+      final response = await retry(
+        () async => withTimeout(
+          http.get(
+            Uri.parse('${ApiKeys.workerUrl}/api/quota'),
+            headers: await _authHeaders(method: 'GET', path: '/api/quota'),
+          ),
+          const Duration(seconds: 10),
+        ),
+        maxAttempts: 3,
       );
       if (response.statusCode != 200) return null;
       return Quota.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
@@ -162,11 +169,20 @@ class SessionService extends ChangeNotifier {
         'targetLang': _targetLanguage,
         if (inviteeId != null && inviteeId.isNotEmpty) 'inviteeId': inviteeId,
       });
-      final response = await http.post(
-        Uri.parse('${ApiKeys.workerUrl}/api/rooms'),
-        headers: await _authHeaders(
-            json: true, method: 'POST', path: '/api/rooms', body: requestBody),
-        body: requestBody,
+      final response = await retry(
+        () async => withTimeout(
+          http.post(
+            Uri.parse('${ApiKeys.workerUrl}/api/rooms'),
+            headers: await _authHeaders(
+                json: true,
+                method: 'POST',
+                path: '/api/rooms',
+                body: requestBody),
+            body: requestBody,
+          ),
+          const Duration(seconds: 15),
+        ),
+        maxAttempts: 3,
       );
 
       if (response.statusCode == 201) {
@@ -211,14 +227,20 @@ class SessionService extends ChangeNotifier {
       // turns it into a distinct, non-existent room (`SNAIL-ABCD`).
       final normalizedRoomId = 'snail-${match.group(1)!.toUpperCase()}';
       const requestBody = '';
-      final response = await http.post(
-        Uri.parse('${ApiKeys.workerUrl}/api/rooms/$normalizedRoomId/join'),
-        headers: await _authHeaders(
-            json: true,
-            method: 'POST',
-            path: '/api/rooms/$normalizedRoomId/join',
-            body: requestBody),
-        body: requestBody,
+      final response = await retry(
+        () async => withTimeout(
+          http.post(
+            Uri.parse('${ApiKeys.workerUrl}/api/rooms/$normalizedRoomId/join'),
+            headers: await _authHeaders(
+                json: true,
+                method: 'POST',
+                path: '/api/rooms/$normalizedRoomId/join',
+                body: requestBody),
+            body: requestBody,
+          ),
+          const Duration(seconds: 15),
+        ),
+        maxAttempts: 3,
       );
 
       if (response.statusCode == 200) {
@@ -246,14 +268,20 @@ class SessionService extends ChangeNotifier {
   /// is the non-BYOK deployment path; the Worker must own OPENAI_API_KEY.
   Future<String?> fetchOpenAiClientSecret(String targetLanguage) async {
     try {
-      final response = await http.post(
-        Uri.parse('${ApiKeys.workerUrl}/api/realtime/client-secret'),
-        headers: await _authHeaders(
-            json: true,
-            method: 'POST',
-            path: '/api/realtime/client-secret',
-            body: jsonEncode({'targetLanguage': targetLanguage})),
-        body: jsonEncode({'targetLanguage': targetLanguage}),
+      final response = await retry(
+        () async => withTimeout(
+          http.post(
+            Uri.parse('${ApiKeys.workerUrl}/api/realtime/client-secret'),
+            headers: await _authHeaders(
+                json: true,
+                method: 'POST',
+                path: '/api/realtime/client-secret',
+                body: jsonEncode({'targetLanguage': targetLanguage})),
+            body: jsonEncode({'targetLanguage': targetLanguage}),
+          ),
+          const Duration(seconds: 15),
+        ),
+        maxAttempts: 3,
       );
       if (response.statusCode < 200 || response.statusCode >= 300) return null;
       final body = jsonDecode(response.body) as Map<String, dynamic>;
