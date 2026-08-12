@@ -147,7 +147,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         await Future.wait(geminiConnections);
       }
       final ok = await _audio.startStandaloneCapture(
-        aecEnabled: audioPolicy.profile != AudioPolicyProfile.headset ||
+        aecEnabled: audioPolicy.output != AudioOutput.headset ||
             audioPolicy.forceEchoGuard,
         noiseSuppressionEnabled: true,
       );
@@ -191,10 +191,10 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
             ? _headsetOpenAi.takeAudioChunks()
             : _headsetGemini.takeAudioChunks();
         for (final chunk in ownerHeadphoneChunks) {
-          _enqueuePlayback(chunk, _hasHeadset ? 'headset' : 'speaker');
+          _enqueuePlayback(chunk, _hasHeadset ? AudioOutput.headset : AudioOutput.speaker);
         }
         for (final chunk in otherSpeakerChunks) {
-          _enqueuePlayback(chunk, 'speaker');
+          _enqueuePlayback(chunk, AudioOutput.speaker);
         }
       });
       setState(() {
@@ -255,7 +255,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
     super.dispose();
   }
 
-  void _enqueuePlayback(Uint8List bytes, String output) {
+  void _enqueuePlayback(Uint8List bytes, AudioOutput output) {
     if (bytes.isEmpty) return;
     if (_playbackQueue.length >= _maxPlaybackQueue) {
       // Drop the oldest not-yet-played chunk to keep latency bounded.
@@ -345,5 +345,5 @@ class _PlaybackChunk {
   const _PlaybackChunk(this.bytes, this.output);
 
   final Uint8List bytes;
-  final String output;
+  final AudioOutput output;
 }

@@ -37,7 +37,7 @@ nächsten offenen Punkt.
 - [x] 19. Audiopegel visualisieren.
 - [x] 20. Clipping erkennen und verständlich melden.
 - [x] 21. Stille-Erkennung lokal optimieren.
-- [ ] 22. Lautsprecher- und Kopfhörermodus sauber trennen.
+- [x] 22. Lautsprecher- und Kopfhörermodus sauber trennen.
 - [ ] 23. Audio-Wiedergabe bei App-Wechsel absichern.
 - [ ] 24. Provider-Key-Test mit Diagnosebericht anbieten.
 - [ ] 25. Nachrichten mit eindeutigen IDs versehen.

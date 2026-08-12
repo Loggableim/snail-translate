@@ -167,7 +167,7 @@ class _SessionScreenState extends State<SessionScreen> {
       final initialized = await _snailAudio.initialize(sampleRate: 16000);
       if (!_isConnectionActive(generation)) return;
       if (initialized) {
-        final echoGuardEnabled = _audioPolicy.profile == AudioPolicyProfile.headset
+        final echoGuardEnabled = _audioPolicy.output == AudioOutput.headset
             ? false
             : _audioPolicy.forceEchoGuard || _snailAudio.echoGuardEnabled;
         final provider = providerConfig.config;

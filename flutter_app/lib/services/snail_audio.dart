@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+/// Audio output device for playback routing.
+enum AudioOutput { speaker, headset, auto }
+
 /// Flutter interface to the native SnailAudioPlugin (Android/iOS).
 ///
 /// Provides:
@@ -150,7 +153,7 @@ class SnailAudio {
   /// Plays raw mono PCM16. Gemini Live outputs 24-kHz PCM; callers must not
   /// pass MP3/container bytes to this method.
   Future<void> playPcm16(Uint8List bytes,
-      {int sampleRate = 24000, String output = 'default'}) async {
+      {int sampleRate = 24000, AudioOutput output = AudioOutput.auto}) async {
     if (bytes.isEmpty) return;
     final durationMs = ((bytes.length * 1000) / (sampleRate * 2)).ceil();
     // Only cover the measured chunk duration plus a small acoustic tail. The
@@ -162,7 +165,7 @@ class SnailAudio {
       await _methodChannel.invokeMethod('playPcm16', {
         'bytes': bytes.toList(growable: false),
         'sampleRate': sampleRate,
-        'output': output
+        'output': output.name
       });
     } catch (e) {
       debugPrint('SnailAudio playback error: $e');
