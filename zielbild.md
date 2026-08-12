@@ -17,7 +17,7 @@ Disconnect-/Retry-Behandlung sowie Latenz- und Audio-Gap-Messung.
 - [x] 44. Fish Audio als Standalone-Live-Übersetzung neben OpenAI Realtime implementieren.
 - [x] 45. Fish-Audio-BYOK-Key sicher konfigurieren, testen und niemals loggen.
 - [x] 46. Fish-WebSocket mit Wiederverwendung, Disconnect-Erkennung und begrenzten Retries implementieren.
-- [ ] 47. Übersetzungstext in vollständigen Wörtern bzw. 5–10-Wort-Puffern streamen.
+- [x] 47. Übersetzungstext in vollständigen Wörtern bzw. 5–10-Wort-Puffern streamen.
 - [ ] 48. Fish-Audio-Chunks mit Prebuffer und Jitter-/Playback-Handling abspielen.
 - [x] 49. Fish-Latenzmodus `balanced` und Qualitätsmodus in der GUI anbieten.
 - [ ] 50. Fish Audio in Session, Standalone-Modus, Quota und Verlauf kennzeichnen.
