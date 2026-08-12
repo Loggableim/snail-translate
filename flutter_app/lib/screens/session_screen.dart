@@ -16,6 +16,7 @@ import '../services/p2p_audio_service.dart';
 import '../services/user_identity_service.dart';
 import '../services/transcript_history.dart';
 import '../services/audio_policy.dart';
+import '../services/audio_processor.dart';
 import '../services/error_logger.dart';
 import 'chat_screen.dart';
 
@@ -43,6 +44,7 @@ class _SessionScreenState extends State<SessionScreen> {
   late final AudioPolicy _audioPolicy;
   final _snailAudio = SnailAudio();
   StreamSubscription? _audioSubscription;
+  final _micLevel = ValueNotifier<double>(0.0);
   GeminiLiveService? _gemini;
   OpenAiRealtimeService? _openAi;
   OpenAiRealtimeService? _guestFallbackOpenAi;
@@ -242,6 +244,8 @@ class _SessionScreenState extends State<SessionScreen> {
             _openAi!.addListener(_openAiListener!);
             _drainOpenAiAudio(relayAudio);
             _audioSubscription = _snailAudio.audioStream?.listen((chunk) {
+              // Compute mic level for visualization
+              _micLevel.value = AudioProcessor.computeLevel(chunk);
               // Do not feed the phone speaker's translated output back into
               // the realtime translator when devices are close together.
               if (!echoGuardEnabled || !_snailAudio.isPlaybackActive) {
@@ -359,6 +363,7 @@ class _SessionScreenState extends State<SessionScreen> {
     _p2p.dispose();
     _playbackQueue.clear();
     _snailAudio.dispose();
+    _micLevel.dispose();
     _audioService.disconnect();
     super.dispose();
   }
@@ -664,6 +669,13 @@ class _SessionScreenState extends State<SessionScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    // ── Audio level meter ──
+                    ValueListenableBuilder<double>(
+                      valueListenable: _micLevel,
+                      builder: (context, level, _) =>
+                          _LevelMeter(level: level),
+                    ),
+                    const SizedBox(height: 8),
                     Text(audio.isMuted ? 'Stumm' : 'Aktiv'),
 
                     SizedBox(height: compact ? 20 : 48),
@@ -791,6 +803,51 @@ class _LatencyChip extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Compact audio level meter showing microphone input level.
+class _LevelMeter extends StatelessWidget {
+  const _LevelMeter({required this.level});
+
+  final double level;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    // Map RMS level to a color: green → yellow → red
+    final color = level < 0.3
+        ? Colors.green
+        : level < 0.7
+            ? Colors.orange
+            : colors.error;
+
+    return SizedBox(
+      width: 120,
+      height: 6,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: Stack(
+          children: [
+            // Background
+            Container(
+              color: colors.onSurface.withValues(alpha: 0.1),
+            ),
+            // Active level
+            FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: level.clamp(0.0, 1.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

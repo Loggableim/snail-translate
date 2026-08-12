@@ -56,4 +56,20 @@ class AudioProcessor {
 
     return s16le.buffer.asUint8List();
   }
+
+  /// Compute the RMS (root mean square) level of raw 16-bit PCM audio.
+  ///
+  /// Returns a value between 0.0 (silence) and 1.0 (clipping).
+  static double computeLevel(Uint8List rawPcm) {
+    if (rawPcm.length < 2) return 0.0;
+    final int16 =
+        Int16List.view(rawPcm.buffer, rawPcm.offsetInBytes, rawPcm.length ~/ 2);
+    var sumSquares = 0.0;
+    for (var i = 0; i < int16.length; i++) {
+      final sample = int16[i] / 32768.0;
+      sumSquares += sample * sample;
+    }
+    final rms = (sumSquares / int16.length).clamp(0.0, 1.0);
+    return rms;
+  }
 }

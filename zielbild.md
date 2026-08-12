@@ -34,7 +34,7 @@ nächsten offenen Punkt.
 - [x] 16. Provider-Timeouts mit einer begrenzten Retry-Strategie behandeln.
 - [x] 17. Reconnect ohne doppelte Audioausgabe implementieren.
 - [x] 18. Sample-Rate-Konvertierung zentralisieren.
-- [ ] 19. Audiopegel visualisieren.
+- [x] 19. Audiopegel visualisieren.
 - [ ] 20. Clipping erkennen und verständlich melden.
 - [ ] 21. Stille-Erkennung lokal optimieren.
 - [ ] 22. Lautsprecher- und Kopfhörermodus sauber trennen.
