@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/session.dart';
 import '../models/chat_message.dart';
@@ -11,6 +12,7 @@ import 'error_logger.dart';
 /// Manages WebSocket connection to relay and audio streaming.
 /// Includes graceful reconnect with exponential backoff.
 class AudioService extends ChangeNotifier {
+  static const _uuid = Uuid();
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   bool _isConnected = false;
@@ -356,7 +358,7 @@ class AudioService extends ChangeNotifier {
     if (text.trim().isEmpty) return;
     final message = {
       'type': 'chat',
-      'messageId': DateTime.now().microsecondsSinceEpoch.toString(),
+      'messageId': _uuid.v4(),
       'text': text.trim(),
       'sourceLang': sourceLang,
       'targetLang': targetLang,
