@@ -159,8 +159,13 @@ class FishAudioRealtimeService extends ChangeNotifier {
   }
 
   void _send(Map<String, dynamic> value) {
-    final payload = <String, dynamic>{...value};
-    _channel?.sink.add(Uint8List.fromList(msgpack.serialize(payload)));
+    _channel?.sink.add(encodeEvent(value));
+  }
+
+  /// Encodes the documented Fish realtime event for protocol-level tests and
+  /// transport adapters. The payload remains MessagePack binary on the wire.
+  static Uint8List encodeEvent(Map<String, dynamic> value) {
+    return Uint8List.fromList(msgpack.serialize(<String, dynamic>{...value}));
   }
 
   void _onMessage(dynamic raw) {
