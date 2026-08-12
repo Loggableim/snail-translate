@@ -23,7 +23,7 @@ Disconnect-/Retry-Behandlung sowie Latenz- und Audio-Gap-Messung.
 - [x] 50. Fish Audio in Session, Standalone-Modus, Quota und Verlauf kennzeichnen.
 - [x] 51. Mehrere auswählbare Fish-Audio-Stimmen in der GUI anzeigen.
 - [x] 52. Voice-Auswahl über `reference_id`/Voice-ID konfigurieren und persistieren.
-- [ ] 53. Voice-Metadaten cachen und Stimmen für schnelle Sessions vorbereiten.
+- [x] 53. Voice-Metadaten cachen und Stimmen für schnelle Sessions vorbereiten.
 - [ ] 54. Voice-Wechsel zwischen abgeschlossenen Turns ermöglichen.
 - [ ] 55. Temperatur, Top-p und Sprechgeschwindigkeit begrenzt anbieten.
 - [ ] 56. Fish-Audio-Key-Test mit Voice-, Verbindungs- und Latenzdiagnose ergänzen.
