@@ -12,6 +12,7 @@ import 'services/audio_policy.dart';
 import 'services/error_logger.dart';
 import 'services/app_share_service.dart';
 import 'theme/app_theme.dart';
+import 'screens/welcome_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/qr_host_screen.dart';
 import 'screens/join_screen.dart';
@@ -96,8 +97,9 @@ class SnailApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: theme.themeMode,
-            initialRoute: '/',
+            initialRoute: '/welcome',
             routes: {
+              '/welcome': (_) => const WelcomeScreen(),
               '/': (_) => const HomeScreen(),
               '/qr-host': (_) => const QrHostScreen(),
               '/join': (_) => const JoinScreen(),
