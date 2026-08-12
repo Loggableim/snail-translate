@@ -44,6 +44,15 @@ void main() {
 
     // Page 2 content
     expect(find.text('Mikrofon testen'), findsOneWidget);
+    // Permission explanation
+    expect(
+      find.textContaining('Snail braucht dein Mikrofon'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Nichts wird dauerhaft gespeichert'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('Sprich kurz etwas in dein Mikrofon'),
       findsOneWidget,

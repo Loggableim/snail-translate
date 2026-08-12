@@ -317,6 +317,45 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 12),
+                          // ── Permission explanation ──
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? colors.surfaceContainerHighest
+                                      .withValues(alpha: 0.4)
+                                  : colors.primaryContainer
+                                      .withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.info_outline_rounded,
+                                  size: 20,
+                                  color: colors.primary,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Snail braucht dein Mikrofon, um deine '
+                                    'Sprache live zu übersetzen. '
+                                    'Deine Stimme wird nur während einer '
+                                    'aktiven Session aufgenommen. '
+                                    'Nichts wird dauerhaft gespeichert.',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: colors.onSurface
+                                          .withValues(alpha: 0.75),
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                           Text(
                             _micStateDescription(),
                             textAlign: TextAlign.center,
