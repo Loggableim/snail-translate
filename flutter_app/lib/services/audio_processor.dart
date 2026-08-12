@@ -87,4 +87,13 @@ class AudioProcessor {
     }
     return false;
   }
+
+  /// Detect silence in raw 16-bit PCM audio.
+  ///
+  /// Returns true if the RMS level is below [threshold]. The default
+  /// threshold of 0.01 corresponds to approximately -40 dBFS, which is
+  /// quiet enough to be considered silence in most environments.
+  static bool detectSilence(Uint8List rawPcm, {double threshold = 0.01}) {
+    return computeLevel(rawPcm) < threshold;
+  }
 }

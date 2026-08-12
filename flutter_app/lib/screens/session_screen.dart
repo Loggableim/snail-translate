@@ -273,7 +273,10 @@ class _SessionScreenState extends State<SessionScreen> {
               // Do not feed the phone speaker's translated output back into
               // the realtime translator when devices are close together.
               if (!echoGuardEnabled || !_snailAudio.isPlaybackActive) {
-                _openAi!.sendPcm16(chunk);
+                // Skip silent chunks to save bandwidth and API costs
+                if (!AudioProcessor.detectSilence(chunk)) {
+                  _openAi!.sendPcm16(chunk);
+                }
               }
             });
           } else {

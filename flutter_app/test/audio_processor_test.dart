@@ -4,6 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:snail/services/audio_processor.dart';
 
+/// Helper: create a Uint8List from an Int16List with exact byte length.
+Uint8List _pcm16(Int16List samples) {
+  return Uint8List.fromList(
+    samples.buffer.asUint8List(samples.offsetInBytes, samples.lengthInBytes),
+  );
+}
+
 void main() {
   test('resampler tolerates empty and single-sample frames', () {
     expect(AudioProcessor.resample(Float32List(0), 16000, 24000), isEmpty);
@@ -25,11 +32,8 @@ void main() {
     });
 
     test('returns 0.0 for silence', () {
-      final silence = Int16List(100); // all zeros
-      expect(
-        AudioProcessor.computeLevel(silence.buffer.asUint8List()),
-        0.0,
-      );
+      final silence = Int16List(100);
+      expect(AudioProcessor.computeLevel(_pcm16(silence)), 0.0);
     });
 
     test('returns ~1.0 for full-scale input', () {
@@ -37,9 +41,7 @@ void main() {
       for (var i = 0; i < 100; i++) {
         fullScale[i] = 32767;
       }
-      final level = AudioProcessor.computeLevel(
-        fullScale.buffer.asUint8List(),
-      );
+      final level = AudioProcessor.computeLevel(_pcm16(fullScale));
       expect(level, closeTo(1.0, 0.01));
     });
   });
@@ -52,28 +54,59 @@ void main() {
     test('returns false for normal audio', () {
       final normal = Int16List(100);
       for (var i = 0; i < 100; i++) {
-        normal[i] = 16000; // well below max
+        normal[i] = 16000;
       }
-      expect(
-        AudioProcessor.detectClipping(normal.buffer.asUint8List()),
-        isFalse,
-      );
+      expect(AudioProcessor.detectClipping(_pcm16(normal)), isFalse);
     });
 
     test('returns true when sample reaches 32767', () {
       final clipping = Int16List(100);
-      clipping[50] = 32767; // one clipped sample
-      expect(
-        AudioProcessor.detectClipping(clipping.buffer.asUint8List()),
-        isTrue,
-      );
+      clipping[50] = 32767;
+      expect(AudioProcessor.detectClipping(_pcm16(clipping)), isTrue);
     });
 
     test('returns true when sample reaches -32768', () {
       final clipping = Int16List(100);
-      clipping[50] = -32768; // one clipped sample
+      clipping[50] = -32768;
+      expect(AudioProcessor.detectClipping(_pcm16(clipping)), isTrue);
+    });
+  });
+
+  group('detectSilence', () {
+    test('returns true for empty input', () {
+      expect(AudioProcessor.detectSilence(Uint8List(0)), isTrue);
+    });
+
+    test('returns true for near-silent audio', () {
+      final nearSilent = Int16List(100);
+      nearSilent[0] = 1;
+      expect(AudioProcessor.detectSilence(_pcm16(nearSilent)), isTrue);
+    });
+
+    test('returns false for normal speech-level audio', () {
+      final speech = Int16List(100);
+      for (var i = 0; i < 100; i++) {
+        speech[i] = 8000;
+      }
+      expect(AudioProcessor.detectSilence(_pcm16(speech)), isFalse);
+    });
+
+    test('respects custom threshold', () {
+      final moderate = Int16List(100);
+      for (var i = 0; i < 100; i++) {
+        moderate[i] = 16000;
+      }
+      // Default threshold (0.01) should detect this as non-silent
       expect(
-        AudioProcessor.detectClipping(clipping.buffer.asUint8List()),
+        AudioProcessor.detectSilence(_pcm16(moderate)),
+        isFalse,
+      );
+      // Higher threshold should detect it as silent
+      expect(
+        AudioProcessor.detectSilence(
+          _pcm16(moderate),
+          threshold: 0.9,
+        ),
         isTrue,
       );
     });

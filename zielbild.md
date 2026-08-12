@@ -36,7 +36,7 @@ nächsten offenen Punkt.
 - [x] 18. Sample-Rate-Konvertierung zentralisieren.
 - [x] 19. Audiopegel visualisieren.
 - [x] 20. Clipping erkennen und verständlich melden.
-- [ ] 21. Stille-Erkennung lokal optimieren.
+- [x] 21. Stille-Erkennung lokal optimieren.
 - [ ] 22. Lautsprecher- und Kopfhörermodus sauber trennen.
 - [ ] 23. Audio-Wiedergabe bei App-Wechsel absichern.
 - [ ] 24. Provider-Key-Test mit Diagnosebericht anbieten.
