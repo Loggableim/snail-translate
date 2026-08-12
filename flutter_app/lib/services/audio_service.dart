@@ -45,8 +45,7 @@ class AudioService extends ChangeNotifier {
 
   // ── Delegated chat methods ─────────────────────────────────────────
 
-  List<ChatMessage> searchMessages(String query) =>
-      chat.searchMessages(query);
+  List<ChatMessage> searchMessages(String query) => chat.searchMessages(query);
 
   void deleteMessage(String messageId) => chat.deleteMessage(messageId);
 
@@ -270,7 +269,7 @@ class AudioService extends ChangeNotifier {
   }
 
   void sendPcmAudio(Uint8List pcm16, {int sampleRate = 24000}) {
-    if (!_isConnected || pcm16.isEmpty) return;
+    if (!_isConnected || _isMuted || pcm16.isEmpty) return;
     _channel?.sink.add(jsonEncode({
       'type': 'pcm_audio',
       'audio': pcm16.toList(growable: false),

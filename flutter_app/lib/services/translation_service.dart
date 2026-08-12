@@ -11,25 +11,49 @@ class TranslationService {
     if (sourceLang == targetLang || text.trim().isEmpty) return text;
     final prompt =
         'Translate from $sourceLang to $targetLang. Return only the translation, no explanation:\n$text';
-    if (config.provider == TranslationProvider.ollama) {
-      final response = await http.post(
-        Uri.parse(
-            '${config.endpoint.replaceFirst(RegExp(r'/$'), '')}/api/chat'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'model': config.model,
-          'stream': false,
-          'messages': [
-            {'role': 'user', 'content': prompt}
-          ]
-        }),
-      );
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('Ollama error ${response.statusCode}');
+    if (config.provider == TranslationProvider.ollama ||
+        config.provider == TranslationProvider.fishAudio) {
+      final endpoint = config.provider == TranslationProvider.fishAudio
+          ? config.translationEndpoint
+          : config.endpoint;
+      final model = config.provider == TranslationProvider.fishAudio
+          ? config.translationModel
+          : config.model;
+      try {
+        final response = await http.post(
+          Uri.parse('${endpoint.replaceFirst(RegExp(r'/$'), '')}/api/chat'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'model': model,
+            'stream': false,
+            'messages': [
+              {'role': 'user', 'content': prompt}
+            ]
+          }),
+        );
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return (jsonDecode(response.body)['message']?['content'] as String?)
+                  ?.trim() ??
+              text;
+        }
+      } catch (_) {
+        // Fish's mobile default must not silently depend on Ollama on the
+        // same phone. Continue with the public low-cost translation fallback.
       }
-      return (jsonDecode(response.body)['message']?['content'] as String?)
-              ?.trim() ??
-          text;
+      if (config.provider == TranslationProvider.fishAudio) {
+        final fallback =
+            await http.get(Uri.https('api.mymemory.translated.net', '/get', {
+          'q': text,
+          'langpair': '$sourceLang|$targetLang',
+        }));
+        if (fallback.statusCode >= 200 && fallback.statusCode < 300) {
+          final translated = (jsonDecode(fallback.body)['responseData']
+                  ?['translatedText'] as String?)
+              ?.trim();
+          if (translated != null && translated.isNotEmpty) return translated;
+        }
+      }
+      return text;
     }
 
     if (config.provider == TranslationProvider.geminiLive) {

@@ -13,6 +13,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.content.Context;
 import android.content.Intent;
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
 import android.util.Log;
 import android.util.Base64;
 
@@ -27,6 +30,8 @@ import java.security.Signature;
 import java.security.spec.ECGenParameterSpec;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -49,7 +54,7 @@ import com.snail.snail.SnailSessionService;
  *   await snailAudio.startCapture();
  *   snailAudio.audioStream.listen((bytes) { ... });
  */
-public class SnailAudioPlugin implements FlutterPlugin, MethodCallHandler, EventChannel.StreamHandler {
+public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCallHandler, EventChannel.StreamHandler {
     private static final String TAG = "SnailAudio";
     private static final String DEVICE_KEY_ALIAS = "snail.device.identity";
     private static final String METHOD_CHANNEL = "com.snail.audio/method";
@@ -62,6 +67,9 @@ public class SnailAudioPlugin implements FlutterPlugin, MethodCallHandler, Event
     private EventChannel.EventSink standaloneEventSink;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private Context applicationContext;
+    private Activity activity;
+    private Result pendingPermissionResult;
+    private static final int MICROPHONE_PERMISSION_REQUEST = 7314;
 
     // Audio
     private AudioRecord audioRecord;
@@ -86,6 +94,7 @@ public class SnailAudioPlugin implements FlutterPlugin, MethodCallHandler, Event
     private boolean headsetRouteActive = false;
     private volatile long suppressCaptureUntilMs = 0L;
     private boolean standaloneHasHeadset = false;
+    private String preferredInput = "auto";
     private Thread standalonePhoneThread;
     private Thread standaloneHeadsetThread;
 
@@ -137,6 +146,9 @@ public class SnailAudioPlugin implements FlutterPlugin, MethodCallHandler, Event
             case "initialize":
                 handleInitialize(call, result);
                 break;
+            case "requestMicrophonePermission":
+                requestMicrophonePermission(result);
+                break;
             case "startCapture":
                 handleStartCapture(result);
                 break;
@@ -164,6 +176,10 @@ public class SnailAudioPlugin implements FlutterPlugin, MethodCallHandler, Event
                 break;
             case "isHeadsetConnected":
                 result.success(isHeadsetConnected());
+                break;
+            case "setInput":
+                preferredInput = call.argument("input") == null ? "auto" : (String) call.argument("input");
+                result.success(null);
                 break;
             case "getAudioDiagnostics":
                 result.success(audioDiagnostics());
@@ -210,6 +226,41 @@ public class SnailAudioPlugin implements FlutterPlugin, MethodCallHandler, Event
                 result.notImplemented();
         }
     }
+
+    private void requestMicrophonePermission(Result result) {
+        if (applicationContext == null || android.os.Build.VERSION.SDK_INT < 23) {
+            result.success(true);
+            return;
+        }
+        if (applicationContext.checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED) {
+            result.success(true);
+            return;
+        }
+        if (activity == null) {
+            result.success(false);
+            return;
+        }
+        pendingPermissionResult = result;
+        activity.requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},
+                MICROPHONE_PERMISSION_REQUEST);
+    }
+
+    @Override public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+        activity = binding.getActivity();
+        binding.addRequestPermissionsResultListener((requestCode, permissions, grantResults) -> {
+            if (requestCode != MICROPHONE_PERMISSION_REQUEST || pendingPermissionResult == null) return false;
+            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            Result pending = pendingPermissionResult;
+            pendingPermissionResult = null;
+            pending.success(granted);
+            return true;
+        });
+    }
+
+    @Override public void onDetachedFromActivityForConfigChanges() { activity = null; }
+    @Override public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) { onAttachedToActivity(binding); }
+    @Override public void onDetachedFromActivity() { activity = null; }
 
     private void handleInitialize(MethodCall call, Result result) {
         sampleRate = call.argument("sampleRate");
@@ -267,7 +318,10 @@ public class SnailAudioPlugin implements FlutterPlugin, MethodCallHandler, Event
             // no-headset conversation mode choose the built-in speaker
             // explicitly, including a matching STREAM_MUSIC AudioTrack.
             if ("default".equals(output)) {
-                output = isHeadsetConnected() ? "headset" : "speaker";
+                // Android can report the communication device as speaker
+                // while Bluetooth A2DP is the active media output. Prefer
+                // the actual media device list for PCM session playback.
+                output = findOutputDevice("headset") != null ? "headset" : "speaker";
             }
             if ("speaker".equals(output)) amplifyPcm16InPlace(bytes, 1.8);
             ensurePlaybackTrack(outputRate, bytes.length, output);
@@ -395,6 +449,7 @@ public class SnailAudioPlugin implements FlutterPlugin, MethodCallHandler, Event
                 if (type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET
                         || type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES
                         || type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                        || type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
                         || type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET) return true;
             }
         }
@@ -507,6 +562,7 @@ public class SnailAudioPlugin implements FlutterPlugin, MethodCallHandler, Event
             android.media.AudioDeviceInfo preferred = findOutputDevice(output);
             if (preferred != null) playbackTrack.setPreferredDevice(preferred);
         }
+        playbackTrack.setVolume(1.0f);
         playbackTrack.play();
     }
 
@@ -536,6 +592,7 @@ public class SnailAudioPlugin implements FlutterPlugin, MethodCallHandler, Event
             if ("headset".equals(output) && (type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET
                     || type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES
                     || type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                    || type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
                     || type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET)) {
                 return device;
             }
@@ -619,6 +676,11 @@ public class SnailAudioPlugin implements FlutterPlugin, MethodCallHandler, Event
 
             // Start recording
             audioRecord.startRecording();
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M
+                    && "headset".equals(preferredInput)) {
+                android.media.AudioDeviceInfo input = findInputHeadset();
+                if (input != null) audioRecord.setPreferredDevice(input);
+            }
             isCapturing = true;
 
             // Start capture thread

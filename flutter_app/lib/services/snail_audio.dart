@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 /// Audio output device for playback routing.
 enum AudioOutput { speaker, headset, auto }
 
+enum AudioInput { phone, headset, auto }
+
 /// Flutter interface to the native SnailAudioPlugin (Android/iOS).
 ///
 /// Provides:
@@ -116,6 +118,17 @@ class SnailAudio {
       return _isInitialized;
     } catch (e) {
       debugPrint('SnailAudio initialize error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> requestMicrophonePermission() async {
+    try {
+      return await _methodChannel
+              .invokeMethod<bool>('requestMicrophonePermission') ??
+          false;
+    } catch (e) {
+      debugPrint('SnailAudio microphone permission error: $e');
       return false;
     }
   }
@@ -250,10 +263,18 @@ class SnailAudio {
     }
   }
 
+  Future<void> setInput(AudioInput input) async {
+    try {
+      await _methodChannel.invokeMethod('setInput', {'input': input.name});
+    } catch (e) {
+      debugPrint('SnailAudio input route error: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> getAudioDiagnostics() async {
     try {
-      final value = await _methodChannel.invokeMethod<dynamic>(
-          'getAudioDiagnostics');
+      final value =
+          await _methodChannel.invokeMethod<dynamic>('getAudioDiagnostics');
       if (value is Map) {
         return Map<String, dynamic>.from(value);
       }

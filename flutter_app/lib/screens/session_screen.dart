@@ -12,6 +12,9 @@ import '../services/provider_config_service.dart';
 import '../models/provider_config.dart';
 import '../models/session.dart';
 import '../services/openai_realtime_service.dart';
+import '../services/fish_audio_asr_service.dart';
+import '../services/fish_audio_realtime_service.dart';
+import '../services/translation_service.dart';
 import '../services/p2p_audio_service.dart';
 import '../services/user_identity_service.dart';
 import '../services/transcript_history.dart';
@@ -50,6 +53,16 @@ class _SessionScreenState extends State<SessionScreen>
   GeminiLiveService? _gemini;
   OpenAiRealtimeService? _openAi;
   OpenAiRealtimeService? _guestFallbackOpenAi;
+  FishAudioRealtimeService? _fish;
+  final _fishAsr = FishAudioAsrService();
+  final _translator = TranslationService();
+  BytesBuilder? _fishBuffer;
+  Timer? _fishProcessTimer;
+  bool _fishBusy = false;
+  bool _fishSpeechDetected = false;
+  VoidCallback? _fishListener;
+  String _fishSourceLanguage = 'en';
+  String _fishTargetLanguage = 'de';
   final _p2p = P2pAudioService();
   VoidCallback? _geminiListener;
   VoidCallback? _openAiListener;
@@ -83,6 +96,41 @@ class _SessionScreenState extends State<SessionScreen>
     'pl': 'Polish',
     'sv': 'Swedish',
   };
+
+  static const _fishVoices = <String, String>{
+    '802e3bc2b27e49c2995d23ef70e6ac89': 'Standard Snail',
+    '2d4039641d67419fa132ca59fa2f61ad': 'Cid',
+    '42039da0dcbd49bc8846fc1c12def1f4': 'Mr. Fox',
+  };
+
+  Future<void> _selectFishVoice(String? voiceId) async {
+    if (voiceId == null) return;
+    final service = context.read<ProviderConfigService>();
+    final current = service.config;
+    await service.save(ProviderConfig(
+      provider: current.provider,
+      endpoint: current.endpoint,
+      model: current.model,
+      chatModel: current.chatModel,
+      apiKey: current.apiKey,
+      voiceId: voiceId,
+      latencyMode: current.latencyMode,
+      temperature: current.temperature,
+      topP: current.topP,
+      speed: current.speed,
+      translationEndpoint: current.translationEndpoint,
+      translationModel: current.translationModel,
+    ));
+    if (_fish != null &&
+        service.config.provider == TranslationProvider.fishAudio) {
+      await _fish!.changeVoice(voiceId);
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Fish-Stimme für deine Ausgabe: ${_fishVoices[voiceId] ?? voiceId}')));
+    }
+  }
 
   Future<void> _showLanguagePicker() async {
     final sessionService = context.read<SessionService>();
@@ -208,6 +256,8 @@ class _SessionScreenState extends State<SessionScreen>
         // `handleJoinRoom` already mirrors source/target for the guest. Both
         // devices therefore translate their own microphone into targetLang.
         final targetLanguage = session.targetLang;
+        _fishSourceLanguage = session.sourceLang;
+        _fishTargetLanguage = session.targetLang;
         final usesWorkerClientSecret =
             provider.provider == TranslationProvider.openAi &&
                 provider.apiKey.trim().isEmpty;
@@ -220,7 +270,9 @@ class _SessionScreenState extends State<SessionScreen>
         final hasOwnLiveProvider =
             provider.provider == TranslationProvider.geminiLive
                 ? provider.apiKey.trim().isNotEmpty
-                : openAiCredential?.isNotEmpty == true;
+                : provider.provider == TranslationProvider.fishAudio
+                    ? provider.apiKey.trim().isNotEmpty
+                    : openAiCredential?.isNotEmpty == true;
         // A guest without a live BYOK key sends raw audio to the host. The
         // host-side live provider then returns translated pcm_audio normally.
         if (hasOwnLiveProvider && session.role == 'host') {
@@ -308,7 +360,7 @@ class _SessionScreenState extends State<SessionScreen>
                 }
               }
             });
-          } else {
+          } else if (provider.provider == TranslationProvider.geminiLive) {
             _gemini = geminiService;
             await _gemini!.connect(
                 apiKey: provider.apiKey,
@@ -327,6 +379,34 @@ class _SessionScreenState extends State<SessionScreen>
             _audioSubscription = _snailAudio.audioStream?.listen((chunk) {
               if (!echoGuardEnabled || !_snailAudio.isPlaybackActive) {
                 _gemini!.sendPcm16(chunk);
+              }
+            });
+          } else {
+            _fish = FishAudioRealtimeService();
+            await _fish!.connect(
+              apiKey: provider.apiKey,
+              voiceId: provider.voiceId,
+              latency: provider.latencyMode,
+              model: provider.model,
+              temperature: provider.temperature,
+              topP: provider.topP,
+              speed: provider.speed,
+            );
+            _fishListener = _drainFishAudio;
+            _fish!.addListener(_fishListener!);
+            _fishProcessTimer = Timer.periodic(
+                const Duration(milliseconds: 1200),
+                (_) => _processFish(provider));
+            _audioSubscription = _snailAudio.audioStream?.listen((chunk) {
+              if (!_audioService.isMuted &&
+                  (!echoGuardEnabled || !_snailAudio.isPlaybackActive)) {
+                // Never submit silence, speaker bleed, or Bluetooth noise to
+                // ASR. Short noisy segments otherwise produce hallucinated
+                // multilingual transcripts which are then spoken by TTS.
+                if (!AudioProcessor.detectSilence(chunk)) {
+                  _fishSpeechDetected = true;
+                  (_fishBuffer ??= BytesBuilder(copy: false)).add(chunk);
+                }
               }
             });
           }
@@ -403,6 +483,10 @@ class _SessionScreenState extends State<SessionScreen>
     WakelockPlus.disable();
     unawaited(_snailAudio.stopSessionKeepAlive());
     _audioSubscription?.cancel();
+    _fishProcessTimer?.cancel();
+    if (_fish != null && _fishListener != null) {
+      _fish!.removeListener(_fishListener!);
+    }
     if (_gemini != null && _geminiListener != null) {
       _gemini!.removeListener(_geminiListener!);
     }
@@ -414,6 +498,7 @@ class _SessionScreenState extends State<SessionScreen>
     }
     _gemini?.disconnect();
     _openAi?.disconnect();
+    _fish?.disconnect();
     _guestFallbackOpenAi?.disconnect();
     _audioService.onPcmAudio = null;
     _audioService.onFallbackPcmAudio = null;
@@ -425,6 +510,56 @@ class _SessionScreenState extends State<SessionScreen>
     _micLevel.dispose();
     _audioService.disconnect();
     super.dispose();
+  }
+
+  Future<void> _processFish(ProviderConfig config) async {
+    if (_audioService.isMuted) {
+      _fishBuffer = null;
+      _fishSpeechDetected = false;
+      _fishBusy = false;
+      return;
+    }
+    if (_fishBusy ||
+        !_fishSpeechDetected ||
+        _fishBuffer == null ||
+        _fishBuffer!.length < 16000 * 2) return;
+    _fishBusy = true;
+    final pcm = _fishBuffer!.takeBytes();
+    _fishSpeechDetected = false;
+    try {
+      final source = _fishSourceLanguage;
+      final target = _fishTargetLanguage;
+      final transcript = await _fishAsr.transcribe(
+          apiKey: config.apiKey,
+          pcm16: pcm,
+          sampleRate: 16000,
+          language: source);
+      if (transcript.isNotEmpty && _fish != null) {
+        final translated = await _translator.translate(
+            text: transcript,
+            sourceLang: source,
+            targetLang: target,
+            config: config);
+        _fish!.sendText(translated);
+        _fish!.flush();
+      }
+    } catch (error) {
+      ErrorLogger.I
+          .log(provider: 'fish_audio', context: 'session.audio', error: error);
+    } finally {
+      _fishBusy = false;
+    }
+  }
+
+  void _drainFishAudio() {
+    if (_audioService.isMuted || _fish == null) {
+      _fish?.takeAudioChunks();
+      return;
+    }
+    for (final chunk in _fish!.takeAudioChunks()) {
+      _p2p.sendPcm16(chunk, sampleRate: 24000);
+      _audioService.sendPcmAudio(chunk, sampleRate: 24000);
+    }
   }
 
   Future<void> _drainOpenAiAudio(AudioService relayAudio) async {
@@ -534,7 +669,8 @@ class _SessionScreenState extends State<SessionScreen>
     try {
       while (mounted && _playbackQueue.isNotEmpty) {
         final chunk = _playbackQueue.removeAt(0);
-        await _snailAudio.playPcm16(chunk.bytes, sampleRate: chunk.sampleRate);
+        await _snailAudio.playPcm16(chunk.bytes,
+            sampleRate: chunk.sampleRate, output: _audioPolicy.output);
       }
     } finally {
       _playbackDraining = false;
@@ -623,6 +759,99 @@ class _SessionScreenState extends State<SessionScreen>
                         textStyle: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
+
+                    if (context
+                            .watch<ProviderConfigService>()
+                            .config
+                            .provider ==
+                        TranslationProvider.fishAudio) ...[
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: _fishVoices.containsKey(context
+                                .watch<ProviderConfigService>()
+                                .config
+                                .voiceId)
+                            ? context
+                                .watch<ProviderConfigService>()
+                                .config
+                                .voiceId
+                            : _fishVoices.keys.first,
+                        decoration: const InputDecoration(
+                          labelText: 'Meine Fish-Audio-Stimme',
+                          prefixIcon: Icon(Icons.record_voice_over),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _fishVoices.entries
+                            .map((entry) => DropdownMenuItem<String>(
+                                  value: entry.key,
+                                  child: Text(entry.value),
+                                ))
+                            .toList(),
+                        onChanged: _selectFishVoice,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Diese Stimme wird nur für deine übersetzte Ausgabe verwendet.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<AudioOutput>(
+                            value: _audioPolicy.output,
+                            decoration: const InputDecoration(
+                              labelText: 'Ausgabe',
+                              prefixIcon: Icon(Icons.volume_up),
+                              border: OutlineInputBorder(),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                  value: AudioOutput.auto, child: Text('Auto')),
+                              DropdownMenuItem(
+                                  value: AudioOutput.speaker,
+                                  child: Text('Lautsprecher')),
+                              DropdownMenuItem(
+                                  value: AudioOutput.headset,
+                                  child: Text('Headset')),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) _audioPolicy.setOutput(value);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DropdownButtonFormField<AudioInput>(
+                            value: AudioInput.auto,
+                            decoration: const InputDecoration(
+                              labelText: 'Mikrofon',
+                              prefixIcon: Icon(Icons.mic),
+                              border: OutlineInputBorder(),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                  value: AudioInput.auto, child: Text('Auto')),
+                              DropdownMenuItem(
+                                  value: AudioInput.phone,
+                                  child: Text('Telefon')),
+                              DropdownMenuItem(
+                                  value: AudioInput.headset,
+                                  child: Text('Headset')),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) _snailAudio.setInput(value);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                        'Audio-Geräte können während der Session gewechselt werden.',
+                        style: Theme.of(context).textTheme.bodySmall),
 
                     if (_openAi != null) ...[
                       const SizedBox(height: 16),

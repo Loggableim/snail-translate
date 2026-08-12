@@ -61,6 +61,23 @@ class FishAudioRealtimeService extends ChangeNotifier {
     await _open();
   }
 
+  /// Switches the voice for the local speaker without changing the API key or
+  /// the rest of the provider configuration. Fish binds reference_id to the
+  /// websocket session, so reconnecting is required.
+  Future<void> changeVoice(String voiceId) async {
+    final key = _apiKey;
+    if (key == null || key.isEmpty || voiceId.trim().isEmpty) return;
+    await connect(
+      apiKey: key,
+      voiceId: voiceId,
+      latency: _latency,
+      model: _model,
+      temperature: _temperature,
+      topP: _topP,
+      speed: _speed,
+    );
+  }
+
   /// Switches voice between completed turns without losing provider settings.
   /// Fish binds the voice to the TTS session, so a fresh session is required.
   Future<void> switchVoice(String voiceId) async {
