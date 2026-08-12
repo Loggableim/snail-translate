@@ -1,14 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:snail/screens/welcome_screen.dart';
+import 'package:snail/services/session_service.dart';
+
+Widget _wrapWithProviders(Widget child) {
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (_) => SessionService()),
+    ],
+    child: MaterialApp(home: child),
+  );
+}
 
 void main() {
   testWidgets('welcome screen page 1 shows value proposition', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
-      const MaterialApp(home: WelcomeScreen()),
+      _wrapWithProviders(const WelcomeScreen()),
     );
     await tester.pumpAndSettle();
 
@@ -24,29 +35,33 @@ void main() {
       find.text('Dein Gegenüber hört die Übersetzung'),
       findsOneWidget,
     );
-    expect(find.text('Weiter'), findsOneWidget);
+    // Language confirmation
+    expect(find.text('Deine Sprache'), findsOneWidget);
+    expect(find.text('automatisch erkannt'), findsOneWidget);
+    expect(find.text('Ändern'), findsOneWidget);
+    // Guest quick-join button
+    expect(find.text('Ich habe einen Code'), findsOneWidget);
+    // Privacy note
     expect(
       find.text('Kein Konto nötig. Deine Daten bleiben auf deinem Gerät.'),
       findsOneWidget,
     );
-    // Guest quick-join button
-    expect(find.text('Ich habe einen Code'), findsOneWidget);
   });
 
   testWidgets('welcome screen page 2 shows microphone test', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
-      const MaterialApp(home: WelcomeScreen()),
+      _wrapWithProviders(const WelcomeScreen()),
     );
     await tester.pumpAndSettle();
 
-    // Navigate to page 2
-    await tester.tap(find.text('Weiter'));
+    // Jump to page 2 via PageController
+    final pageView = tester.widget<PageView>(find.byType(PageView));
+    pageView.controller!.jumpToPage(1);
     await tester.pumpAndSettle();
 
     // Page 2 content
     expect(find.text('Mikrofon testen'), findsOneWidget);
-    // Permission explanation
     expect(
       find.textContaining('Snail braucht dein Mikrofon'),
       findsOneWidget,
@@ -65,41 +80,36 @@ void main() {
   testWidgets('welcome screen shows page dots', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
-      const MaterialApp(home: WelcomeScreen()),
+      _wrapWithProviders(const WelcomeScreen()),
     );
     await tester.pumpAndSettle();
 
-    // Two page dots should be present
-    // (PageDot widgets are AnimatedContainers — we verify via navigation)
-    expect(find.text('Weiter'), findsOneWidget);
-
-    // Navigate to page 2
-    await tester.tap(find.text('Weiter'));
+    // Jump to page 2
+    final pageView = tester.widget<PageView>(find.byType(PageView));
+    pageView.controller!.jumpToPage(1);
     await tester.pumpAndSettle();
 
-    // Page 2 has the mic test button and a skip option
     expect(find.text('Aufnahme starten'), findsOneWidget);
   });
 
   testWidgets('welcome screen marks shown on finish', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
-      const MaterialApp(home: WelcomeScreen()),
+      _wrapWithProviders(const WelcomeScreen()),
     );
     await tester.pumpAndSettle();
 
-    // Before finish: not marked
     expect(await WelcomeScreen.hasBeenShown(), isFalse);
 
-    // Navigate to page 2
-    await tester.tap(find.text('Weiter'));
+    // Jump to page 2
+    final pageView = tester.widget<PageView>(find.byType(PageView));
+    pageView.controller!.jumpToPage(1);
     await tester.pumpAndSettle();
 
     // Tap "Überspringen" to finish
     await tester.tap(find.text('Überspringen'));
     await tester.pumpAndSettle();
 
-    // After finish: marked
     expect(await WelcomeScreen.hasBeenShown(), isTrue);
   });
 

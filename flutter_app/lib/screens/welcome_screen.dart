@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../services/snail_audio.dart';
+import '../services/session_service.dart';
 
 /// One-time guided onboarding shown on first app launch.
 ///
@@ -262,7 +264,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               ],
                             ),
                           ),
-                          const SizedBox.shrink(),
+                          const SizedBox(height: 16),
+                          // ── Language confirmation ──
+                          _LanguageConfirmation(),
+                          const SizedBox(height: 16),
                           SizedBox(
                             width: double.infinity,
                             height: 56,
@@ -713,5 +718,154 @@ class _FeatureRow extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// Shows the auto-detected language and lets the user confirm or change it.
+class _LanguageConfirmation extends StatelessWidget {
+  const _LanguageConfirmation();
+
+  static const _languages = <({String code, String name, String native})>[
+    (code: 'de', name: 'Deutsch', native: 'Deutsch'),
+    (code: 'en', name: 'English', native: 'English'),
+    (code: 'fr', name: 'Français', native: 'Français'),
+    (code: 'es', name: 'Español', native: 'Español'),
+    (code: 'it', name: 'Italiano', native: 'Italiano'),
+    (code: 'ja', name: 'Japanese', native: '日本語'),
+    (code: 'ko', name: 'Korean', native: '한국어'),
+    (code: 'zh', name: 'Chinese', native: '中文'),
+    (code: 'uk', name: 'Ukrainian', native: 'Українська'),
+  ];
+
+  static String _nativeName(String code) =>
+      _languages.firstWhere((l) => l.code == code).native;
+
+  @override
+  Widget build(BuildContext context) {
+    final session = context.watch<SessionService>();
+    final colors = Theme.of(context).colorScheme;
+    final detectedLang = session.myLanguage;
+    final detectedName = _nativeName(detectedLang);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.primaryContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colors.primary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.language_rounded,
+                  size: 18, color: colors.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Deine Sprache',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: colors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: colors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      detectedName,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        color: colors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      detectedLang.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.primary.withValues(alpha: 0.6),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'automatisch erkannt',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colors.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => _showLanguagePicker(context, session),
+                style: TextButton.styleFrom(
+                  foregroundColor: colors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                child: const Text('Ändern'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Future<void> _showLanguagePicker(
+      BuildContext context, SessionService session) async {
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Sprache wählen'),
+        children: _languages.map((lang) {
+          return SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, lang.code),
+            child: Row(
+              children: [
+                Text(lang.native,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(width: 8),
+                Text(lang.code.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(ctx)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.5),
+                    )),
+                const Spacer(),
+                if (lang.code == session.myLanguage)
+                  Icon(Icons.check_rounded,
+                      size: 20,
+                      color: Theme.of(ctx).colorScheme.primary),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+    if (selected != null && context.mounted) {
+      await session.setMyLanguage(selected);
+    }
   }
 }
