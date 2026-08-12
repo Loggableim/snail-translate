@@ -51,7 +51,7 @@ nächsten offenen Punkt.
 - [x] 33. Nachrichtenbearbeitung und Löschung spezifizieren und umsetzen.
 - [x] 34. Kontaktanfragen akzeptierbar oder ablehnbar machen.
 - [x] 35. Kontakte blockieren können.
-- [ ] 36. Inaktive Sessions automatisch bereinigen.
+- [x] 36. Inaktive Sessions automatisch bereinigen.
 - [ ] 37. Große Services in kleinere Komponenten teilen.
 - [ ] 38. UI, Domain-Logik und Transport konsequenter trennen.
 - [ ] 39. Gemeinsame DTOs zwischen Flutter und Worker versionieren.

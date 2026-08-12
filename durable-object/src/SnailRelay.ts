@@ -99,6 +99,7 @@ const MAX_CHAT_TEXT_LENGTH = 10_000;         // max chars per chat message
 const MAX_STICKER_URL_LENGTH = 2_048;       // max chars for sticker asset URL
 const MAX_STICKER_EMOJI_LENGTH = 10;        // max chars for sticker emoji
 const MAX_STICKER_PACK_NAME_LENGTH = 100;   // max chars for sticker pack name
+const SESSION_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1_000; // 30 minutes
 
 // ── Durable Object ────────────────────────────────────────────────────
 
@@ -149,6 +150,20 @@ export class SnailRelay implements DurableObject {
         this.secret = savedSecret;
       }
     });
+  }
+
+  // ── Alarm Handler ──────────────────────────────────────────────────
+
+  async alarm(): Promise<void> {
+    const now = Date.now();
+    const inactiveMs = now - this.session.lastActivity;
+    if (inactiveMs >= SESSION_INACTIVITY_TIMEOUT_MS) {
+      console.log(
+        `Session ${this.session.roomId} inactive for ${Math.round(inactiveMs / 1000)}s — cleaning up`
+      );
+      this.broadcast({ type: "session_end", reason: "Session timed out due to inactivity" });
+      this.cleanup();
+    }
   }
 
   // ── HTTP Handler ──────────────────────────────────────────────────
@@ -241,6 +256,10 @@ export class SnailRelay implements DurableObject {
 
     ws.addEventListener("message", async (event) => {
       this.session.lastActivity = Date.now();
+      // Reset the inactivity alarm on every message
+      await this.state.storage.setAlarm(
+        Date.now() + SESSION_INACTIVITY_TIMEOUT_MS
+      );
 
       let msg: ClientMessage;
       try {
