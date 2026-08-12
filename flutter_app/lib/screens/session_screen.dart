@@ -56,8 +56,7 @@ class _SessionScreenState extends State<SessionScreen>
   VoidCallback? _guestFallbackOpenAiListener;
   bool _openAiPlaybackRunning = false;
   bool _fallbackPlaybackRunning = false;
-  final List<_SessionPlaybackChunk> _playbackQueue =
-      <_SessionPlaybackChunk>[];
+  final List<_SessionPlaybackChunk> _playbackQueue = <_SessionPlaybackChunk>[];
   bool _playbackDraining = false;
   static const _maxPlaybackQueue = 24;
   Future<void>? _guestFallbackConnecting;
@@ -74,6 +73,15 @@ class _SessionScreenState extends State<SessionScreen>
     'ko': '한국어',
     'zh': '中文',
     'uk': 'Українська',
+    'ar': 'Arabic',
+    'pt': 'Portuguese',
+    'ru': 'Russian',
+    'nl': 'Dutch',
+    'tr': 'Turkish',
+    'hi': 'Hindi',
+    'vi': 'Vietnamese',
+    'pl': 'Polish',
+    'sv': 'Swedish',
   };
 
   Future<void> _showLanguagePicker() async {
@@ -162,8 +170,8 @@ class _SessionScreenState extends State<SessionScreen>
       if (!_isConnectionActive(generation)) return;
       final relayAudio = audioService;
       _p2p.onSignal = (type, signal) => relayAudio.sendSignal(type, signal);
-      _p2p.onAudio = (bytes, sampleRate) =>
-      _enqueueSessionPlayback(bytes, sampleRate);
+      _p2p.onAudio =
+          (bytes, sampleRate) => _enqueueSessionPlayback(bytes, sampleRate);
       _p2p.onChat = relayAudio.receiveP2pData;
       relayAudio.isP2pConnected = () => _p2p.isConnected;
       relayAudio.onP2pChatSend = _p2p.sendChat;
@@ -279,8 +287,7 @@ class _SessionScreenState extends State<SessionScreen>
                         'Mikrofon übersteuert! Sprich etwas leiser oder '
                         'vergrößere den Abstand zum Mikrofon.',
                       ),
-                      backgroundColor:
-                          Theme.of(context).colorScheme.error,
+                      backgroundColor: Theme.of(context).colorScheme.error,
                       duration: const Duration(seconds: 4),
                       action: SnackBarAction(
                         label: 'OK',
@@ -352,6 +359,8 @@ class _SessionScreenState extends State<SessionScreen>
         targetLang: session.targetLang,
         originalText: turn.sourceText,
         translatedText: turn.targetText,
+        provider:
+            context.read<ProviderConfigService>().config.provider.displayName,
       ));
     }
   }
@@ -525,8 +534,7 @@ class _SessionScreenState extends State<SessionScreen>
     try {
       while (mounted && _playbackQueue.isNotEmpty) {
         final chunk = _playbackQueue.removeAt(0);
-        await _snailAudio.playPcm16(chunk.bytes,
-            sampleRate: chunk.sampleRate);
+        await _snailAudio.playPcm16(chunk.bytes, sampleRate: chunk.sampleRate);
       }
     } finally {
       _playbackDraining = false;
@@ -722,8 +730,7 @@ class _SessionScreenState extends State<SessionScreen>
                     // ── Audio level meter ──
                     ValueListenableBuilder<double>(
                       valueListenable: _micLevel,
-                      builder: (context, level, _) =>
-                          _LevelMeter(level: level),
+                      builder: (context, level, _) => _LevelMeter(level: level),
                     ),
                     const SizedBox(height: 8),
                     Text(audio.isMuted ? 'Stumm' : 'Aktiv'),

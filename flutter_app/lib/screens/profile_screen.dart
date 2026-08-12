@@ -4,6 +4,8 @@ import '../services/session_service.dart';
 import '../models/session.dart';
 import '../services/user_identity_service.dart';
 import '../services/transcript_history.dart';
+import '../services/provider_config_service.dart';
+import '../models/provider_config.dart';
 
 /// Profile screen — user info, stats, logout.
 class ProfileScreen extends StatefulWidget {
@@ -81,7 +83,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: _quota?.tier == 'paid' ? Colors.amber : null,
               ),
               title: Text(_quota?.tier == 'paid' ? 'Pro' : 'Free'),
-              subtitle: Text(_quota?.formattedRemaining ?? 'Lädt...'),
+              subtitle: Text('${_quota?.formattedRemaining ?? 'Lädt...'} · '
+                  '${context.watch<ProviderConfigService>().config.provider.displayName}'),
               trailing: _quota?.tier != 'paid'
                   ? TextButton(
                       onPressed: () => Navigator.pushNamed(context, '/paywall'),
@@ -91,6 +94,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 16),
+
+          Consumer<ProviderConfigService>(
+            builder: (_, service, __) => Card(
+              child: ListTile(
+                leading: const Icon(Icons.hub_outlined),
+                title: const Text('Aktiver Übersetzungs-Provider'),
+                subtitle: Text(service.config.provider.displayName),
+              ),
+            ),
+          ),
 
           // Stats
           Consumer<TranscriptHistory>(
@@ -102,15 +115,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return Card(
                 child: Column(
                   children: [
-                ListTile(
-                  leading: const Icon(Icons.timer),
-                  title: const Text('Genutzte Zeit'),
-                  subtitle: Text(_quota?.formattedUsed ?? '0m 0s'),
-                ),
-                const Divider(height: 1),
                     ListTile(
-                  leading: const Icon(Icons.translate),
-                  title: const Text('Übersetzte Sessions'),
+                      leading: const Icon(Icons.timer),
+                      title: const Text('Genutzte Zeit'),
+                      subtitle: Text(_quota?.formattedUsed ?? '0m 0s'),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.translate),
+                      title: const Text('Übersetzte Sessions'),
                       subtitle: Text('$sessionCount'),
                     ),
                   ],

@@ -20,7 +20,7 @@ Disconnect-/Retry-Behandlung sowie Latenz- und Audio-Gap-Messung.
 - [x] 47. Übersetzungstext in vollständigen Wörtern bzw. 5–10-Wort-Puffern streamen.
 - [x] 48. Fish-Audio-Chunks mit Prebuffer und Jitter-/Playback-Handling abspielen.
 - [x] 49. Fish-Latenzmodus `balanced` und Qualitätsmodus in der GUI anbieten.
-- [ ] 50. Fish Audio in Session, Standalone-Modus, Quota und Verlauf kennzeichnen.
+- [x] 50. Fish Audio in Session, Standalone-Modus, Quota und Verlauf kennzeichnen.
 - [ ] 51. Mehrere auswählbare Fish-Audio-Stimmen in der GUI anzeigen.
 - [ ] 52. Voice-Auswahl über `reference_id`/Voice-ID konfigurieren und persistieren.
 - [ ] 53. Voice-Metadaten cachen und Stimmen für schnelle Sessions vorbereiten.

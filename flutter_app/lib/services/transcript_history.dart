@@ -12,6 +12,7 @@ class TranscriptEntry {
   final String targetLang;
   final String originalText;
   final String translatedText;
+  final String provider;
 
   const TranscriptEntry({
     required this.id,
@@ -21,6 +22,7 @@ class TranscriptEntry {
     required this.targetLang,
     required this.originalText,
     required this.translatedText,
+    this.provider = 'unbekannt',
   });
 
   Map<String, dynamic> toJson() => {
@@ -31,6 +33,7 @@ class TranscriptEntry {
         'targetLang': targetLang,
         'originalText': originalText,
         'translatedText': translatedText,
+        'provider': provider,
       };
 
   factory TranscriptEntry.fromJson(Map<String, dynamic> json) =>
@@ -42,6 +45,7 @@ class TranscriptEntry {
         targetLang: json['targetLang'] as String,
         originalText: json['originalText'] as String,
         translatedText: json['translatedText'] as String,
+        provider: json['provider'] as String? ?? 'unbekannt',
       );
 }
 
@@ -87,6 +91,7 @@ class TranscriptHistory extends ChangeNotifier {
     required String targetLang,
     required String originalText,
     required String translatedText,
+    String provider = 'unbekannt',
   }) async {
     final entry = TranscriptEntry(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -96,6 +101,7 @@ class TranscriptHistory extends ChangeNotifier {
       targetLang: targetLang,
       originalText: originalText,
       translatedText: translatedText,
+      provider: provider,
     );
 
     _entries.insert(0, entry);

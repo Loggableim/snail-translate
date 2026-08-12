@@ -82,6 +82,8 @@ class HistoryScreen extends StatelessWidget {
                                 size: 14, color: Colors.grey),
                             const SizedBox(width: 4),
                             _langChip(entry.targetLang),
+                            const SizedBox(width: 6),
+                            _providerChip(entry.provider),
                             const Spacer(),
                             Text(
                               _formatTime(entry.timestamp),
@@ -110,6 +112,18 @@ class HistoryScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(lang.toUpperCase(),
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  Widget _providerChip(String provider) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.shade100,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(provider,
           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
