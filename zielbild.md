@@ -46,7 +46,7 @@ nächsten offenen Punkt.
 - [x] 28. D1 als Message Store implementieren.
 - [x] 29. Doppelte Nachrichten idempotent behandeln.
 - [x] 30. Anhänge mit einem verbindlichen Größenlimit versehen.
-- [ ] 31. Sprachnachrichten ergänzen.
+- [x] 31. Sprachnachrichten ergänzen.
 - [ ] 32. Nachrichtensuche einbauen.
 - [ ] 33. Nachrichtenbearbeitung und Löschung spezifizieren und umsetzen.
 - [ ] 34. Kontaktanfragen akzeptierbar oder ablehnbar machen.

@@ -37,7 +37,7 @@ interface SessionState {
 }
 
 interface ClientMessage {
-  type: "auth" | "audio" | "pcm_audio" | "fallback_pcm_audio" | "chat" | "sticker" | "signal" | "ping" | "end";
+  type: "auth" | "audio" | "pcm_audio" | "fallback_pcm_audio" | "chat" | "sticker" | "voice" | "signal" | "ping" | "end";
   token?: string;
   audio?: number[];
   sampleRate?: number;
@@ -56,10 +56,13 @@ interface ClientMessage {
   signalType?: "offer" | "answer" | "ice";
   signal?: unknown;
   timestamp?: number;
+  // Voice message fields
+  audioData?: string;
+  durationMs?: number;
 }
 
 interface ServerMessage {
-  type: "auth_ok" | "auth_error" | "audio" | "pcm_audio" | "fallback_pcm_audio" | "chat" | "sticker" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
+  type: "auth_ok" | "auth_error" | "audio" | "pcm_audio" | "fallback_pcm_audio" | "chat" | "sticker" | "voice" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
   audio?: number[];
   sampleRate?: number;
   messageId?: string;
@@ -82,6 +85,9 @@ interface ServerMessage {
   error?: string;
   peerId?: string;
   reason?: string;
+  // Voice message fields
+  audioData?: string;
+  durationMs?: number;
 }
 
 // ── Constants ────────────────────────────────────────────────────────
@@ -499,6 +505,57 @@ export class SnailRelay implements DurableObject {
           const peer = this.getPeer(ws);
           if (peer) this.send(peer, stickerMessage);
           this.send(ws, { type: "delivery_ack", messageId: stickerMessage.messageId });
+          break;
+        }
+
+        case "voice": {
+          if (!authenticated || !msg.audioData || !msg.durationMs) {
+            this.send(ws, { type: "error", error: "Invalid voice message" });
+            return;
+          }
+
+          const messageId = msg.messageId || crypto.randomUUID();
+
+          // D1 idempotency check (preferred) or in-memory fallback
+          if (this.messageStore) {
+            const exists = await this.messageStore.exists(messageId);
+            if (exists) {
+              this.send(ws, { type: "delivery_ack", messageId });
+              break;
+            }
+          } else {
+            this.session.deliveredMessageIds ??= [];
+            if (this.session.deliveredMessageIds.includes(messageId)) {
+              this.send(ws, { type: "delivery_ack", messageId });
+              break;
+            }
+          }
+
+          const voiceMessage: ServerMessage = {
+            type: "voice",
+            messageId,
+            senderId: userId || undefined,
+            audioData: msg.audioData,
+            mimeType: msg.mimeType || "audio/pcm16",
+            sampleRate: msg.sampleRate || 16000,
+            durationMs: msg.durationMs,
+            timestamp: msg.timestamp || Date.now(),
+          };
+
+          // Persist to D1 (preferred) and in-memory (fallback)
+          if (this.messageStore && this.session.roomId) {
+            await this.messageStore.insert(voiceMessage, this.session.roomId);
+          }
+          this.session.chatHistory.push(voiceMessage);
+          this.session.chatHistory = this.session.chatHistory.slice(-500);
+          if (!this.messageStore) {
+            this.session.deliveredMessageIds.push(messageId);
+            this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
+          }
+          await this.saveState();
+          const peer = this.getPeer(ws);
+          if (peer) this.send(peer, voiceMessage);
+          this.send(ws, { type: "delivery_ack", messageId: voiceMessage.messageId });
           break;
         }
 
