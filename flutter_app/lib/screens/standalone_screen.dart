@@ -275,7 +275,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         final stale = _lastFrameAt == null ||
             DateTime.now().difference(_lastFrameAt!).inMilliseconds > 2000;
         final next = states.contains('degraded') || states.contains('error')
-            ? 'Provider degradiert – Wiederverbindung läuft'
+            ? '${config.provider.displayName}: Wiederverbindung läuft'
             : stale
                 ? 'Verbunden – warte auf Sprache'
                 : (_hasHeadset
@@ -292,7 +292,10 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         _phoneFish.disconnect(),
         _headsetFish.disconnect()
       ]);
-      if (mounted) setState(() => _status = 'Verbindung fehlgeschlagen');
+      if (mounted) {
+        setState(() => _status =
+            '${config.provider.displayName}: Verbindung fehlgeschlagen');
+      }
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('$error')));
