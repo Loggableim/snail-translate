@@ -18,7 +18,7 @@ Disconnect-/Retry-Behandlung sowie Latenz- und Audio-Gap-Messung.
 - [x] 45. Fish-Audio-BYOK-Key sicher konfigurieren, testen und niemals loggen.
 - [x] 46. Fish-WebSocket mit Wiederverwendung, Disconnect-Erkennung und begrenzten Retries implementieren.
 - [x] 47. Übersetzungstext in vollständigen Wörtern bzw. 5–10-Wort-Puffern streamen.
-- [ ] 48. Fish-Audio-Chunks mit Prebuffer und Jitter-/Playback-Handling abspielen.
+- [x] 48. Fish-Audio-Chunks mit Prebuffer und Jitter-/Playback-Handling abspielen.
 - [x] 49. Fish-Latenzmodus `balanced` und Qualitätsmodus in der GUI anbieten.
 - [ ] 50. Fish Audio in Session, Standalone-Modus, Quota und Verlauf kennzeichnen.
 - [ ] 51. Mehrere auswählbare Fish-Audio-Stimmen in der GUI anzeigen.

@@ -6,6 +6,9 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../services/snail_audio.dart';
 import '../services/openai_realtime_service.dart';
 import '../services/gemini_live_service.dart';
+import '../services/fish_audio_realtime_service.dart';
+import '../services/fish_audio_asr_service.dart';
+import '../services/translation_service.dart';
 import '../services/provider_config_service.dart';
 import '../services/session_service.dart';
 import '../services/audio_policy.dart';
@@ -32,11 +35,20 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
   final _headsetOpenAi = OpenAiRealtimeService();
   final _phoneGemini = GeminiLiveService();
   final _headsetGemini = GeminiLiveService();
+  final _phoneFish = FishAudioRealtimeService();
+  final _headsetFish = FishAudioRealtimeService();
+  final _fishAsr = FishAudioAsrService();
+  final _translator = TranslationService();
+  final Map<String, BytesBuilder> _fishBuffers = <String, BytesBuilder>{};
+  final Map<String, bool> _fishBusy = <String, bool>{};
+  Timer? _fishProcessTimer;
   StreamSubscription<Map<String, dynamic>>? _subscription;
   Timer? _playbackTimer;
+  Timer? _playbackFlushTimer;
   Timer? _uiRefreshTimer;
   final List<_PlaybackChunk> _playbackQueue = <_PlaybackChunk>[];
   bool _playbackDraining = false;
+  bool _fishPlaybackPrebuffer = false;
   static const _maxPlaybackQueue = 24;
   bool _running = false;
   String _phoneLanguage = 'Deutsch';
@@ -53,13 +65,17 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       await _audio.stopStandaloneCapture();
       await _subscription?.cancel();
       _playbackTimer?.cancel();
+      _playbackFlushTimer?.cancel();
+      _fishProcessTimer?.cancel();
       _uiRefreshTimer?.cancel();
       _playbackQueue.clear();
       await Future.wait([
         _phoneOpenAi.disconnect(),
         _headsetOpenAi.disconnect(),
         _phoneGemini.disconnect(),
-        _headsetGemini.disconnect()
+        _headsetGemini.disconnect(),
+        _phoneFish.disconnect(),
+        _headsetFish.disconnect()
       ]);
       if (mounted) {
         setState(() {
@@ -105,8 +121,8 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       if (config.provider == TranslationProvider.openAi) {
         final usesClientSecret = config.apiKey.trim().isEmpty;
         final openAiCredential = usesClientSecret
-            ? await sessionService.fetchOpenAiClientSecret(
-                _languageCodes[_headsetLanguage]!)
+            ? await sessionService
+                .fetchOpenAiClientSecret(_languageCodes[_headsetLanguage]!)
             : config.apiKey.trim();
         if (openAiCredential == null || openAiCredential.isEmpty) {
           throw StateError(
@@ -126,12 +142,12 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
               apiKey: openAiCredential,
               targetLanguage: _languageCodes[_phoneLanguage]!,
               credentialRefresher: usesClientSecret
-                  ? () => sessionService.fetchOpenAiClientSecret(
-                      _languageCodes[_phoneLanguage]!)
+                  ? () => sessionService
+                      .fetchOpenAiClientSecret(_languageCodes[_phoneLanguage]!)
                   : null));
         }
         await Future.wait(openAiConnections);
-      } else {
+      } else if (config.provider == TranslationProvider.geminiLive) {
         final geminiConnections = <Future<void>>[
           _phoneGemini.connect(
               apiKey: config.apiKey,
@@ -145,6 +161,28 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
               model: config.model));
         }
         await Future.wait(geminiConnections);
+      } else {
+        final fishConnections = <Future<void>>[
+          _phoneFish.connect(
+              apiKey: config.apiKey,
+              voiceId: config.voiceId,
+              latency: config.latencyMode,
+              model: config.model,
+              temperature: config.temperature,
+              topP: config.topP,
+              speed: config.speed),
+        ];
+        if (_hasHeadset) {
+          fishConnections.add(_headsetFish.connect(
+              apiKey: config.apiKey,
+              voiceId: config.voiceId,
+              latency: config.latencyMode,
+              model: config.model,
+              temperature: config.temperature,
+              topP: config.topP,
+              speed: config.speed));
+        }
+        await Future.wait(fishConnections);
       }
       final ok = await _audio.startStandaloneCapture(
         aecEnabled: audioPolicy.output != AudioOutput.headset ||
@@ -157,7 +195,9 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
           _phoneOpenAi.disconnect(),
           _headsetOpenAi.disconnect(),
           _phoneGemini.disconnect(),
-          _headsetGemini.disconnect()
+          _headsetGemini.disconnect(),
+          _phoneFish.disconnect(),
+          _headsetFish.disconnect()
         ]);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -165,11 +205,15 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         return;
       }
       _audioDiagnostics = await _audio.getAudioDiagnostics();
+      if (config.provider == TranslationProvider.fishAudio) {
+        _fishPlaybackPrebuffer = true;
+        _fishProcessTimer = Timer.periodic(const Duration(milliseconds: 1200),
+            (_) => _processFishAudio(config));
+      }
       _subscription = _audio.standaloneStream?.listen((frame) {
         if (!mounted) return;
-        _lastSource = frame['source'] == 'phone'
-            ? 'Handy-Mikrofon'
-            : 'Headset-Mikrofon';
+        _lastSource =
+            frame['source'] == 'phone' ? 'Handy-Mikrofon' : 'Headset-Mikrofon';
         _sourceFrames++;
         _lastFrameAt = DateTime.now();
         final bytes = frame['bytes'] as Uint8List;
@@ -177,21 +221,29 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         if (config.provider == TranslationProvider.openAi) {
           (frame['source'] == 'phone' ? _phoneOpenAi : _headsetOpenAi)
               .sendPcm16(bytes, inputSampleRate: rate);
-        } else {
+        } else if (config.provider == TranslationProvider.geminiLive) {
           (frame['source'] == 'phone' ? _phoneGemini : _headsetGemini)
               .sendPcm16(bytes);
+        } else {
+          final source = frame['source'] as String;
+          (_fishBuffers[source] ??= BytesBuilder(copy: false)).add(bytes);
         }
       });
       _playbackTimer = Timer.periodic(const Duration(milliseconds: 40), (_) {
         final ownerHeadphoneChunks =
             config.provider == TranslationProvider.openAi
                 ? _phoneOpenAi.takeAudioChunks()
-                : _phoneGemini.takeAudioChunks();
+                : config.provider == TranslationProvider.geminiLive
+                    ? _phoneGemini.takeAudioChunks()
+                    : _phoneFish.takeAudioChunks();
         final otherSpeakerChunks = config.provider == TranslationProvider.openAi
             ? _headsetOpenAi.takeAudioChunks()
-            : _headsetGemini.takeAudioChunks();
+            : config.provider == TranslationProvider.geminiLive
+                ? _headsetGemini.takeAudioChunks()
+                : _headsetFish.takeAudioChunks();
         for (final chunk in ownerHeadphoneChunks) {
-          _enqueuePlayback(chunk, _hasHeadset ? AudioOutput.headset : AudioOutput.speaker);
+          _enqueuePlayback(
+              chunk, _hasHeadset ? AudioOutput.headset : AudioOutput.speaker);
         }
         for (final chunk in otherSpeakerChunks) {
           _enqueuePlayback(chunk, AudioOutput.speaker);
@@ -210,11 +262,16 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
                 _phoneOpenAi.state,
                 if (_hasHeadset) _headsetOpenAi.state,
               ]
-            : <String>[
-                _phoneGemini.isConnected ? 'ready' : 'degraded',
-                if (_hasHeadset)
-                  _headsetGemini.isConnected ? 'ready' : 'degraded',
-              ];
+            : config.provider == TranslationProvider.geminiLive
+                ? <String>[
+                    _phoneGemini.isConnected ? 'ready' : 'degraded',
+                    if (_hasHeadset)
+                      _headsetGemini.isConnected ? 'ready' : 'degraded',
+                  ]
+                : <String>[
+                    _phoneFish.state,
+                    if (_hasHeadset) _headsetFish.state,
+                  ];
         final stale = _lastFrameAt == null ||
             DateTime.now().difference(_lastFrameAt!).inMilliseconds > 2000;
         final next = states.contains('degraded') || states.contains('error')
@@ -231,7 +288,9 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         _phoneOpenAi.disconnect(),
         _headsetOpenAi.disconnect(),
         _phoneGemini.disconnect(),
-        _headsetGemini.disconnect()
+        _headsetGemini.disconnect(),
+        _phoneFish.disconnect(),
+        _headsetFish.disconnect()
       ]);
       if (mounted) setState(() => _status = 'Verbindung fehlgeschlagen');
       if (mounted) {
@@ -245,14 +304,59 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
   void dispose() {
     _subscription?.cancel();
     _playbackTimer?.cancel();
+    _playbackFlushTimer?.cancel();
     _uiRefreshTimer?.cancel();
+    _fishProcessTimer?.cancel();
     _playbackQueue.clear();
+    _fishPlaybackPrebuffer = false;
     _audio.stopStandaloneCapture();
     _phoneOpenAi.dispose();
     _headsetOpenAi.dispose();
     _phoneGemini.dispose();
     _headsetGemini.dispose();
+    _phoneFish.dispose();
+    _headsetFish.dispose();
     super.dispose();
+  }
+
+  Future<void> _processFishAudio(ProviderConfig config) async {
+    for (final source in const ['phone', 'headset']) {
+      final buffer = _fishBuffers[source];
+      if (buffer == null ||
+          buffer.length < 16000 * 2 ||
+          _fishBusy[source] == true) {
+        continue;
+      }
+      _fishBusy[source] = true;
+      final pcm = buffer.takeBytes();
+      try {
+        final sourceLanguage = source == 'phone'
+            ? _languageCodes[_phoneLanguage]!
+            : _languageCodes[_headsetLanguage]!;
+        final targetLanguage = source == 'phone'
+            ? _languageCodes[_headsetLanguage]!
+            : _languageCodes[_phoneLanguage]!;
+        final transcript = await _fishAsr.transcribe(
+            apiKey: config.apiKey,
+            pcm16: pcm,
+            sampleRate: 16000,
+            language: sourceLanguage);
+        if (transcript.isNotEmpty) {
+          final translated = await _translator.translate(
+              text: transcript,
+              sourceLang: sourceLanguage,
+              targetLang: targetLanguage,
+              config: config);
+          final output = source == 'phone' ? _phoneFish : _headsetFish;
+          output.sendText(translated);
+          output.flush();
+        }
+      } catch (error) {
+        if (mounted) setState(() => _status = 'Fish-Pipeline Fehler: $error');
+      } finally {
+        _fishBusy[source] = false;
+      }
+    }
   }
 
   void _enqueuePlayback(Uint8List bytes, AudioOutput output) {
@@ -262,11 +366,17 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       _playbackQueue.removeAt(0);
     }
     _playbackQueue.add(_PlaybackChunk(bytes, output));
+    _playbackFlushTimer?.cancel();
+    _playbackFlushTimer = Timer(const Duration(milliseconds: 180), () {
+      _playbackFlushTimer = null;
+      _drainPlaybackQueue(force: true);
+    });
     _drainPlaybackQueue();
   }
 
-  Future<void> _drainPlaybackQueue() async {
+  Future<void> _drainPlaybackQueue({bool force = false}) async {
     if (_playbackDraining) return;
+    if (_fishPlaybackPrebuffer && !force && _playbackQueue.length < 2) return;
     _playbackDraining = true;
     try {
       while (mounted && _playbackQueue.isNotEmpty) {
@@ -291,6 +401,15 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
           const Text(
               'Das Handy-Mikrofon hört die Gesprächsperson. Das Headset-Mikrofon nimmt den Nutzer auf. Beide Quellen bleiben getrennt, damit Richtung, Sprecher und Noise Suppression sauber zugeordnet werden können.'),
           const SizedBox(height: 20),
+          Consumer<ProviderConfigService>(
+            builder: (_, service, __) => Card(
+              child: ListTile(
+                leading: const Icon(Icons.hub_outlined),
+                title: const Text('Übersetzungs-Provider'),
+                subtitle: Text(service.config.provider.displayName),
+              ),
+            ),
+          ),
           _language('Handy-Mikrofon – Gesprächspartner', _phoneLanguage,
               (v) => setState(() => _phoneLanguage = v!)),
           _language('Headset-Mikrofon – Nutzer', _headsetLanguage,
