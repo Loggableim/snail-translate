@@ -57,7 +57,7 @@ nächsten offenen Punkt.
 - [x] 39. Gemeinsame DTOs zwischen Flutter und Worker versionieren.
 - [x] 40. Fehlerklassen statt freier Fehlermeldungen verwenden.
 - [x] 41. Historische Pipeline eindeutig als Legacy markieren.
-- [ ] 42. Lifecycle- und Dispose-Verhalten aller Services testen.
+- [x] 42. Lifecycle- und Dispose-Verhalten aller Services testen.
 
 ## Kurzer Persistent-Goal-Prompt für andere Agenten
 
