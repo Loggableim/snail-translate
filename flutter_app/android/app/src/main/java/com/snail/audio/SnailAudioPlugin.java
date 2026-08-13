@@ -217,6 +217,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 break;
             case "setInput":
                 preferredInput = call.argument("input") == null ? "auto" : (String) call.argument("input");
+                applyInputRoute();
                 result.success(null);
                 break;
             case "getAudioDiagnostics":
@@ -454,6 +455,39 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         requestPlaybackFocus();
         Log.i(TAG, "Communication audio mode enabled; headset=" + headsetRouteActive
                 + ", route=" + activeOutputRoute());
+    }
+
+    /** Applies the selected microphone immediately, including during a session. */
+    private void applyInputRoute() {
+        if (audioManager == null) return;
+        android.media.AudioDeviceInfo headsetInput = findInputHeadset();
+        boolean wantsHeadset = "headset".equals(preferredInput)
+                || ("auto".equals(preferredInput) && headsetInput != null);
+
+        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+        if (wantsHeadset) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                android.media.AudioDeviceInfo target = findCommunicationOutputDevice("headset");
+                boolean routed = target != null && audioManager.setCommunicationDevice(target);
+                Log.i(TAG, "Headset communication route selected=" + routed
+                        + ", device=" + (target == null ? "none" : target.getProductName()));
+            } else {
+                audioManager.startBluetoothSco();
+                audioManager.setBluetoothScoOn(true);
+            }
+            audioManager.setSpeakerphoneOn(false);
+        }
+
+        android.media.AudioDeviceInfo input = wantsHeadset ? headsetInput : findBuiltInMic();
+        if (audioRecord != null && input != null) {
+            boolean selected = audioRecord.setPreferredDevice(input);
+            Log.i(TAG, "Preferred microphone selected=" + selected
+                    + ", requested=" + preferredInput + ", type=" + input.getType()
+                    + ", device=" + input.getProductName());
+        } else {
+            Log.i(TAG, "Microphone route prepared; requested=" + preferredInput
+                    + ", device=" + (input == null ? "none" : input.getProductName()));
+        }
     }
 
     /** Keep Android's media policy from classifying translated speech as background audio. */
@@ -750,12 +784,18 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
 
         try {
             ensureCommunicationMode();
+            // Establish Bluetooth SCO/HFP before AudioRecord is created. Some
+            // vendor stacks ignore a preferred Bluetooth input selected only
+            // after recording has already started.
+            applyInputRoute();
             // Some Xiaomi firmware exposes VOICE_COMMUNICATION as an active
             // recorder but returns only zero samples when no headset is
             // connected. Use the handset MIC in that case; Bluetooth input
             // still uses the communication source so the headset route and
             // platform echo processing remain available.
-            int captureSource = isHeadsetConnected()
+            boolean useHeadsetInput = "headset".equals(preferredInput)
+                    || ("auto".equals(preferredInput) && findInputHeadset() != null);
+            int captureSource = useHeadsetInput
                     ? MediaRecorder.AudioSource.VOICE_COMMUNICATION
                     // The onboarding recorder and the device microphone
                     // diagnostic use VOICE_RECOGNITION successfully. On
@@ -775,6 +815,9 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 result.error("AUDIO_INIT_FAILED", "AudioRecord not initialized", null);
                 return;
             }
+
+            // The preferred device must be set before startRecording().
+            applyInputRoute();
 
             // ── AEC ──────────────────────────────────────────────────
             int audioSessionId = audioRecord.getAudioSessionId();
@@ -807,22 +850,9 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 Log.i(TAG, "Noise Suppression disabled for handset MIC");
             }
 
-            // Start recording
+            // Start recording only after both communication and input routes
+            // have been selected.
             audioRecord.startRecording();
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M
-                    && "headset".equals(preferredInput)) {
-                android.media.AudioDeviceInfo input = findInputHeadset();
-                if (input != null) audioRecord.setPreferredDevice(input);
-            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                android.media.AudioDeviceInfo input = findBuiltInMic();
-                if (input != null) {
-                    boolean selected = audioRecord.setPreferredDevice(input);
-                    Log.i(TAG, "Preferred handset microphone selected=" + selected
-                            + ", device=" + input.getProductName());
-                } else {
-                    Log.w(TAG, "No built-in microphone input device reported by Android");
-                }
-            }
             isCapturing = true;
 
             // Start capture thread
@@ -830,7 +860,8 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             captureThread.start();
 
             Log.i(TAG, "Capture started; source=" + captureSource
-                    + ", headset=" + isHeadsetConnected());
+                    + ", requestedInput=" + preferredInput
+                    + ", headsetInput=" + useHeadsetInput);
             result.success(true);
 
         } catch (SecurityException e) {
