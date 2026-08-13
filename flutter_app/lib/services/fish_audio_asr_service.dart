@@ -16,9 +16,24 @@ class FishAudioAsrService {
     required int sampleRate,
     String? language,
   }) async {
+    final result = await transcribeDetected(
+      apiKey: apiKey,
+      pcm16: pcm16,
+      sampleRate: sampleRate,
+      language: language,
+    );
+    return result.text;
+  }
+
+  Future<FishAsrTranscript> transcribeDetected({
+    required String apiKey,
+    required Uint8List pcm16,
+    required int sampleRate,
+    String? language,
+  }) async {
     final token = _normalizeToken(apiKey);
     if (token.isEmpty) throw ArgumentError('Fish-Audio-Key fehlt');
-    if (pcm16.isEmpty) return '';
+    if (pcm16.isEmpty) return const FishAsrTranscript(text: '', language: null);
     final request = http.MultipartRequest('POST', Uri.parse(endpoint))
       ..headers['Authorization'] = 'Bearer $token'
       ..files.add(http.MultipartFile.fromBytes(
@@ -43,9 +58,17 @@ class FishAudioAsrService {
     }
     final decoded = jsonDecode(body);
     if (decoded is Map<String, dynamic>) {
-      return (decoded['text'] ?? decoded['transcript'] ?? '').toString().trim();
+      return FishAsrTranscript(
+        text: (decoded['text'] ?? decoded['transcript'] ?? '').toString().trim(),
+        language: (decoded['language'] ??
+                decoded['language_code'] ??
+                decoded['detected_language'])
+            ?.toString()
+            .trim()
+            .toLowerCase(),
+      );
     }
-    return '';
+    return const FishAsrTranscript(text: '', language: null);
   }
 
   String _normalizeToken(String value) {
@@ -84,4 +107,11 @@ class FishAudioAsrService {
     }
     return out.buffer.asUint8List();
   }
+}
+
+class FishAsrTranscript {
+  final String text;
+  final String? language;
+
+  const FishAsrTranscript({required this.text, required this.language});
 }

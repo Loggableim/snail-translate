@@ -169,6 +169,18 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 stopPlayback();
                 result.success(null);
                 break;
+            case "setOutput":
+                String requestedOutput = call.argument("output") == null
+                        ? "default" : (String) call.argument("output");
+                ensureCommunicationMode();
+                applyPlaybackRoute(requestedOutput);
+                if (playbackTrack != null && !"default".equals(requestedOutput)) {
+                    stopPlayback();
+                }
+                Log.i(TAG, "Output selection applied: " + requestedOutput
+                        + "; route=" + activeOutputRoute());
+                result.success(null);
+                break;
             case "playTestTone":
                 handlePlayTestTone(result);
                 break;
@@ -583,6 +595,9 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 // MODE_IN_COMMUNICATION here makes some vendor drivers reject
                 // AudioTrack writes with -22 and fall back to the speaker.
                 audioManager.setMode(AudioManager.MODE_NORMAL);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    audioManager.clearCommunicationDevice();
+                }
                 audioManager.setSpeakerphoneOn(false);
                 Log.i(TAG, "Playback route selected: Bluetooth A2DP " + mediaHeadset.getProductName());
             }
@@ -660,8 +675,21 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
 
         try {
             ensureCommunicationMode();
+            // Some Xiaomi firmware exposes VOICE_COMMUNICATION as an active
+            // recorder but returns only zero samples when no headset is
+            // connected. Use the handset MIC in that case; Bluetooth input
+            // still uses the communication source so the headset route and
+            // platform echo processing remain available.
+            int captureSource = isHeadsetConnected()
+                    ? MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                    // The onboarding recorder and the device microphone
+                    // diagnostic use VOICE_RECOGNITION successfully. On
+                    // Xiaomi/Nothing, MIC inside MODE_IN_COMMUNICATION can
+                    // report a running AudioRecord while returning silence.
+                    : MediaRecorder.AudioSource.VOICE_RECOGNITION;
+            boolean useVoiceProcessing = captureSource == MediaRecorder.AudioSource.VOICE_COMMUNICATION;
             audioRecord = new AudioRecord(
-                    MediaRecorder.AudioSource.VOICE_COMMUNICATION, // Best for AEC
+                    captureSource,
                     sampleRate,
                     channelConfig,
                     audioFormat,
@@ -675,7 +703,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
 
             // ── AEC ──────────────────────────────────────────────────
             int audioSessionId = audioRecord.getAudioSessionId();
-            if (aecEnabled && AcousticEchoCanceler.isAvailable()) {
+            if (useVoiceProcessing && aecEnabled && AcousticEchoCanceler.isAvailable()) {
                 aec = AcousticEchoCanceler.create(audioSessionId);
                 if (aec != null) {
                     aec.setEnabled(true);
@@ -683,12 +711,14 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 } else {
                     Log.w(TAG, "AEC creation failed");
                 }
-            } else {
+            } else if (useVoiceProcessing) {
                 Log.i(TAG, "AEC not available or disabled");
+            } else {
+                Log.i(TAG, "AEC disabled for handset MIC; speaker route would otherwise suppress input on some drivers");
             }
 
             // ── Noise Suppression ────────────────────────────────────
-            if (noiseSuppressionEnabled && NoiseSuppressor.isAvailable()) {
+            if (useVoiceProcessing && noiseSuppressionEnabled && NoiseSuppressor.isAvailable()) {
                 noiseSuppressor = NoiseSuppressor.create(audioSessionId);
                 if (noiseSuppressor != null) {
                     noiseSuppressor.setEnabled(true);
@@ -696,8 +726,10 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 } else {
                     Log.w(TAG, "Noise Suppression creation failed");
                 }
-            } else {
+            } else if (useVoiceProcessing) {
                 Log.i(TAG, "Noise Suppression not available or disabled");
+            } else {
+                Log.i(TAG, "Noise Suppression disabled for handset MIC");
             }
 
             // Start recording
@@ -706,6 +738,15 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                     && "headset".equals(preferredInput)) {
                 android.media.AudioDeviceInfo input = findInputHeadset();
                 if (input != null) audioRecord.setPreferredDevice(input);
+            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                android.media.AudioDeviceInfo input = findBuiltInMic();
+                if (input != null) {
+                    boolean selected = audioRecord.setPreferredDevice(input);
+                    Log.i(TAG, "Preferred handset microphone selected=" + selected
+                            + ", device=" + input.getProductName());
+                } else {
+                    Log.w(TAG, "No built-in microphone input device reported by Android");
+                }
             }
             isCapturing = true;
 
@@ -713,7 +754,8 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             captureThread = new Thread(this::captureLoop, "SnailAudioCapture");
             captureThread.start();
 
-            Log.i(TAG, "Capture started");
+            Log.i(TAG, "Capture started; source=" + captureSource
+                    + ", headset=" + isHeadsetConnected());
             result.success(true);
 
         } catch (SecurityException e) {
@@ -801,6 +843,14 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         return null;
     }
 
+    private android.media.AudioDeviceInfo findBuiltInMic() {
+        if (audioManager == null || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M) return null;
+        for (android.media.AudioDeviceInfo device : audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)) {
+            if (device.getType() == android.media.AudioDeviceInfo.TYPE_BUILTIN_MIC) return device;
+        }
+        return null;
+    }
+
     private boolean hasHeadsetInputRoute() {
         if (audioManager == null) return false;
         if (audioManager.isWiredHeadsetOn() || audioManager.isBluetoothScoOn()) return true;
@@ -859,18 +909,37 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     // ── Capture Loop ──────────────────────────────────────────────────
 
     private void captureLoop() {
-        ByteBuffer buffer = ByteBuffer.allocateDirect(bufferSize);
         byte[] bytes = new byte[bufferSize];
+        int diagnosticReads = 0;
 
         android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
 
         while (isCapturing && audioRecord != null && !Thread.interrupted()) {
-            buffer.clear();
-            int read = audioRecord.read(buffer, bufferSize);
+            // Use the byte[] overload. Some vendor AudioRecord drivers do
+            // not advance a direct ByteBuffer's position after a successful
+            // read, which made the subsequent buffer.get() copy stale zeros
+            // to Flutter even though AudioRecord reported progress.
+            int read = audioRecord.read(bytes, 0, bufferSize);
 
             if (read > 0) {
-                buffer.get(bytes, 0, read);
-
+                // Handset input on the tested Xiaomi/Nothing devices is very
+                // conservative in VOICE_RECOGNITION mode. Apply a bounded
+                // capture-only preamp so normal speech at conversation
+                // distance is measurable; clipping is still saturated.
+                if (!isHeadsetConnected()) {
+                    amplifyPcm16InPlace(bytes, 3.0);
+                }
+                if ((diagnosticReads++ % 50) == 0) {
+                    long energy = 0;
+                    int samples = read / 2;
+                    for (int i = 0; i + 1 < read; i += 2) {
+                        int sample = (short) ((bytes[i] & 0xff) | (bytes[i + 1] << 8));
+                        energy += (long) sample * sample;
+                    }
+                    long rms = samples == 0 ? 0 : Math.round(Math.sqrt((double) energy / samples));
+                    Log.i(TAG, "Capture PCM diagnostic: bytes=" + read + ", rms=" + rms
+                            + ", first=" + (bytes[0] & 0xff) + "," + (bytes[1] & 0xff));
+                }
                 // Drop frames while translated playback (and its acoustic
                 // tail) is active. This prevents queued EventChannel frames
                 // from reaching the provider after the Dart-side gate ends.

@@ -214,6 +214,16 @@ class SnailAudio {
     }
   }
 
+  /// Apply a session output choice immediately, including while capture is
+  /// already running.
+  Future<void> setOutput(AudioOutput output) async {
+    try {
+      await _methodChannel.invokeMethod('setOutput', {'output': output.name});
+    } catch (e) {
+      debugPrint('SnailAudio set output error: $e');
+    }
+  }
+
   /// Plays a short 660-Hz tone through the phone speaker. This is a local
   /// diagnostic only: no microphone, provider, or network is used.
   Future<bool> playTestTone() async {

@@ -1312,14 +1312,17 @@ class _LanguageConfirmation extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                'automatisch erkannt',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colors.onSurface.withValues(alpha: 0.5),
+              Flexible(
+                child: Text(
+                  'automatisch erkannt',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colors.onSurface.withValues(alpha: 0.5),
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 4),
               TextButton(
                 onPressed: () => _showLanguagePicker(context, session),
                 style: TextButton.styleFrom(

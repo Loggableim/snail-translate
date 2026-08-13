@@ -171,7 +171,9 @@ class FishAudioRealtimeService extends ChangeNotifier {
   List<Uint8List> takeAudioChunks() {
     final result = List<Uint8List>.from(_audioChunks);
     _audioChunks.clear();
-    _textBuffer.clear();
+    // The pending text buffer belongs to the *next* utterance. Clearing it
+    // here discarded a translation whenever audio for the previous turn
+    // arrived before the buffer reached the word/punctuation flush threshold.
     return result;
   }
 

@@ -20,6 +20,7 @@ import '../services/user_identity_service.dart';
 import '../services/transcript_history.dart';
 import '../services/audio_policy.dart';
 import '../services/audio_processor.dart';
+import '../services/speech_turn_buffer.dart';
 import '../services/error_logger.dart';
 import 'chat_screen.dart';
 
@@ -39,6 +40,9 @@ class _SessionPlaybackChunk {
 
 class _SessionScreenState extends State<SessionScreen>
     with WidgetsBindingObserver {
+  String _levelDb(double level) =>
+      AudioProcessor.levelToDbfs(level).toStringAsFixed(0);
+
   // Cache provider-owned services before the route starts unmounting. Reading
   // an inherited provider from dispose() can race with Provider's own teardown
   // and trigger Flutter's `_dependents.isEmpty` assertion.
@@ -56,15 +60,14 @@ class _SessionScreenState extends State<SessionScreen>
   FishAudioRealtimeService? _fish;
   final _fishAsr = FishAudioAsrService();
   final _translator = TranslationService();
-  BytesBuilder? _fishBuffer;
+  SpeechTurnBuffer? _fishTurns;
   Timer? _fishProcessTimer;
   bool _fishBusy = false;
-  bool _fishSpeechDetected = false;
+  int _fishCaptureChunks = 0;
   bool _fishRelayAudioOnly = false;
   VoidCallback? _fishListener;
   String _fishSourceLanguage = 'en';
   String _fishTargetLanguage = 'de';
-  String _sessionSourceLanguage = 'de';
   String _sessionTargetLanguage = 'en';
   final _p2p = P2pAudioService();
   VoidCallback? _geminiListener;
@@ -72,9 +75,14 @@ class _SessionScreenState extends State<SessionScreen>
   VoidCallback? _guestFallbackOpenAiListener;
   bool _openAiPlaybackRunning = false;
   bool _fallbackPlaybackRunning = false;
+  bool _sessionPlaybackPrimed = false;
   final List<_SessionPlaybackChunk> _playbackQueue = <_SessionPlaybackChunk>[];
   bool _playbackDraining = false;
   static const _maxPlaybackQueue = 24;
+  static const _sessionPrebufferChunks = 4;
+  /// How long a partially filled prebuffer may wait before it plays anyway.
+  static const _playbackPrimeTimeout = Duration(milliseconds: 220);
+  Timer? _playbackPrimeTimer;
   Future<void>? _guestFallbackConnecting;
   int _lastOpenAiSpeechStarts = 0;
   int _connectionGeneration = 0;
@@ -135,26 +143,15 @@ class _SessionScreenState extends State<SessionScreen>
     }
   }
 
-  Future<void> _setSessionLanguagePair(String? source, String? target) async {
-    if (source == null && target == null) return;
-    final nextSource = source ?? _sessionSourceLanguage;
-    final nextTarget = target ?? _sessionTargetLanguage;
-    if (nextSource == nextTarget) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Quell- und Zielsprache müssen unterschiedlich sein.')));
-      }
-      return;
-    }
+  Future<void> _setSessionTargetLanguage(String? target) async {
+    if (target == null) return;
     setState(() {
-      _sessionSourceLanguage = nextSource;
-      _sessionTargetLanguage = nextTarget;
-      _fishSourceLanguage = nextSource;
-      _fishTargetLanguage = nextTarget;
+      _sessionTargetLanguage = target;
+      _fishSourceLanguage = 'auto';
+      _fishTargetLanguage = target;
     });
     final sessionService = context.read<SessionService>();
-    await sessionService.setMyLanguage(nextSource);
-    await sessionService.setTargetLanguage(nextTarget);
+    await sessionService.setTargetLanguage(target);
   }
 
   bool _isConnectionActive(int generation) =>
@@ -165,7 +162,6 @@ class _SessionScreenState extends State<SessionScreen>
     WidgetsBinding.instance.addObserver(this);
     _audioService = context.read<AudioService>();
     _sessionService = context.read<SessionService>();
-    _sessionSourceLanguage = _sessionService.myLanguage;
     _sessionTargetLanguage = _sessionService.targetLanguage;
     _transcriptHistory = context.read<TranscriptHistory>();
     _audioPolicy = context.read<AudioPolicy>();
@@ -181,7 +177,10 @@ class _SessionScreenState extends State<SessionScreen>
       case AppLifecycleState.paused:
         // Stop capture and drain playback when app goes to background.
         _snailAudio.pauseCapture();
+        _playbackPrimeTimer?.cancel();
+        _playbackPrimeTimer = null;
         _playbackQueue.clear();
+        _sessionPlaybackPrimed = false;
         _playbackDraining = false;
         break;
       case AppLifecycleState.resumed:
@@ -247,7 +246,7 @@ class _SessionScreenState extends State<SessionScreen>
         // `handleJoinRoom` already mirrors source/target for the guest. Both
         // devices therefore translate their own microphone into targetLang.
         final targetLanguage = _sessionTargetLanguage;
-        _fishSourceLanguage = _sessionSourceLanguage;
+        _fishSourceLanguage = 'auto';
         _fishTargetLanguage = _sessionTargetLanguage;
         final usesWorkerClientSecret =
             provider.provider == TranslationProvider.openAi &&
@@ -302,6 +301,7 @@ class _SessionScreenState extends State<SessionScreen>
               // Clear local playback queue on reconnect to prevent double audio.
               if (_openAi!.state == 'reconnecting') {
                 _playbackQueue.clear();
+                _sessionPlaybackPrimed = false;
               }
               if (_openAi!.speechStarts > _lastOpenAiSpeechStarts) {
                 _lastOpenAiSpeechStarts = _openAi!.speechStarts;
@@ -319,7 +319,12 @@ class _SessionScreenState extends State<SessionScreen>
             _drainOpenAiAudio(relayAudio);
             _audioSubscription = _snailAudio.audioStream?.listen((chunk) {
               // Compute mic level for visualization
-              _micLevel.value = AudioProcessor.computeLevel(chunk);
+              final measuredLevel = AudioProcessor.computeLevel(chunk);
+              // Keep a short peak hold so brief speech is visible while the
+              // 40 ms capture chunk itself is already fading out.
+              _micLevel.value = measuredLevel > _micLevel.value
+                  ? measuredLevel
+                  : _micLevel.value * 0.86;
               // Detect clipping
               if (!_clippingDetected && AudioProcessor.detectClipping(chunk)) {
                 _clippingDetected = true;
@@ -346,7 +351,8 @@ class _SessionScreenState extends State<SessionScreen>
               // the realtime translator when devices are close together.
               if (!echoGuardEnabled || !_snailAudio.isPlaybackActive) {
                 // Skip silent chunks to save bandwidth and API costs
-                if (!AudioProcessor.detectSilence(chunk)) {
+                if (!AudioProcessor.detectSilence(chunk,
+                    threshold: _audioPolicy.noiseGateThreshold)) {
                   _openAi!.sendPcm16(chunk);
                 }
               }
@@ -386,19 +392,33 @@ class _SessionScreenState extends State<SessionScreen>
             );
             _fishListener = _drainFishAudio;
             _fish!.addListener(_fishListener!);
+            _fishTurns =
+                SpeechTurnBuffer(gateThreshold: _audioPolicy.noiseGateThreshold);
+            // Poll faster than the turn-silence threshold. At the old 1200 ms
+            // period the end of a turn was detected anywhere between 650 ms
+            // and 1850 ms after the speaker stopped; this bounds it to the
+            // threshold plus one tick.
             _fishProcessTimer = Timer.periodic(
-                const Duration(milliseconds: 1200),
+                const Duration(milliseconds: 250),
                 (_) => _processFish(provider));
             _audioSubscription = _snailAudio.audioStream?.listen((chunk) {
+              _fishCaptureChunks++;
+              final measuredLevel = AudioProcessor.computeLevel(chunk);
+              final peak = AudioProcessor.computePeak(chunk);
+              _micLevel.value = measuredLevel > _micLevel.value
+                  ? measuredLevel
+                  : _micLevel.value * 0.86;
+              final turns = _fishTurns!;
+              // The gate decides where a turn starts and ends. It must not
+              // decide which chunks are kept: dropping the pauses inside a
+              // sentence is what made ASR return word fragments.
+              turns.gateThreshold = _audioPolicy.noiseGateThreshold;
               if (!_audioService.isMuted &&
                   (!echoGuardEnabled || !_snailAudio.isPlaybackActive)) {
-                // Never submit silence, speaker bleed, or Bluetooth noise to
-                // ASR. Short noisy segments otherwise produce hallucinated
-                // multilingual transcripts which are then spoken by TTS.
-                if (!AudioProcessor.detectSilence(chunk)) {
-                  _fishSpeechDetected = true;
-                  (_fishBuffer ??= BytesBuilder(copy: false)).add(chunk);
-                }
+                turns.add(chunk, DateTime.now());
+              }
+              if (_fishCaptureChunks % 50 == 0) {
+                debugPrint('[Snail][Fish] capture chunks=$_fishCaptureChunks bytes=${chunk.length} level=${measuredLevel.toStringAsFixed(4)} dbfs=${AudioProcessor.levelToDbfs(measuredLevel).toStringAsFixed(1)} peak=${peak.toStringAsFixed(4)} gate=${AudioProcessor.levelToDbfs(_audioPolicy.noiseGateThreshold).toStringAsFixed(1)}dBFS silent=${AudioProcessor.detectSilence(chunk, threshold: _audioPolicy.noiseGateThreshold)} buffer=${turns.bufferedBytes} speech=${turns.hasSpeech} muted=${_audioService.isMuted} playback=${_snailAudio.isPlaybackActive}');
               }
             });
           }
@@ -498,7 +518,10 @@ class _SessionScreenState extends State<SessionScreen>
     _audioService.onSignal = null;
     _audioService.onAuthenticated = null;
     _p2p.dispose();
+    _playbackPrimeTimer?.cancel();
+    _playbackPrimeTimer = null;
     _playbackQueue.clear();
+    _sessionPlaybackPrimed = false;
     _snailAudio.dispose();
     _micLevel.dispose();
     _audioService.disconnect();
@@ -506,37 +529,47 @@ class _SessionScreenState extends State<SessionScreen>
   }
 
   Future<void> _processFish(ProviderConfig config) async {
+    final turns = _fishTurns;
+    if (turns == null) return;
     if (_audioService.isMuted) {
-      _fishBuffer = null;
-      _fishSpeechDetected = false;
+      turns.reset();
       _fishBusy = false;
       return;
     }
-    if (_fishBusy ||
-        !_fishSpeechDetected ||
-        _fishBuffer == null ||
-        _fishBuffer!.length < 16000 * 2) return;
+    if (_fishBusy || !turns.isTurnComplete(DateTime.now())) return;
+    final pcm = turns.takeTurn();
+    if (pcm == null) return;
     _fishBusy = true;
-    final pcm = _fishBuffer!.takeBytes();
-    _fishSpeechDetected = false;
+    debugPrint('[Snail][Fish] processing buffer=${pcm.length} bytes target=$_fishTargetLanguage');
     try {
       final source = _fishSourceLanguage;
       final target = _fishTargetLanguage;
-      final transcript = await _fishAsr.transcribe(
+      final asrResult = await _fishAsr.transcribeDetected(
           apiKey: config.apiKey,
           pcm16: pcm,
           sampleRate: 16000,
-          language: source);
+          language: null);
+      final transcript = asrResult.text;
+      // Fish ASR may omit the detected language for short clips. Do not pass
+      // `auto` to the fallback translator; infer the opposite language for
+      // the supported DE/EN session direction until detection is available.
+      final detectedSource = asrResult.language ??
+          (source == 'auto'
+              ? (target == 'en' ? 'de' : target == 'de' ? 'en' : 'en')
+              : source);
+      debugPrint('[Snail][Fish] ASR text="${transcript.substring(0, transcript.length.clamp(0, 80))}" language=${asrResult.language}');
       if (transcript.isNotEmpty && _fish != null) {
         final translated = await _translator.translate(
             text: transcript,
-            sourceLang: source,
+            sourceLang: detectedSource,
             targetLang: target,
             config: config);
         _fish!.sendText(translated);
         _fish!.flush();
+        debugPrint('[Snail][Fish] TTS submitted target=$target chars=${translated.length}');
       }
     } catch (error) {
+      debugPrint('[Snail][Fish] session error=$error');
       ErrorLogger.I
           .log(provider: 'fish_audio', context: 'session.audio', error: error);
     } finally {
@@ -655,12 +688,30 @@ class _SessionScreenState extends State<SessionScreen>
       _playbackQueue.removeAt(0);
     }
     _playbackQueue.add(_SessionPlaybackChunk(bytes, sampleRate));
+    // Fish/relay chunks can arrive with small network gaps. Keep a few chunks
+    // in front before starting the native AudioTrack to avoid audible
+    // start/stop stutter between websocket deliveries.
+    if (!_sessionPlaybackPrimed &&
+        _playbackQueue.length < _sessionPrebufferChunks) {
+      // A short sentence, or the tail of any turn, delivers fewer chunks than
+      // the prebuffer target. Without this timeout those chunks stayed queued
+      // until the next turn pushed the queue over the threshold, which cut
+      // the end off every utterance and replayed it late.
+      _playbackPrimeTimer ??= Timer(_playbackPrimeTimeout, () {
+        _playbackPrimeTimer = null;
+        if (mounted && _playbackQueue.isNotEmpty) _drainSessionPlayback();
+      });
+      return;
+    }
     _drainSessionPlayback();
   }
 
   Future<void> _drainSessionPlayback() async {
     if (_playbackDraining) return;
+    _playbackPrimeTimer?.cancel();
+    _playbackPrimeTimer = null;
     _playbackDraining = true;
+    _sessionPlaybackPrimed = true;
     try {
       while (mounted && _playbackQueue.isNotEmpty) {
         final chunk = _playbackQueue.removeAt(0);
@@ -669,6 +720,7 @@ class _SessionScreenState extends State<SessionScreen>
       }
     } finally {
       _playbackDraining = false;
+      if (_playbackQueue.isEmpty) _sessionPlaybackPrimed = false;
       if (mounted && _playbackQueue.isNotEmpty) {
         _drainSessionPlayback();
       }
@@ -742,52 +794,97 @@ class _SessionScreenState extends State<SessionScreen>
                     ),
                     const SizedBox(height: 8),
 
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: _sessionSourceLanguage,
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Ich spreche',
-                              prefixIcon: Icon(Icons.record_voice_over),
-                              border: OutlineInputBorder(),
-                            ),
-                            items: _languageLabels.entries
-                                .map((entry) => DropdownMenuItem<String>(
-                                      value: entry.key,
-                                      child: Text(entry.value),
-                                    ))
-                                .toList(),
-                            onChanged: (value) =>
-                                _setSessionLanguagePair(value, null),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: _sessionTargetLanguage,
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Ausgabe in',
-                              prefixIcon: Icon(Icons.translate),
-                              border: OutlineInputBorder(),
-                            ),
-                            items: _languageLabels.entries
-                                .map((entry) => DropdownMenuItem<String>(
-                                      value: entry.key,
-                                      child: Text(entry.value),
-                                    ))
-                                .toList(),
-                            onChanged: (value) =>
-                                _setSessionLanguagePair(null, value),
-                          ),
-                        ),
-                      ],
+                    DropdownButtonFormField<String>(
+                      value: _sessionTargetLanguage,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Ausgabe in',
+                        prefixIcon: Icon(Icons.translate),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _languageLabels.entries
+                          .map((entry) => DropdownMenuItem<String>(
+                                value: entry.key,
+                                child: Text(entry.value),
+                              ))
+                          .toList(),
+                      onChanged: _setSessionTargetLanguage,
                     ),
                     const SizedBox(height: 6),
+                    ListenableBuilder(
+                      listenable: _audioPolicy,
+                      builder: (context, _) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Noise-Gate: ${_levelDb(_audioPolicy.noiseGateThreshold)} dBFS',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              ValueListenableBuilder<double>(
+                                valueListenable: _micLevel,
+                                builder: (context, level, _) => Text(
+                                'Mikrofon: ${_levelDb(level)} dBFS',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                            ],
+                          ),
+                          ValueListenableBuilder<double>(
+                            valueListenable: _micLevel,
+                            builder: (context, level, _) {
+                              // Full scale sits well above conversational
+                              // speech (~0.08 RMS / -22 dBFS) so the bar has
+                              // visible headroom before clipping.
+                              const max = 0.25;
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  minHeight: 8,
+                                  value: (level / max).clamp(0.0, 1.0),
+                                  backgroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest,
+                                  color: level >=
+                                          _audioPolicy.noiseGateThreshold
+                                      ? Colors.green
+                                      : Colors.orange,
+                                ),
+                              );
+                            },
+                          ),
+                          Slider(
+                            value: _audioPolicy.noiseGateThreshold,
+                            min: 0,
+                            max: AudioPolicy.maxNoiseGate,
+                            divisions: 20,
+                            label:
+                                '${_levelDb(_audioPolicy.noiseGateThreshold)} dBFS',
+                            onChanged: _audioPolicy.setNoiseGateThreshold,
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              icon: const Icon(Icons.graphic_eq, size: 18),
+                              label: const Text('Testton für Pegel'),
+                              onPressed: () async {
+                                final ok = await _snailAudio.playTestTone();
+                                if (!mounted || ok) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Testton konnte nicht gestartet werden'),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     Text(
-                      'Die Übersetzung läuft auf diesem Gerät: ${_sessionSourceLanguage.toUpperCase()} → ${_sessionTargetLanguage.toUpperCase()}.',
+                      'Eingangssprache: automatisch erkannt · Ausgabe: ${_sessionTargetLanguage.toUpperCase()}',
                       style: Theme.of(context).textTheme.bodySmall,
                       textAlign: TextAlign.center,
                     ),
@@ -852,7 +949,10 @@ class _SessionScreenState extends State<SessionScreen>
                                   child: Text('Headset')),
                             ],
                             onChanged: (value) {
-                              if (value != null) _audioPolicy.setOutput(value);
+                              if (value != null) {
+                                _audioPolicy.setOutput(value);
+                                _snailAudio.setOutput(value);
+                              }
                             },
                           ),
                         ),

@@ -16,10 +16,22 @@ enum AudioPolicyProfile { auto, headset, speakerEcho, longerSpeech }
 /// - [preferLongTurns] — whether to keep turn output alive longer
 class AudioPolicy extends ChangeNotifier {
   static const _key = 'audio_policy_profile';
+  // v4 stores a true RMS threshold. Values persisted under the v3 key were
+  // mean-square and are ~20x smaller for the same loudness, so reusing them
+  // would silently disable the gate.
+  static const _noiseGateKey = 'audio_noise_gate_threshold_v4';
+
+  /// -34 dBFS. Speech on a phone microphone sits near -22 dBFS, room tone
+  /// well below -45 dBFS, so this passes normal talking and blocks hiss.
+  static const defaultNoiseGate = 0.02;
+
+  /// -20 dBFS. Above this a gate would start cutting normal speech.
+  static const maxNoiseGate = 0.1;
 
   AudioOutput _output = AudioOutput.auto;
   bool _echoGuard = false;
   bool _longTurns = false;
+  double _noiseGateThreshold = defaultNoiseGate;
 
   /// Which device should play translated audio.
   AudioOutput get output => _output;
@@ -29,6 +41,9 @@ class AudioPolicy extends ChangeNotifier {
 
   /// Whether turn output should be kept alive longer.
   bool get preferLongTurns => _longTurns;
+
+  /// RMS threshold below which captured audio is treated as silence.
+  double get noiseGateThreshold => _noiseGateThreshold;
 
   /// Human-readable label for the current policy.
   String get label {
@@ -50,6 +65,9 @@ class AudioPolicy extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final value = prefs.getString(_key);
+      _noiseGateThreshold = (prefs.getDouble(_noiseGateKey) ?? defaultNoiseGate)
+          .clamp(0.0, maxNoiseGate)
+          .toDouble();
       final profile = AudioPolicyProfile.values.firstWhere(
         (item) => item.name == value,
         orElse: () => AudioPolicyProfile.auto,
@@ -83,6 +101,17 @@ class AudioPolicy extends ChangeNotifier {
     _longTurns = value;
     notifyListeners();
     await _persist();
+  }
+
+  Future<void> setNoiseGateThreshold(double value) async {
+    final next = value.clamp(0.0, maxNoiseGate).toDouble();
+    if ((_noiseGateThreshold - next).abs() < 0.0001) return;
+    _noiseGateThreshold = next;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_noiseGateKey, next);
+    } catch (_) {}
   }
 
   /// Legacy setter — maps a profile to the three orthogonal properties.
