@@ -9,7 +9,7 @@ class SessionPlaybackBuffer {
   SessionPlaybackBuffer({
     this.baseTargetMs = 500,
     this.lowWaterMs = 350,
-    this.maxBufferedMs = 5000,
+    this.maxBufferedMs = 10000,
   });
 
   final int baseTargetMs;

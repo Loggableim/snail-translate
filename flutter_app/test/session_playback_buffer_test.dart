@@ -12,9 +12,7 @@ void main() {
     final at = DateTime(2026);
     buffer.add(pcmForMs(300), 24000, at);
     buffer.add(pcmForMs(300), 24000, at.add(const Duration(milliseconds: 300)));
-    expect(buffer.shouldStart(), isFalse);
-    buffer.add(pcmForMs(300), 24000, at.add(const Duration(milliseconds: 600)));
-    expect(buffer.bufferedMs, 900);
+    expect(buffer.bufferedMs, 600);
     expect(buffer.shouldStart(), isTrue);
   });
 
@@ -53,5 +51,15 @@ void main() {
     buffer.add(pcmForMs(300), 24000, at.add(const Duration(milliseconds: 600)));
     expect(buffer.bufferedMs, 600);
     expect(buffer.droppedChunks, 1);
+  });
+
+  test('default capacity retains a long burst of translated speech', () {
+    final buffer = SessionPlaybackBuffer();
+    final at = DateTime(2026);
+    for (var i = 0; i < 18; i++) {
+      buffer.add(pcmForMs(500), 24000, at.add(Duration(milliseconds: i * 500)));
+    }
+    expect(buffer.bufferedMs, 9000);
+    expect(buffer.droppedChunks, 0);
   });
 }

@@ -383,7 +383,12 @@ class _SessionScreenState extends State<SessionScreen>
             _fishListener = _drainFishAudio;
             _fish!.addListener(_fishListener!);
             _fishTurns = SpeechTurnBuffer(
-                gateThreshold: _audioPolicy.noiseGateThreshold);
+              gateThreshold: _audioPolicy.noiseGateThreshold,
+              // Fish ASR is request based rather than truly streaming. Split
+              // continuous speech into useful partial turns so a long sentence
+              // starts translating while the speaker is still talking.
+              maxTurn: const Duration(seconds: 4),
+            );
             // Poll faster than the turn-silence threshold. At the old 1200 ms
             // period the end of a turn was detected anywhere between 650 ms
             // and 1850 ms after the speaker stopped; this bounds it to the
