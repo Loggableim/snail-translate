@@ -7,7 +7,7 @@ import 'dart:typed_data';
 /// early when 300-ms chunks arrive one at a time.
 class SessionPlaybackBuffer {
   SessionPlaybackBuffer({
-    this.baseTargetMs = 750,
+    this.baseTargetMs = 500,
     this.lowWaterMs = 350,
     this.maxBufferedMs = 5000,
   });
@@ -20,6 +20,7 @@ class SessionPlaybackBuffer {
   int _bufferedMs = 0;
   int _droppedChunks = 0;
   int _largestArrivalJitterMs = 0;
+  final List<int> _recentJitterMs = <int>[];
   DateTime? _lastArrival;
   int? _lastChunkDurationMs;
 
@@ -27,17 +28,25 @@ class SessionPlaybackBuffer {
   int get droppedChunks => _droppedChunks;
   int get largestArrivalJitterMs => _largestArrivalJitterMs;
   bool get isEmpty => _chunks.isEmpty;
-  int get targetMs => (baseTargetMs + _largestArrivalJitterMs * 2)
-      .clamp(baseTargetMs, maxBufferedMs);
+  int get targetMs =>
+      (baseTargetMs + (_recentJitterMs.isEmpty ? 0 : _percentile(0.9) * 2))
+          .clamp(baseTargetMs, 600);
 
   void add(Uint8List bytes, int sampleRate, DateTime now) {
     if (bytes.isEmpty || sampleRate <= 0) return;
     final durationMs = _durationMs(bytes, sampleRate);
     if (_lastArrival != null && _lastChunkDurationMs != null) {
       final arrivalMs = now.difference(_lastArrival!).inMilliseconds;
-      final jitterMs = (arrivalMs - _lastChunkDurationMs!).abs();
-      if (jitterMs > _largestArrivalJitterMs) {
-        _largestArrivalJitterMs = jitterMs;
+      // A long idle period is a stream/turn boundary, not network jitter.
+      if (arrivalMs > 2000) {
+        resetTiming();
+      } else {
+        final jitterMs = (arrivalMs - _lastChunkDurationMs!).abs();
+        if (jitterMs > _largestArrivalJitterMs) {
+          _largestArrivalJitterMs = jitterMs;
+        }
+        _recentJitterMs.add(jitterMs.clamp(0, 300));
+        if (_recentJitterMs.length > 12) _recentJitterMs.removeAt(0);
       }
     }
     _lastArrival = now;
@@ -69,7 +78,21 @@ class SessionPlaybackBuffer {
     _bufferedMs = 0;
     _lastArrival = null;
     _lastChunkDurationMs = null;
+    resetTiming();
+  }
+
+  /// Ends the timing window without discarding already queued audio.
+  void resetTiming() {
+    _lastArrival = null;
+    _lastChunkDurationMs = null;
     _largestArrivalJitterMs = 0;
+    _recentJitterMs.clear();
+  }
+
+  int _percentile(double percentile) {
+    final values = List<int>.from(_recentJitterMs)..sort();
+    final index = ((values.length - 1) * percentile).round();
+    return values[index];
   }
 
   static int _durationMs(Uint8List bytes, int sampleRate) =>

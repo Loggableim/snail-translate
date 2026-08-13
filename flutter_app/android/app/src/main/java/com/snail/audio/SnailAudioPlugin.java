@@ -594,14 +594,24 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             playbackWriteCalls.incrementAndGet();
             if (written <= 0) {
                 playbackWriteFailures.incrementAndGet();
+                Log.e("SnailAudio", "AudioTrack.write failed: result=" + written
+                        + " offset=" + offset + " bytes=" + bytes.length);
                 throw new IllegalStateException("AudioTrack.write failed: " + written);
             }
-            if (written < bytes.length - offset) playbackPartialWrites.incrementAndGet();
+            if (written < bytes.length - offset) {
+                playbackPartialWrites.incrementAndGet();
+                Log.w("SnailAudio", "AudioTrack.write partial: result=" + written
+                        + " remaining=" + (bytes.length - offset));
+            }
             offset += written;
             playbackBytesWritten.addAndGet(written);
         }
         long elapsed = System.currentTimeMillis() - startedAt;
         playbackMaxWriteMs.accumulateAndGet(elapsed, Math::max);
+        Log.i("SnailAudio", "AudioTrack.write complete: bytes=" + bytes.length
+                + " elapsedMs=" + elapsed + " calls=" + playbackWriteCalls.get()
+                + " partial=" + playbackPartialWrites.get()
+                + " failures=" + playbackWriteFailures.get());
     }
 
     private synchronized void ensurePlaybackTrack(int rate, String output) {

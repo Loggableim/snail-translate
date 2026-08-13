@@ -31,7 +31,18 @@ void main() {
     buffer.add(pcmForMs(300), 24000, at);
     buffer.add(pcmForMs(300), 24000, at.add(const Duration(milliseconds: 700)));
     expect(buffer.largestArrivalJitterMs, 400);
-    expect(buffer.targetMs, 1550);
+    expect(buffer.targetMs, 600);
+  });
+
+  test('long idle gap resets timing instead of becoming permanent jitter', () {
+    final buffer = SessionPlaybackBuffer();
+    final at = DateTime(2026);
+    buffer.add(pcmForMs(300), 24000, at);
+    buffer.add(
+        pcmForMs(300), 24000, at.add(const Duration(milliseconds: 99300)));
+    expect(buffer.targetMs, 500);
+    buffer.resetTiming();
+    expect(buffer.targetMs, 500);
   });
 
   test('keeps bounded audio and reports dropped chunks', () {

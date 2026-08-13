@@ -58,6 +58,7 @@ class _SessionScreenState extends State<SessionScreen>
   SpeechTurnBuffer? _fishTurns;
   Timer? _fishProcessTimer;
   bool _fishBusy = false;
+
   /// Why the last turn produced no translation. Shown in the UI so a silent
   /// translation outage cannot be mistaken for a working session.
   String? _fishTranslationError;
@@ -211,6 +212,7 @@ class _SessionScreenState extends State<SessionScreen>
         }
       };
       relayAudio.onPcmAudioEnd = () {
+        _playbackBuffer.resetTiming();
         if (!_p2p.isConnected) _flushSessionPlayback();
       };
       var p2pStarted = false;
@@ -380,8 +382,8 @@ class _SessionScreenState extends State<SessionScreen>
             );
             _fishListener = _drainFishAudio;
             _fish!.addListener(_fishListener!);
-            _fishTurns =
-                SpeechTurnBuffer(gateThreshold: _audioPolicy.noiseGateThreshold);
+            _fishTurns = SpeechTurnBuffer(
+                gateThreshold: _audioPolicy.noiseGateThreshold);
             // Poll faster than the turn-silence threshold. At the old 1200 ms
             // period the end of a turn was detected anywhere between 650 ms
             // and 1850 ms after the speaker stopped; this bounds it to the
@@ -406,7 +408,8 @@ class _SessionScreenState extends State<SessionScreen>
                 turns.add(chunk, DateTime.now());
               }
               if (_fishCaptureChunks % 50 == 0) {
-                debugPrint('[Snail][Fish] capture chunks=$_fishCaptureChunks bytes=${chunk.length} level=${measuredLevel.toStringAsFixed(4)} dbfs=${AudioProcessor.levelToDbfs(measuredLevel).toStringAsFixed(1)} peak=${peak.toStringAsFixed(4)} gate=${AudioProcessor.levelToDbfs(_audioPolicy.noiseGateThreshold).toStringAsFixed(1)}dBFS silent=${AudioProcessor.detectSilence(chunk, threshold: _audioPolicy.noiseGateThreshold)} buffer=${turns.bufferedBytes} speech=${turns.hasSpeech} muted=${_audioService.isMuted} playback=${_snailAudio.isPlaybackActive}');
+                debugPrint(
+                    '[Snail][Fish] capture chunks=$_fishCaptureChunks bytes=${chunk.length} level=${measuredLevel.toStringAsFixed(4)} dbfs=${AudioProcessor.levelToDbfs(measuredLevel).toStringAsFixed(1)} peak=${peak.toStringAsFixed(4)} gate=${AudioProcessor.levelToDbfs(_audioPolicy.noiseGateThreshold).toStringAsFixed(1)}dBFS silent=${AudioProcessor.detectSilence(chunk, threshold: _audioPolicy.noiseGateThreshold)} buffer=${turns.bufferedBytes} speech=${turns.hasSpeech} muted=${_audioService.isMuted} playback=${_snailAudio.isPlaybackActive}');
               }
             });
           }
@@ -523,24 +526,27 @@ class _SessionScreenState extends State<SessionScreen>
     final pcm = turns.takeTurn();
     if (pcm == null) return;
     _fishBusy = true;
-    debugPrint('[Snail][Fish] processing buffer=${pcm.length} bytes target=$_fishTargetLanguage');
+    debugPrint(
+        '[Snail][Fish] processing buffer=${pcm.length} bytes target=$_fishTargetLanguage');
     try {
       final source = _fishSourceLanguage;
       final target = _fishTargetLanguage;
       final asrResult = await _fishAsr.transcribeDetected(
-          apiKey: config.apiKey,
-          pcm16: pcm,
-          sampleRate: 16000,
-          language: null);
+          apiKey: config.apiKey, pcm16: pcm, sampleRate: 16000, language: null);
       final transcript = asrResult.text;
       // Fish ASR may omit the detected language for short clips. Do not pass
       // `auto` to the fallback translator; infer the opposite language for
       // the supported DE/EN session direction until detection is available.
       final detectedSource = asrResult.language ??
           (source == 'auto'
-              ? (target == 'en' ? 'de' : target == 'de' ? 'en' : 'en')
+              ? (target == 'en'
+                  ? 'de'
+                  : target == 'de'
+                      ? 'en'
+                      : 'en')
               : source);
-      debugPrint('[Snail][Fish] ASR text="${transcript.substring(0, transcript.length.clamp(0, 80))}" language=${asrResult.language}');
+      debugPrint(
+          '[Snail][Fish] ASR text="${transcript.substring(0, transcript.length.clamp(0, 80))}" language=${asrResult.language}');
       if (transcript.isNotEmpty && _fish != null) {
         final result = await _translator.translate(
             text: transcript,
@@ -563,7 +569,8 @@ class _SessionScreenState extends State<SessionScreen>
         }
         _fish!.sendText(result.text);
         _fish!.flush();
-        debugPrint('[Snail][Fish] TTS submitted $detectedSource->$target chars=${result.text.length}');
+        debugPrint(
+            '[Snail][Fish] TTS submitted $detectedSource->$target chars=${result.text.length}');
       }
     } catch (error) {
       debugPrint('[Snail][Fish] session error=$error');
@@ -691,6 +698,8 @@ class _SessionScreenState extends State<SessionScreen>
 
   void _enqueueSessionPlayback(Uint8List bytes, int sampleRate) {
     _playbackBuffer.add(bytes, sampleRate, DateTime.now());
+    debugPrint(
+        '[Snail][Playback] received bytes=${bytes.length} rate=$sampleRate');
     debugPrint('[Snail][Playback] queued=${_playbackBuffer.bufferedMs}ms '
         'target=${_playbackBuffer.targetMs}ms jitter='
         '${_playbackBuffer.largestArrivalJitterMs}ms drops='
@@ -714,8 +723,11 @@ class _SessionScreenState extends State<SessionScreen>
       while (mounted && !_playbackBuffer.isEmpty) {
         final chunk = _playbackBuffer.take();
         if (chunk == null) break;
+        final started = DateTime.now();
         await _snailAudio.playPcm16(chunk.bytes,
             sampleRate: chunk.sampleRate, output: _audioPolicy.output);
+        debugPrint('[Snail][Playback] played bytes=${chunk.bytes.length} '
+            'duration=${chunk.durationMs}ms elapsed=${DateTime.now().difference(started).inMilliseconds}ms');
       }
     } finally {
       _playbackDraining = false;
@@ -827,7 +839,7 @@ class _SessionScreenState extends State<SessionScreen>
                               ValueListenableBuilder<double>(
                                 valueListenable: _micLevel,
                                 builder: (context, level, _) => Text(
-                                'Mikrofon: ${_levelDb(level)} dBFS',
+                                  'Mikrofon: ${_levelDb(level)} dBFS',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ),
@@ -848,10 +860,10 @@ class _SessionScreenState extends State<SessionScreen>
                                   backgroundColor: Theme.of(context)
                                       .colorScheme
                                       .surfaceContainerHighest,
-                                  color: level >=
-                                          _audioPolicy.noiseGateThreshold
-                                      ? Colors.green
-                                      : Colors.orange,
+                                  color:
+                                      level >= _audioPolicy.noiseGateThreshold
+                                          ? Colors.green
+                                          : Colors.orange,
                                 ),
                               );
                             },
@@ -894,10 +906,8 @@ class _SessionScreenState extends State<SessionScreen>
                       const SizedBox(height: 6),
                       Text(
                         l10n.sessionNoTranslation(_fishTranslationError!),
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: Theme.of(context).colorScheme.error),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.error),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1115,9 +1125,8 @@ class _SessionScreenState extends State<SessionScreen>
                       builder: (context, level, _) => _LevelMeter(level: level),
                     ),
                     const SizedBox(height: 8),
-                    Text(audio.isMuted
-                        ? l10n.sessionMuted
-                        : l10n.sessionActive),
+                    Text(
+                        audio.isMuted ? l10n.sessionMuted : l10n.sessionActive),
 
                     SizedBox(height: compact ? 20 : 48),
 
