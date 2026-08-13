@@ -36,15 +36,15 @@ void main() {
 
     test('falls back to English, not German, for an unsupported language',
         () {
-      // French is not one of the three shipped translations. Falling back to
+      // Portuguese is not one of the shipped translations. Falling back to
       // German (the ARB template language) here would make the app look
-      // German-only to a French speaker instead of a neutral default.
+      // German-only to a Portuguese speaker instead of a neutral default.
       expect(
-        resolveAppLocale(const Locale('fr'), AppLocalizations.supportedLocales),
+        resolveAppLocale(const Locale('pt'), AppLocalizations.supportedLocales),
         const Locale('en'),
       );
       expect(
-        resolveAppLocale(const Locale('ja'), AppLocalizations.supportedLocales),
+        resolveAppLocale(const Locale('ru'), AppLocalizations.supportedLocales),
         const Locale('en'),
       );
     });
@@ -117,7 +117,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final service = AppLocaleService();
 
-      await service.setLocale('ja');
+      await service.setLocale('pt');
 
       expect(service.locale, const Locale('en'));
     });
