@@ -10,7 +10,8 @@ import 'package:snail/services/audio_policy.dart';
 import 'package:snail/services/user_identity_service.dart';
 import 'package:snail/services/error_logger.dart';
 
-Widget _wrapWithProviders(Widget child, {List<String>? pushedRoutes}) {
+Widget _wrapWithProviders(Widget child,
+    {List<String>? pushedRoutes, Locale locale = const Locale('de'), ThemeMode themeMode = ThemeMode.light}) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => SessionService()),
@@ -18,10 +19,9 @@ Widget _wrapWithProviders(Widget child, {List<String>? pushedRoutes}) {
       ChangeNotifierProvider(create: (_) => UserIdentityService()),
       ChangeNotifierProvider.value(value: ErrorLogger.I),
     ],
-    // Pinned to German: these tests assert on the ARB template strings, not
-    // on localization behavior itself.
     child: MaterialApp(
-      locale: const Locale('de'),
+      locale: locale,
+      themeMode: themeMode,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: child,
@@ -228,5 +228,19 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -500));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('settings renders long and CJK locales in dark theme',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    _useScreen(tester);
+    for (final locale in const [Locale('fr'), Locale('ja'), Locale('zh')]) {
+      await tester.pumpWidget(_wrapWithProviders(const SettingsScreen(),
+          locale: locale, themeMode: ThemeMode.dark));
+      await tester.pumpAndSettle();
+      // Five sections use ExpansionTile; provider and app info are compact rows.
+      expect(find.byType(ExpansionTile), findsNWidgets(5));
+      expect(tester.takeException(), isNull);
+    }
   });
 }
