@@ -23,6 +23,7 @@ dependencies:
   flutter_webrtc: ^0.12.12
   wakelock_plus: ^1.2.10
   msgpack_dart: ^1.0.1
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:

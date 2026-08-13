@@ -109,13 +109,15 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     /// Route currently programmed into AudioManager, so the per-chunk call
     /// does not repeat setMode/setSpeakerphoneOn for every single chunk.
     private volatile String appliedRoute = null;
-    private volatile long appliedRouteAtMs = 0L;
-    /// How often the route is re-asserted even when the selection is unchanged,
-    /// to recover from vendor drivers resetting it behind our back.
-    private static final long ROUTE_REFRESH_MS = 2000L;
+    private volatile String appliedRouteDevice = null;
     /// AudioTrack jitter buffer. Large enough to bridge normal websocket
     /// delivery gaps, small enough to keep conversational latency.
-    private static final int PLAYBACK_BUFFER_MS = 250;
+    private static final int PLAYBACK_BUFFER_MS = 750;
+    private final java.util.concurrent.atomic.AtomicLong playbackWriteCalls = new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong playbackPartialWrites = new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong playbackWriteFailures = new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong playbackBytesWritten = new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong playbackMaxWriteMs = new java.util.concurrent.atomic.AtomicLong();
 
     // Config
     private int sampleRate = 16000;
@@ -374,10 +376,10 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             try {
                 ensureCommunicationMode();
                 applyPlaybackRoute(output);
-                if ("speaker".equals(output)) amplifyPcm16InPlace(bytes, 1.8);
+                if ("speaker".equals(output)) amplifyPcm16InPlace(bytes, 1.3);
                 synchronized (this) {
                     ensurePlaybackTrack(outputRate, output);
-                    playbackTrack.write(bytes, 0, bytes.length, AudioTrack.WRITE_BLOCKING);
+                    writePcmFully(bytes);
                 }
                 mainHandler.post(() -> result.success(null));
             } catch (Exception e) {
@@ -526,6 +528,14 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 || (standaloneHeadsetNs != null && standaloneHeadsetNs.getEnabled()));
         diagnostics.put("capturing", isCapturing || standaloneCapturing);
         diagnostics.put("standaloneHeadsetCapture", standaloneHasHeadset);
+        diagnostics.put("playbackWriteCalls", playbackWriteCalls.get());
+        diagnostics.put("playbackPartialWrites", playbackPartialWrites.get());
+        diagnostics.put("playbackWriteFailures", playbackWriteFailures.get());
+        diagnostics.put("playbackBytesWritten", playbackBytesWritten.get());
+        diagnostics.put("playbackMaxWriteMs", playbackMaxWriteMs.get());
+        diagnostics.put("playbackUnderruns", playbackTrack != null
+                && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N
+                ? playbackTrack.getUnderrunCount() : 0);
         return diagnostics;
     }
 
@@ -562,16 +572,36 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         return Base64.encodeToString(signature.sign(), Base64.NO_WRAP);
     }
 
-    /** Applies a conservative speaker gain while preventing 16-bit overflow. */
+    /** Applies a conservative soft-limited gain without hard-clipping speech. */
     private static void amplifyPcm16InPlace(byte[] pcm, double gain) {
         for (int i = 0; i + 1 < pcm.length; i += 2) {
             int sample = (short) ((pcm[i] & 0xff) | (pcm[i + 1] << 8));
-            int amplified = (int) Math.round(sample * gain);
-            if (amplified > Short.MAX_VALUE) amplified = Short.MAX_VALUE;
-            if (amplified < Short.MIN_VALUE) amplified = Short.MIN_VALUE;
+            double normalized = sample / 32768.0;
+            int amplified = (int) Math.round(
+                    (Math.tanh(normalized * gain) / Math.tanh(gain)) * Short.MAX_VALUE);
             pcm[i] = (byte) (amplified & 0xff);
             pcm[i + 1] = (byte) ((amplified >> 8) & 0xff);
         }
+    }
+
+    /** Writes every PCM byte or fails explicitly; AudioTrack may short-write. */
+    private void writePcmFully(byte[] bytes) {
+        int offset = 0;
+        long startedAt = System.currentTimeMillis();
+        while (offset < bytes.length) {
+            int written = playbackTrack.write(bytes, offset, bytes.length - offset,
+                    AudioTrack.WRITE_BLOCKING);
+            playbackWriteCalls.incrementAndGet();
+            if (written <= 0) {
+                playbackWriteFailures.incrementAndGet();
+                throw new IllegalStateException("AudioTrack.write failed: " + written);
+            }
+            if (written < bytes.length - offset) playbackPartialWrites.incrementAndGet();
+            offset += written;
+            playbackBytesWritten.addAndGet(written);
+        }
+        long elapsed = System.currentTimeMillis() - startedAt;
+        playbackMaxWriteMs.accumulateAndGet(elapsed, Math::max);
     }
 
     private synchronized void ensurePlaybackTrack(int rate, String output) {
@@ -615,20 +645,16 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         playbackTrack.play();
     }
 
-    /** Re-apply the user-selected media route. The communication device may be
-     * reset to the speaker when Android recreates the Bluetooth SCO/A2DP
-     * route, so doing this only once during capture is insufficient — but
-     * doing it for every chunk meant several AudioManager IPC round trips per
-     * ~100 ms of speech, which showed up as playback stutter. Re-apply on
-     * change and otherwise at most every ROUTE_REFRESH_MS. */
+    /** Applies the route only when the selected physical output changed. */
     private void applyPlaybackRoute(String output) {
         if (audioManager == null) return;
-        long now = System.currentTimeMillis();
-        if (output.equals(appliedRoute) && now - appliedRouteAtMs < ROUTE_REFRESH_MS) return;
+        android.media.AudioDeviceInfo device = findOutputDevice(output);
+        String deviceKey = device == null ? "none" : device.getType() + ":" + device.getId();
+        if (output.equals(appliedRoute) && deviceKey.equals(appliedRouteDevice)) return;
         appliedRoute = output;
-        appliedRouteAtMs = now;
+        appliedRouteDevice = deviceKey;
         if ("headset".equals(output)) {
-            android.media.AudioDeviceInfo mediaHeadset = findOutputDevice("headset");
+            android.media.AudioDeviceInfo mediaHeadset = device;
             if (mediaHeadset != null && mediaHeadset.getType() == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
                 // A2DP is a media route, not a communication route. Keeping
                 // MODE_IN_COMMUNICATION here makes some vendor drivers reject

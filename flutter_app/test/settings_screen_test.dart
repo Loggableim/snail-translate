@@ -54,7 +54,7 @@ const _sections = [
   'Meine Identität',
   'Eigener Provider',
   'Fehlerprotokoll',
-  'Snail v0.2.0',
+  'Snail',
 ];
 
 void main() {
@@ -72,8 +72,10 @@ void main() {
       expect(tester.getRect(finder).bottom, lessThanOrEqualTo(752.0),
           reason: '"$section" is below the visible area');
     }
-    await tester.scrollUntilVisible(find.text(_sections.last), 100);
-    expect(find.text(_sections.last), findsOneWidget);
+    final appRow = find.byWidgetPredicate(
+        (widget) => widget is Text && widget.data?.startsWith('Snail') == true);
+    await tester.scrollUntilVisible(find.byIcon(Icons.info_outline_rounded), 100);
+    expect(appRow, findsWidgets);
 
     // Collapsed means the controls themselves are not built yet — the summary
     // line stands in for them.
@@ -155,6 +157,7 @@ void main() {
     // The summary names the active profile before the section is opened.
     expect(find.text('Automatisch'), findsOneWidget);
 
+    await tester.scrollUntilVisible(find.text('Audio'), 120);
     await tester.tap(find.text('Audio'));
     await tester.pumpAndSettle();
 
@@ -210,5 +213,20 @@ void main() {
     final clear = tester.widget<ListTile>(
         find.widgetWithText(ListTile, 'Protokoll löschen'));
     expect(clear.enabled, isFalse);
+  });
+
+  testWidgets('settings remains scrollable and stable at extreme text scale',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    _useScreen(tester);
+    tester.view.platformDispatcher.textScaleFactorTestValue = 3.0;
+    addTearDown(() => tester.view.platformDispatcher.clearTextScaleFactorTestValue());
+    await tester.pumpWidget(_wrapWithProviders(const SettingsScreen()));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 }

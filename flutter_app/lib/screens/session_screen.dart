@@ -21,6 +21,7 @@ import '../services/transcript_history.dart';
 import '../services/audio_policy.dart';
 import '../services/audio_processor.dart';
 import '../services/speech_turn_buffer.dart';
+import '../services/session_playback_buffer.dart';
 import '../services/error_logger.dart';
 import '../l10n/app_localizations.dart';
 import 'chat_screen.dart';
@@ -30,13 +31,6 @@ class SessionScreen extends StatefulWidget {
 
   @override
   State<SessionScreen> createState() => _SessionScreenState();
-}
-
-class _SessionPlaybackChunk {
-  const _SessionPlaybackChunk(this.bytes, this.sampleRate);
-
-  final Uint8List bytes;
-  final int sampleRate;
 }
 
 class _SessionScreenState extends State<SessionScreen>
@@ -68,7 +62,6 @@ class _SessionScreenState extends State<SessionScreen>
   /// translation outage cannot be mistaken for a working session.
   String? _fishTranslationError;
   int _fishCaptureChunks = 0;
-  bool _fishRelayAudioOnly = false;
   VoidCallback? _fishListener;
   String _fishSourceLanguage = 'en';
   String _fishTargetLanguage = 'de';
@@ -79,14 +72,8 @@ class _SessionScreenState extends State<SessionScreen>
   VoidCallback? _guestFallbackOpenAiListener;
   bool _openAiPlaybackRunning = false;
   bool _fallbackPlaybackRunning = false;
-  bool _sessionPlaybackPrimed = false;
-  final List<_SessionPlaybackChunk> _playbackQueue = <_SessionPlaybackChunk>[];
+  final _playbackBuffer = SessionPlaybackBuffer();
   bool _playbackDraining = false;
-  static const _maxPlaybackQueue = 24;
-  static const _sessionPrebufferChunks = 4;
-  /// How long a partially filled prebuffer may wait before it plays anyway.
-  static const _playbackPrimeTimeout = Duration(milliseconds: 220);
-  Timer? _playbackPrimeTimer;
   Future<void>? _guestFallbackConnecting;
   int _lastOpenAiSpeechStarts = 0;
   int _connectionGeneration = 0;
@@ -181,10 +168,7 @@ class _SessionScreenState extends State<SessionScreen>
       case AppLifecycleState.paused:
         // Stop capture and drain playback when app goes to background.
         _snailAudio.pauseCapture();
-        _playbackPrimeTimer?.cancel();
-        _playbackPrimeTimer = null;
-        _playbackQueue.clear();
-        _sessionPlaybackPrimed = false;
+        _playbackBuffer.clear();
         _playbackDraining = false;
         break;
       case AppLifecycleState.resumed:
@@ -214,6 +198,7 @@ class _SessionScreenState extends State<SessionScreen>
       _p2p.onSignal = (type, signal) => relayAudio.sendSignal(type, signal);
       _p2p.onAudio =
           (bytes, sampleRate) => _enqueueSessionPlayback(bytes, sampleRate);
+      _p2p.onAudioEnd = _flushSessionPlayback;
       _p2p.onChat = relayAudio.receiveP2pData;
       relayAudio.isP2pConnected = () => _p2p.isConnected;
       relayAudio.onP2pChatSend = _p2p.sendChat;
@@ -221,9 +206,12 @@ class _SessionScreenState extends State<SessionScreen>
       relayAudio.onSignal = (type, signal) => _p2p.acceptSignal(type, signal);
       relayAudio.onPcmAudio = (bytes, sampleRate) {
         // Relay PCM is a fallback while ICE is negotiating.
-        if (!_p2p.isConnected || _fishRelayAudioOnly) {
+        if (!_p2p.isConnected) {
           _enqueueSessionPlayback(bytes, sampleRate);
         }
+      };
+      relayAudio.onPcmAudioEnd = () {
+        if (!_p2p.isConnected) _flushSessionPlayback();
       };
       var p2pStarted = false;
       Future<void> startP2pAfterAuth() async {
@@ -304,8 +292,7 @@ class _SessionScreenState extends State<SessionScreen>
               if (!_isConnectionActive(generation) || _openAi == null) return;
               // Clear local playback queue on reconnect to prevent double audio.
               if (_openAi!.state == 'reconnecting') {
-                _playbackQueue.clear();
-                _sessionPlaybackPrimed = false;
+                _playbackBuffer.clear();
               }
               if (_openAi!.speechStarts > _lastOpenAiSpeechStarts) {
                 _lastOpenAiSpeechStarts = _openAi!.speechStarts;
@@ -381,7 +368,6 @@ class _SessionScreenState extends State<SessionScreen>
               }
             });
           } else {
-            _fishRelayAudioOnly = true;
             _fish = FishAudioRealtimeService();
             await _fish!.connect(
               apiKey: provider.apiKey,
@@ -496,7 +482,6 @@ class _SessionScreenState extends State<SessionScreen>
     unawaited(_snailAudio.stopSessionKeepAlive());
     _audioSubscription?.cancel();
     _fishProcessTimer?.cancel();
-    _fishRelayAudioOnly = false;
     if (_fish != null && _fishListener != null) {
       _fish!.removeListener(_fishListener!);
     }
@@ -514,14 +499,12 @@ class _SessionScreenState extends State<SessionScreen>
     _fish?.disconnect();
     _guestFallbackOpenAi?.disconnect();
     _audioService.onPcmAudio = null;
+    _audioService.onPcmAudioEnd = null;
     _audioService.onFallbackPcmAudio = null;
     _audioService.onSignal = null;
     _audioService.onAuthenticated = null;
     _p2p.dispose();
-    _playbackPrimeTimer?.cancel();
-    _playbackPrimeTimer = null;
-    _playbackQueue.clear();
-    _sessionPlaybackPrimed = false;
+    _playbackBuffer.clear();
     _snailAudio.dispose();
     _micLevel.dispose();
     _audioService.disconnect();
@@ -597,10 +580,20 @@ class _SessionScreenState extends State<SessionScreen>
       return;
     }
     for (final chunk in _fish!.takeAudioChunks()) {
-      // Fish uses the reliable relay path for complete PCM chunks. Sending
-      // the same stream through WebRTC as well caused packet-loss gaps and
-      // duplicate/overlapping playback on the receiver.
-      _audioService.sendPcmAudio(chunk, sampleRate: 24000);
+      // WebRTC sends PCM as a binary frame. The JSON relay remains a fallback
+      // only while ICE is not connected; sending both causes duplicates.
+      if (_p2p.isConnected) {
+        _p2p.sendPcm16(chunk, sampleRate: 24000);
+      } else {
+        _audioService.sendPcmAudio(chunk, sampleRate: 24000);
+      }
+    }
+    if (_fish!.takeStreamFinished()) {
+      if (_p2p.isConnected) {
+        _p2p.sendPcmEnd();
+      } else {
+        _audioService.sendPcmAudioEnd();
+      }
     }
   }
 
@@ -697,45 +690,38 @@ class _SessionScreenState extends State<SessionScreen>
   }
 
   void _enqueueSessionPlayback(Uint8List bytes, int sampleRate) {
-    if (bytes.isEmpty) return;
-    if (_playbackQueue.length >= _maxPlaybackQueue) {
-      _playbackQueue.removeAt(0);
+    _playbackBuffer.add(bytes, sampleRate, DateTime.now());
+    debugPrint('[Snail][Playback] queued=${_playbackBuffer.bufferedMs}ms '
+        'target=${_playbackBuffer.targetMs}ms jitter='
+        '${_playbackBuffer.largestArrivalJitterMs}ms drops='
+        '${_playbackBuffer.droppedChunks}');
+    // Once the native track is playing, keep feeding it immediately. The
+    // prebuffer applies only to a cold start; applying it again after every
+    // briefly empty Dart queue would reintroduce start/stop gaps.
+    if (_snailAudio.isPlaybackActive || _playbackBuffer.shouldStart()) {
+      _drainSessionPlayback();
     }
-    _playbackQueue.add(_SessionPlaybackChunk(bytes, sampleRate));
-    // Fish/relay chunks can arrive with small network gaps. Keep a few chunks
-    // in front before starting the native AudioTrack to avoid audible
-    // start/stop stutter between websocket deliveries.
-    if (!_sessionPlaybackPrimed &&
-        _playbackQueue.length < _sessionPrebufferChunks) {
-      // A short sentence, or the tail of any turn, delivers fewer chunks than
-      // the prebuffer target. Without this timeout those chunks stayed queued
-      // until the next turn pushed the queue over the threshold, which cut
-      // the end off every utterance and replayed it late.
-      _playbackPrimeTimer ??= Timer(_playbackPrimeTimeout, () {
-        _playbackPrimeTimer = null;
-        if (mounted && _playbackQueue.isNotEmpty) _drainSessionPlayback();
-      });
-      return;
-    }
-    _drainSessionPlayback();
+  }
+
+  void _flushSessionPlayback() {
+    if (_playbackBuffer.shouldStart(force: true)) _drainSessionPlayback();
   }
 
   Future<void> _drainSessionPlayback() async {
     if (_playbackDraining) return;
-    _playbackPrimeTimer?.cancel();
-    _playbackPrimeTimer = null;
     _playbackDraining = true;
-    _sessionPlaybackPrimed = true;
     try {
-      while (mounted && _playbackQueue.isNotEmpty) {
-        final chunk = _playbackQueue.removeAt(0);
+      while (mounted && !_playbackBuffer.isEmpty) {
+        final chunk = _playbackBuffer.take();
+        if (chunk == null) break;
         await _snailAudio.playPcm16(chunk.bytes,
             sampleRate: chunk.sampleRate, output: _audioPolicy.output);
       }
     } finally {
       _playbackDraining = false;
-      if (_playbackQueue.isEmpty) _sessionPlaybackPrimed = false;
-      if (mounted && _playbackQueue.isNotEmpty) {
+      if (mounted &&
+          !_playbackBuffer.isEmpty &&
+          _playbackBuffer.shouldStart()) {
         _drainSessionPlayback();
       }
     }

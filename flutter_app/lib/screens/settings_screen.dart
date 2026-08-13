@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../services/error_logger.dart';
@@ -45,6 +46,25 @@ class SettingsScreen extends StatefulWidget {
 /// what it currently holds, so the whole screen can be read at a glance and
 /// only the section actually being changed needs to be open.
 class _SettingsScreenState extends State<SettingsScreen> {
+  String _appVersion = 'Snail';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _appVersion = 'Snail v${info.version}');
+    } catch (_) {
+      // Keep the stable product label in tests or platforms without a package
+      // info implementation.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -82,7 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _SettingsRow(
               icon: Icons.info_outline_rounded,
               color: colors.secondary,
-              title: 'Snail v0.2.0',
+              title: _appVersion,
               subtitle: l10n.settingsAppSubtitle,
             ),
           ],
@@ -352,15 +372,14 @@ class _SettingsGroup extends StatelessWidget {
         child: ExpansionTile(
           key: PageStorageKey<String>(title),
           leading: _IconChip(icon: icon, color: color),
-          title: Text(title,
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+          title:
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text(
             summary,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-                fontSize: 12.5,
-                color: colors.onSurface.withValues(alpha: .65)),
+                fontSize: 12.5, color: colors.onSurface.withValues(alpha: .65)),
           ),
           // Top padding matters: without it the first field's floating label
           // is clipped by the tile above it.
@@ -409,8 +428,7 @@ class _SettingsRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
                 fontSize: 12.5,
-                color:
-                    theme.colorScheme.onSurface.withValues(alpha: .65))),
+                color: theme.colorScheme.onSurface.withValues(alpha: .65))),
         trailing: onTap == null ? null : const Icon(Icons.chevron_right),
         onTap: onTap,
       ),
@@ -473,8 +491,7 @@ class _LanguageDropdown extends StatelessWidget {
         if (!known)
           DropdownMenuItem(value: value, child: Text(_languageLabel(value))),
         for (final language in _languages)
-          DropdownMenuItem(
-              value: language.code, child: Text(language.native)),
+          DropdownMenuItem(value: language.code, child: Text(language.native)),
       ],
       onChanged: (code) {
         if (code != null) onChanged(code);

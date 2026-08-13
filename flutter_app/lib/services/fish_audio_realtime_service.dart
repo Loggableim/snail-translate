@@ -15,6 +15,7 @@ class FishAudioRealtimeService extends ChangeNotifier {
   IOWebSocketChannel? _channel;
   StreamSubscription? _subscription;
   final List<Uint8List> _audioChunks = <Uint8List>[];
+  bool _streamFinished = false;
   final StringBuffer _textBuffer = StringBuffer();
   bool _connected = false;
   String _state = 'idle';
@@ -177,6 +178,14 @@ class FishAudioRealtimeService extends ChangeNotifier {
     return result;
   }
 
+  /// Consumes the provider's ordered end-of-stream marker. The receiver uses
+  /// it to flush a short final PCM chunk without guessing on a timer.
+  bool takeStreamFinished() {
+    final finished = _streamFinished;
+    _streamFinished = false;
+    return finished;
+  }
+
   void _send(Map<String, dynamic> value) {
     _channel?.sink.add(encodeEvent(value));
   }
@@ -198,7 +207,10 @@ class FishAudioRealtimeService extends ChangeNotifier {
         if (bytes is List<int>) _enqueue(Uint8List.fromList(bytes));
         if (bytes is Uint8List) _enqueue(bytes);
       }
-      if (event == 'finish' || event == 'close') _state = 'ready';
+      if (event == 'finish' || event == 'close') {
+        _state = 'ready';
+        _streamFinished = true;
+      }
       if (event == 'error') _lastError = decoded['message']?.toString();
       if (!_disposed) notifyListeners();
     } catch (error) {
@@ -231,8 +243,9 @@ class FishAudioRealtimeService extends ChangeNotifier {
   }
 
   void _scheduleRetry() {
-    if (_apiKey == null || _retryTimer != null || _reconnectAttempts >= 4)
+    if (_apiKey == null || _retryTimer != null || _reconnectAttempts >= 4) {
       return;
+    }
     final delay = Duration(milliseconds: 300 * (1 << _reconnectAttempts));
     _reconnectAttempts++;
     _retryTimer = Timer(delay, () async {
@@ -254,6 +267,7 @@ class FishAudioRealtimeService extends ChangeNotifier {
     await _channel?.sink.close();
     _channel = null;
     _audioChunks.clear();
+    _streamFinished = false;
     if (!_disposed) notifyListeners();
   }
 

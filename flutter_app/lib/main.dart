@@ -35,6 +35,7 @@ import 'screens/profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final welcomeShown = await WelcomeScreen.hasBeenShown();
   final sessionService = SessionService();
   await sessionService.init();
   final identityService = UserIdentityService();
@@ -60,7 +61,8 @@ void main() async {
       providerConfigService: providerConfigService,
       history: history,
       audioPolicy: audioPolicy,
-      appLocale: appLocale));
+      appLocale: appLocale,
+      welcomeShown: welcomeShown));
 }
 
 class SnailApp extends StatelessWidget {
@@ -71,6 +73,7 @@ class SnailApp extends StatelessWidget {
   final TranscriptHistory history;
   final AudioPolicy audioPolicy;
   final AppLocaleService appLocale;
+  final bool welcomeShown;
 
   const SnailApp(
       {super.key,
@@ -80,7 +83,8 @@ class SnailApp extends StatelessWidget {
       required this.providerConfigService,
       required this.history,
       required this.audioPolicy,
-      required this.appLocale});
+      required this.appLocale,
+      required this.welcomeShown});
 
   @override
   Widget build(BuildContext context) {
@@ -125,7 +129,7 @@ class SnailApp extends StatelessWidget {
             // screen and app restart.
             locale: locale.locale,
             localeResolutionCallback: resolveAppLocale,
-            initialRoute: '/welcome',
+            initialRoute: welcomeShown ? '/' : '/welcome',
             routes: {
               '/welcome': (_) => const WelcomeScreen(),
               '/': (_) => const HomeScreen(),

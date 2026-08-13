@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 /// Direct peer transport for already-translated PCM audio.
@@ -18,6 +18,7 @@ class P2pAudioService {
   bool _connected = false;
   void Function(String type, dynamic signal)? onSignal;
   void Function(Uint8List bytes, int sampleRate)? onAudio;
+  VoidCallback? onAudioEnd;
   void Function(Map<String, dynamic> message)? onChat;
 
   bool get isConnected => _connected;
@@ -73,6 +74,10 @@ class P2pAudioService {
       if (bytes.length < 4) return;
       final sampleRate =
           ByteData.sublistView(bytes, 0, 4).getUint32(0, Endian.little);
+      if (bytes.length == 4) {
+        onAudioEnd?.call();
+        return;
+      }
       onAudio?.call(Uint8List.sublistView(bytes, 4), sampleRate);
     };
   }
@@ -122,6 +127,14 @@ class P2pAudioService {
     ByteData.sublistView(payload, 0, 4).setUint32(0, sampleRate, Endian.little);
     payload.setRange(4, payload.length, bytes);
     channel.send(RTCDataChannelMessage.fromBinary(payload));
+  }
+
+  /// Ordered four-byte control frame marking the end of a translated stream.
+  /// It lets the receiver play a short final chunk without using a timer.
+  void sendPcmEnd() {
+    final channel = _audioChannel;
+    if (channel == null || !_connected) return;
+    channel.send(RTCDataChannelMessage.fromBinary(Uint8List(4)));
   }
 
   void sendChat(Map<String, dynamic> message) {

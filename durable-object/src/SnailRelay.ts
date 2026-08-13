@@ -37,7 +37,7 @@ interface SessionState {
 }
 
 interface ClientMessage {
-  type: "auth" | "audio" | "pcm_audio" | "fallback_pcm_audio" | "chat" | "sticker" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
+  type: "auth" | "audio" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "chat" | "sticker" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
   token?: string;
   audio?: number[];
   sampleRate?: number;
@@ -62,7 +62,7 @@ interface ClientMessage {
 }
 
 interface ServerMessage {
-  type: "auth_ok" | "auth_error" | "audio" | "pcm_audio" | "fallback_pcm_audio" | "chat" | "sticker" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
+  type: "auth_ok" | "auth_error" | "audio" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "chat" | "sticker" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
   audio?: number[];
   sampleRate?: number;
   messageId?: string;
@@ -451,6 +451,16 @@ export class SnailRelay implements DurableObject {
           }
           const peer = this.getPeer(ws);
           if (peer) this.send(peer, { type: "pcm_audio", audio: msg.audio, sampleRate: msg.sampleRate });
+          break;
+        }
+
+        case "pcm_end": {
+          if (!authenticated) {
+            this.send(ws, { type: "error", error: "Not authenticated" });
+            return;
+          }
+          const peer = this.getPeer(ws);
+          if (peer) this.send(peer, { type: "pcm_end" });
           break;
         }
 

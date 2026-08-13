@@ -21,6 +21,7 @@ class AudioService extends ChangeNotifier {
   final ChatService chat = ChatService();
   final List<Map<String, dynamic>> _signals = [];
   void Function(Uint8List bytes, int sampleRate)? onPcmAudio;
+  VoidCallback? onPcmAudioEnd;
   void Function(Uint8List bytes, int sampleRate)? onFallbackPcmAudio;
   void Function(String signalType, dynamic signal)? onSignal;
   VoidCallback? onAuthenticated;
@@ -191,6 +192,9 @@ class AudioService extends ChangeNotifier {
           onPcmAudio?.call(
               Uint8List.fromList(values), msg['sampleRate'] as int? ?? 24000);
           break;
+        case 'pcm_end':
+          onPcmAudioEnd?.call();
+          break;
         case 'fallback_pcm_audio':
           final values =
               (msg['audio'] as List<dynamic>? ?? const []).cast<int>();
@@ -275,6 +279,11 @@ class AudioService extends ChangeNotifier {
       'audio': pcm16.toList(growable: false),
       'sampleRate': sampleRate
     }));
+  }
+
+  void sendPcmAudioEnd() {
+    if (!_isConnected || _isMuted) return;
+    _channel?.sink.add(jsonEncode({'type': 'pcm_end'}));
   }
 
   void sendFallbackPcmAudio(Uint8List pcm16, {int sampleRate = 16000}) {
