@@ -345,13 +345,22 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
             sampleRate: 16000,
             language: sourceLanguage);
         if (transcript.isNotEmpty) {
-          final translated = await _translator.translate(
+          final result = await _translator.translate(
               text: transcript,
               sourceLang: sourceLanguage,
               targetLang: targetLanguage,
               config: config);
+          if (!result.translated) {
+            // Never speak the source text back: it sounds like a working
+            // translation while nothing was translated at all.
+            if (mounted) {
+              setState(() =>
+                  _status = 'Keine Übersetzung: ${result.reason}');
+            }
+            continue;
+          }
           final output = source == 'phone' ? _phoneFish : _headsetFish;
-          output.sendText(translated);
+          output.sendText(result.text);
           output.flush();
         }
       } catch (error) {

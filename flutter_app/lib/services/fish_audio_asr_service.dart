@@ -60,15 +60,55 @@ class FishAudioAsrService {
     if (decoded is Map<String, dynamic>) {
       return FishAsrTranscript(
         text: (decoded['text'] ?? decoded['transcript'] ?? '').toString().trim(),
-        language: (decoded['language'] ??
-                decoded['language_code'] ??
-                decoded['detected_language'])
-            ?.toString()
-            .trim()
-            .toLowerCase(),
+        language: normalizeLanguage(decoded['language'] ??
+            decoded['language_code'] ??
+            decoded['detected_language']),
       );
     }
     return const FishAsrTranscript(text: '', language: null);
+  }
+
+  /// Reduces a detected language to the two-letter code the rest of the
+  /// pipeline uses.
+  ///
+  /// The value has to be comparable to the session target language and usable
+  /// as a MyMemory `langpair`. A regional tag like `de-DE` or an English name
+  /// like `German` would both compare unequal to `de` and produce an invalid
+  /// pair, which the translator then refuses — leaving the turn untranslated.
+  static String? normalizeLanguage(Object? value) {
+    if (value == null) return null;
+    final raw = value.toString().trim().toLowerCase();
+    if (raw.isEmpty || raw == 'auto' || raw == 'unknown') return null;
+    const names = <String, String>{
+      'german': 'de',
+      'deutsch': 'de',
+      'english': 'en',
+      'french': 'fr',
+      'francais': 'fr',
+      'spanish': 'es',
+      'espanol': 'es',
+      'italian': 'it',
+      'japanese': 'ja',
+      'korean': 'ko',
+      'chinese': 'zh',
+      'mandarin': 'zh',
+      'ukrainian': 'uk',
+      'arabic': 'ar',
+      'portuguese': 'pt',
+      'russian': 'ru',
+      'dutch': 'nl',
+      'turkish': 'tr',
+      'hindi': 'hi',
+      'vietnamese': 'vi',
+      'polish': 'pl',
+      'swedish': 'sv',
+    };
+    if (names.containsKey(raw)) return names[raw];
+    // `de-DE`, `de_DE`, `zh-Hans` and similar regional tags.
+    final base = raw.split(RegExp(r'[-_]')).first;
+    if (base.length == 2) return base;
+    if (names.containsKey(base)) return names[base];
+    return base.isEmpty ? null : base;
   }
 
   String _normalizeToken(String value) {

@@ -195,12 +195,14 @@ class _ChatScreenState extends State<ChatScreen> {
       _translatedIncoming.add(message.id);
       try {
         final provider = context.read<ProviderConfigService>().config;
-        final translated = await _translator.translate(
+        final result = await _translator.translate(
             text: message.text,
             sourceLang: message.sourceLang,
             targetLang: message.targetLang,
             config: provider);
-        audio.sendChat(translated,
+        // Chat keeps the original readable on screen when translation is
+        // unavailable, unlike the audio path where TTS would speak it aloud.
+        audio.sendChat(result.text,
             sourceLang: message.sourceLang, targetLang: message.targetLang);
       } catch (_) {
         _translatedIncoming.remove(message.id);
@@ -312,12 +314,16 @@ class _ChatScreenState extends State<ChatScreen> {
       // Hosts use their configured provider. Guests use their own key when
       // present; without one, the host-side incoming-message fallback applies.
       if (canTranslateLocally) {
-        outgoing = await _translator.translate(
+        final result = await _translator.translate(
             text: text,
             sourceLang: session.myLanguage,
             targetLang: target,
             config: provider);
-        alreadyTranslated = session.currentSession?.role == 'guest';
+        outgoing = result.text;
+        // Only claim the message is translated when it actually was, so the
+        // peer still applies its own fallback instead of trusting the tag.
+        alreadyTranslated =
+            result.translated && session.currentSession?.role == 'guest';
       }
       audio.sendChat(
         outgoing,

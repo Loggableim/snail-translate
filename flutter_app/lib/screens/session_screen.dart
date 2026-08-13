@@ -63,6 +63,9 @@ class _SessionScreenState extends State<SessionScreen>
   SpeechTurnBuffer? _fishTurns;
   Timer? _fishProcessTimer;
   bool _fishBusy = false;
+  /// Why the last turn produced no translation. Shown in the UI so a silent
+  /// translation outage cannot be mistaken for a working session.
+  String? _fishTranslationError;
   int _fishCaptureChunks = 0;
   bool _fishRelayAudioOnly = false;
   VoidCallback? _fishListener;
@@ -559,14 +562,28 @@ class _SessionScreenState extends State<SessionScreen>
               : source);
       debugPrint('[Snail][Fish] ASR text="${transcript.substring(0, transcript.length.clamp(0, 80))}" language=${asrResult.language}');
       if (transcript.isNotEmpty && _fish != null) {
-        final translated = await _translator.translate(
+        final result = await _translator.translate(
             text: transcript,
             sourceLang: detectedSource,
             targetLang: target,
             config: config);
-        _fish!.sendText(translated);
+        if (!result.translated) {
+          // Speaking the source text back through TTS is worse than silence:
+          // it sounds like the app repeating the user in their own language
+          // and hides the fact that translation never happened.
+          debugPrint(
+              '[Snail][Fish] SKIPPED TTS, no translation: ${result.reason}');
+          if (mounted) {
+            setState(() => _fishTranslationError = result.reason);
+          }
+          return;
+        }
+        if (mounted && _fishTranslationError != null) {
+          setState(() => _fishTranslationError = null);
+        }
+        _fish!.sendText(result.text);
         _fish!.flush();
-        debugPrint('[Snail][Fish] TTS submitted target=$target chars=${translated.length}');
+        debugPrint('[Snail][Fish] TTS submitted $detectedSource->$target chars=${result.text.length}');
       }
     } catch (error) {
       debugPrint('[Snail][Fish] session error=$error');
@@ -888,6 +905,17 @@ class _SessionScreenState extends State<SessionScreen>
                       style: Theme.of(context).textTheme.bodySmall,
                       textAlign: TextAlign.center,
                     ),
+                    if (_fishTranslationError != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Keine Übersetzung: $_fishTranslationError',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: Theme.of(context).colorScheme.error),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
 
                     if (context
                             .watch<ProviderConfigService>()
