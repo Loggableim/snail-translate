@@ -195,8 +195,12 @@ class SnailAudio {
     _playbackUntil =
         DateTime.now().add(Duration(milliseconds: durationMs + 100));
     try {
+      // Pass the Uint8List straight through. The standard codec maps it to a
+      // Java byte[]; converting to List<int> first boxed every single sample
+      // into an Integer on both sides, which produced tens of thousands of
+      // short-lived objects per chunk and made playback stutter under GC.
       await _methodChannel.invokeMethod('playPcm16', {
-        'bytes': bytes.toList(growable: false),
+        'bytes': bytes,
         'sampleRate': sampleRate,
         'output': output.name
       });

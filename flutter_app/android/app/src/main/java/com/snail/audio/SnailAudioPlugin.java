@@ -97,6 +97,25 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     private String preferredInput = "auto";
     private Thread standalonePhoneThread;
     private Thread standaloneHeadsetThread;
+    /// Serial writer for translated playback. Single-threaded on purpose:
+    /// it keeps chunk order while taking the blocking write off the main
+    /// thread, which the microphone EventChannel also uses.
+    private final java.util.concurrent.ExecutorService playbackExecutor =
+            java.util.concurrent.Executors.newSingleThreadExecutor(runnable -> {
+                Thread thread = new Thread(runnable, "SnailAudioPlayback");
+                thread.setPriority(Thread.MAX_PRIORITY);
+                return thread;
+            });
+    /// Route currently programmed into AudioManager, so the per-chunk call
+    /// does not repeat setMode/setSpeakerphoneOn for every single chunk.
+    private volatile String appliedRoute = null;
+    private volatile long appliedRouteAtMs = 0L;
+    /// How often the route is re-asserted even when the selection is unchanged,
+    /// to recover from vendor drivers resetting it behind our back.
+    private static final long ROUTE_REFRESH_MS = 2000L;
+    /// AudioTrack jitter buffer. Large enough to bridge normal websocket
+    /// delivery gaps, small enough to keep conversational latency.
+    private static final int PLAYBACK_BUFFER_MS = 250;
 
     // Config
     private int sampleRate = 16000;
@@ -131,6 +150,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         stopCapture();
         stopStandaloneCapture();
         stopPlayback();
+        playbackExecutor.shutdownNow();
         restoreAudioMode();
         applicationContext = null;
         methodChannel.setMethodCallHandler(null);
@@ -320,41 +340,50 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     }
 
     private void handlePlayPcm16(MethodCall call, Result result) {
-        try {
-            java.util.List<Integer> values = call.argument("bytes");
-            Integer requestedRate = call.argument("sampleRate");
-            int outputRate = requestedRate == null ? 24000 : requestedRate;
-            if (values == null || values.isEmpty()) { result.success(null); return; }
-            byte[] bytes = new byte[values.size()];
-            for (int i = 0; i < values.size(); i++) bytes[i] = (byte) (values.get(i) & 0xff);
-            ensureCommunicationMode();
-            String output = call.argument("output") == null ? "default" : (String) call.argument("output");
-            // VOICE_CALL is routed to the quiet earpiece by several Android
-            // vendors even after setSpeakerphoneOn(true). For the normal
-            // no-headset conversation mode choose the built-in speaker
-            // explicitly, including a matching STREAM_MUSIC AudioTrack.
-            if ("default".equals(output)) {
-                // Android can report the communication device as speaker
-                // while Bluetooth A2DP is the active media output. Prefer
-                // the actual media device list for PCM session playback.
-                output = findOutputDevice("headset") != null ? "headset" : "speaker";
-            }
-            applyPlaybackRoute(output);
-            if ("speaker".equals(output)) amplifyPcm16InPlace(bytes, 1.8);
-            ensurePlaybackTrack(outputRate, bytes.length, output);
-            Log.d(TAG, "Playing " + bytes.length + " PCM bytes at " + outputRate
-                    + "Hz via " + output + "; route=" + activeOutputRoute());
-            long durationMs = Math.max(20L, (bytes.length * 1000L) / (outputRate * 2L));
-            // Hardware AEC handles the steady-state echo. Drop only a short
-            // tail to prevent queued frames from leaking across chunk edges.
-            suppressCaptureUntilMs = Math.max(suppressCaptureUntilMs, System.currentTimeMillis() + durationMs + 100L);
-            synchronized (this) {
-                playbackTrack.write(bytes, 0, bytes.length, AudioTrack.WRITE_BLOCKING);
-            }
-            result.success(null);
-        } catch (Exception e) {
-            result.error("PLAYBACK_ERROR", e.getMessage(), null);
+        // The standard codec delivers a Flutter Uint8List as a byte[], so no
+        // per-sample unboxing happens here any more.
+        final byte[] bytes = call.argument("bytes");
+        Integer requestedRate = call.argument("sampleRate");
+        final int outputRate = requestedRate == null ? 24000 : requestedRate;
+        if (bytes == null || bytes.length == 0) { result.success(null); return; }
+        String requested = call.argument("output") == null ? "default" : (String) call.argument("output");
+        // VOICE_CALL is routed to the quiet earpiece by several Android
+        // vendors even after setSpeakerphoneOn(true). For the normal
+        // no-headset conversation mode choose the built-in speaker
+        // explicitly, including a matching STREAM_MUSIC AudioTrack.
+        if ("default".equals(requested)) {
+            // Android can report the communication device as speaker
+            // while Bluetooth A2DP is the active media output. Prefer
+            // the actual media device list for PCM session playback.
+            requested = findOutputDevice("headset") != null ? "headset" : "speaker";
         }
+        final String output = requested;
+        long durationMs = Math.max(20L, (bytes.length * 1000L) / (outputRate * 2L));
+        // Hardware AEC handles the steady-state echo. Drop only a short
+        // tail to prevent queued frames from leaking across chunk edges.
+        suppressCaptureUntilMs = Math.max(suppressCaptureUntilMs, System.currentTimeMillis() + durationMs + 100L);
+
+        // WRITE_BLOCKING parks the calling thread until the AudioTrack has
+        // taken every byte. Doing that on the platform main thread also
+        // stalled the EventChannel that delivers microphone frames, and
+        // delayed the next playPcm16 call far enough for the track to run
+        // dry — audible as stuttering. Writes run on their own serial thread
+        // now; the single thread preserves chunk order and the Dart caller
+        // still awaits completion, so back-pressure is unchanged.
+        playbackExecutor.execute(() -> {
+            try {
+                ensureCommunicationMode();
+                applyPlaybackRoute(output);
+                if ("speaker".equals(output)) amplifyPcm16InPlace(bytes, 1.8);
+                synchronized (this) {
+                    ensurePlaybackTrack(outputRate, output);
+                    playbackTrack.write(bytes, 0, bytes.length, AudioTrack.WRITE_BLOCKING);
+                }
+                mainHandler.post(() -> result.success(null));
+            } catch (Exception e) {
+                mainHandler.post(() -> result.error("PLAYBACK_ERROR", e.getMessage(), null));
+            }
+        });
     }
 
     /** Short local diagnostic tone. It never opens the microphone or network. */
@@ -378,7 +407,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 }
                 ensureCommunicationMode();
                 synchronized (this) {
-                    ensurePlaybackTrack(rate, tone.length, "speaker");
+                    ensurePlaybackTrack(rate, "speaker");
                     Log.d(TAG, "Playing local speaker test tone; route=" + activeOutputRoute());
                     playbackTrack.write(tone, 0, tone.length, AudioTrack.WRITE_BLOCKING);
                 }
@@ -545,7 +574,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         }
     }
 
-    private synchronized void ensurePlaybackTrack(int rate, int bytesPerChunk, String output) {
+    private synchronized void ensurePlaybackTrack(int rate, String output) {
         if (playbackTrack != null && playbackRate == rate && playbackOutput.equals(output)
                 && playbackTrack.getState() == AudioTrack.STATE_INITIALIZED) return;
         stopPlayback();
@@ -557,12 +586,15 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         // active headset route while capture/AEC remains in communication mode.
         int stream = AudioManager.STREAM_MUSIC;
         int min = AudioTrack.getMinBufferSize(rate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
-        // Keep a small realtime queue. A long diagnostic chunk used to expand
-        // this to a four-second buffer, so a 0.5 s test tone never became
-        // audible before playback underrun/restart.
-        int targetBytes = Math.max(bytesPerChunk * 2, rate / 20);
-        int maxRealtimeBytes = rate / 4; // 125 ms of PCM16 at the output rate
-        int capacity = Math.max(min, Math.min(targetBytes, maxRealtimeBytes));
+        // A fixed time-based jitter buffer. Sizing this from the first chunk
+        // made the capacity depend on whichever chunk happened to arrive
+        // first: a long diagnostic chunk produced a four-second buffer, and
+        // clamping that to 125 ms left too little slack for a network-fed
+        // stream, so the track ran dry between websocket deliveries and the
+        // playback stuttered. A chunk larger than the buffer simply writes in
+        // several blocking passes, which is correct.
+        int bytesPerSecond = rate * 2;
+        int capacity = Math.max(min, (bytesPerSecond * PLAYBACK_BUFFER_MS) / 1000);
         playbackTrack = new AudioTrack(
                 stream,
                 rate,
@@ -583,11 +615,18 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         playbackTrack.play();
     }
 
-    /** Re-apply the user-selected media route for every chunk. The communication
-     * device may be reset to the speaker when Android recreates the Bluetooth
-     * SCO/A2DP route, so doing this only once during capture is insufficient. */
+    /** Re-apply the user-selected media route. The communication device may be
+     * reset to the speaker when Android recreates the Bluetooth SCO/A2DP
+     * route, so doing this only once during capture is insufficient — but
+     * doing it for every chunk meant several AudioManager IPC round trips per
+     * ~100 ms of speech, which showed up as playback stutter. Re-apply on
+     * change and otherwise at most every ROUTE_REFRESH_MS. */
     private void applyPlaybackRoute(String output) {
         if (audioManager == null) return;
+        long now = System.currentTimeMillis();
+        if (output.equals(appliedRoute) && now - appliedRouteAtMs < ROUTE_REFRESH_MS) return;
+        appliedRoute = output;
+        appliedRouteAtMs = now;
         if ("headset".equals(output)) {
             android.media.AudioDeviceInfo mediaHeadset = findOutputDevice("headset");
             if (mediaHeadset != null && mediaHeadset.getType() == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
