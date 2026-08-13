@@ -52,6 +52,26 @@ class SessionService extends ChangeNotifier {
   String get myLanguage => _myLanguage;
   String get targetLanguage => _targetLanguage;
 
+  /// Language this device must translate its own microphone into.
+  ///
+  /// The worker mirrors the negotiated pair for the guest, so a joined
+  /// session already carries the correct per-endpoint direction. Falling back
+  /// to [targetLanguage] here would use this device's saved preference
+  /// instead: when both phones share a locale — the common case when one
+  /// person hands the second device to the other — both would translate into
+  /// the same language and one direction of the conversation would silently
+  /// produce no translation at all.
+  String get sessionTargetLanguage =>
+      _currentSession?.targetLang ?? _targetLanguage;
+
+  /// Installs a session without performing the network handshake, so the
+  /// per-endpoint language direction can be tested without a live worker.
+  @visibleForTesting
+  void debugSetSession(Session? session) {
+    _currentSession = session;
+    notifyListeners();
+  }
+
   void setIdentityId(String value) {
     _identityId = value;
   }

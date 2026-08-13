@@ -162,7 +162,7 @@ class _SessionScreenState extends State<SessionScreen>
     WidgetsBinding.instance.addObserver(this);
     _audioService = context.read<AudioService>();
     _sessionService = context.read<SessionService>();
-    _sessionTargetLanguage = _sessionService.targetLanguage;
+    _sessionTargetLanguage = _sessionService.sessionTargetLanguage;
     _transcriptHistory = context.read<TranscriptHistory>();
     _audioPolicy = context.read<AudioPolicy>();
     // Keep the session alive while the user is actively translating. This is
