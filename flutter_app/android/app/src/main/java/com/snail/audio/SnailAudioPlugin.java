@@ -362,9 +362,13 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         }
         final String output = requested;
         long durationMs = Math.max(20L, (bytes.length * 1000L) / (outputRate * 2L));
-        // Hardware AEC handles the steady-state echo. Drop only a short
-        // tail to prevent queued frames from leaking across chunk edges.
-        suppressCaptureUntilMs = Math.max(suppressCaptureUntilMs, System.currentTimeMillis() + durationMs + 100L);
+        // With a headset microphone capture must remain fully duplex while
+        // translated audio is playing. The acoustic guard is only relevant
+        // to the handset microphone and speaker combination.
+        if (!"headset".equals(preferredInput) && findInputHeadset() == null) {
+            suppressCaptureUntilMs = Math.max(suppressCaptureUntilMs,
+                    System.currentTimeMillis() + durationMs + 100L);
+        }
 
         // WRITE_BLOCKING parks the calling thread until the AudioTrack has
         // taken every byte. Doing that on the platform main thread also
@@ -699,7 +703,23 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         appliedRouteDevice = deviceKey;
         if ("headset".equals(output)) {
             android.media.AudioDeviceInfo mediaHeadset = device;
-            if (mediaHeadset != null && mediaHeadset.getType() == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+            boolean headsetMicActive = "headset".equals(preferredInput)
+                    || ("auto".equals(preferredInput) && findInputHeadset() != null);
+            if (headsetMicActive) {
+                // Bluetooth cannot carry A2DP media output and SCO microphone
+                // input at the same time. Keep both directions on the
+                // communication profile so capture continues during playback.
+                audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    android.media.AudioDeviceInfo target = findCommunicationOutputDevice("headset");
+                    if (target != null) audioManager.setCommunicationDevice(target);
+                } else {
+                    audioManager.startBluetoothSco();
+                    audioManager.setBluetoothScoOn(true);
+                }
+                audioManager.setSpeakerphoneOn(false);
+                Log.i(TAG, "Playback route selected: full-duplex headset communication profile");
+            } else if (mediaHeadset != null && mediaHeadset.getType() == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
                 // A2DP is a media route, not a communication route. Keeping
                 // MODE_IN_COMMUNICATION here makes some vendor drivers reject
                 // AudioTrack writes with -22 and fall back to the speaker.
@@ -719,15 +739,23 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     private android.media.AudioDeviceInfo findOutputDevice(String output) {
         if (audioManager == null || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M) return null;
         android.media.AudioDeviceInfo speaker = null;
+        android.media.AudioDeviceInfo sco = null;
+        android.media.AudioDeviceInfo mediaHeadset = null;
         for (android.media.AudioDeviceInfo device : audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
             int type = device.getType();
             if (type == android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) speaker = device;
             if ("speaker".equals(output) && type == android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) return device;
+            if (type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO) sco = device;
             if ("headset".equals(output) && (type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET
                     || type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES
                     || type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
-                    || type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-                    || type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET)) return device;
+                    || type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET)) mediaHeadset = device;
+        }
+        if ("headset".equals(output)) {
+            boolean headsetMicActive = "headset".equals(preferredInput)
+                    || ("auto".equals(preferredInput) && findInputHeadset() != null);
+            if (headsetMicActive && sco != null) return sco;
+            return mediaHeadset != null ? mediaHeadset : sco;
         }
         return "speaker".equals(output) ? speaker : null;
     }
@@ -1049,7 +1077,10 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 // Drop frames while translated playback (and its acoustic
                 // tail) is active. This prevents queued EventChannel frames
                 // from reaching the provider after the Dart-side gate ends.
-                if (!isHeadsetConnected() && System.currentTimeMillis() < suppressCaptureUntilMs) {
+                boolean headsetMicActive = "headset".equals(preferredInput)
+                        || ("auto".equals(preferredInput) && findInputHeadset() != null);
+                if (!headsetMicActive && !isHeadsetConnected()
+                        && System.currentTimeMillis() < suppressCaptureUntilMs) {
                     continue;
                 }
 
