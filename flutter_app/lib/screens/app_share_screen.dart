@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/app_share_service.dart';
 
 class AppShareScreen extends StatelessWidget {
@@ -12,7 +13,7 @@ class AppShareScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final share = context.watch<AppShareService>();
     return Scaffold(
-      appBar: AppBar(title: const Text('App direkt teilen')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).appShareTitle)),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Center(
@@ -33,41 +34,45 @@ class _StartShare extends StatelessWidget {
   final AppShareService share;
 
   @override
-  Widget build(BuildContext context) => Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.phone_android_rounded,
-              size: 64, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(height: 20),
-          Text('Direkt von diesem Gerät',
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 12),
-          Text(
-            'Der HTTPS-Link wird über Cloudflare vermittelt. Die APK bleibt auf diesem Gerät und wird erst beim Download direkt übertragen.',
-            textAlign: TextAlign.center,
-          ),
-          if (share.error != null) ...[
-            const SizedBox(height: 16),
-            Text(share.error!,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ],
-          const SizedBox(height: 28),
-          FilledButton.icon(
-            onPressed: share.isPreparing ? null : share.start,
-            icon: const Icon(Icons.qr_code_rounded),
-            label: Text(share.isPreparing ? 'Link wird vorbereitet …' : 'Download anbieten'),
-          ),
-          const SizedBox(height: 12),
-          Text(
-              'Der Empfänger muss Android erlauben, Apps aus dieser Quelle zu installieren.',
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.phone_android_rounded,
+            size: 64, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(height: 20),
+        Text(l10n.appShareDirectTitle,
+            style: Theme.of(context)
+                .textTheme
+                .headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 12),
+        Text(
+          l10n.appShareDirectBody,
+          textAlign: TextAlign.center,
+        ),
+        if (share.error != null) ...[
+          const SizedBox(height: 16),
+          Text(share.error!,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall),
+              style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ],
-      );
+        const SizedBox(height: 28),
+        FilledButton.icon(
+          onPressed: share.isPreparing ? null : share.start,
+          icon: const Icon(Icons.qr_code_rounded),
+          label: Text(share.isPreparing
+              ? l10n.appSharePreparingLink
+              : l10n.appShareOfferDownload),
+        ),
+        const SizedBox(height: 12),
+        Text(l10n.appShareInstallSourceHint,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
 }
 
 class _ActiveShare extends StatelessWidget {
@@ -76,11 +81,12 @@ class _ActiveShare extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final url = share.url!;
     return ListView(
       shrinkWrap: true,
       children: [
-        Text('Download bereit',
+        Text(l10n.appShareDownloadReady,
             textAlign: TextAlign.center,
             style: Theme.of(context)
                 .textTheme
@@ -95,17 +101,22 @@ class _ActiveShare extends StatelessWidget {
             textAlign: TextAlign.center),
         const SizedBox(height: 8),
         Text(
-            'Läuft bis ${_time(share.expiresAt)} • ${share.downloads} Downloads',
+            l10n.appShareExpiresInfo(
+                _time(share.expiresAt), share.downloads),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 14),
-        Text(share.status, textAlign: TextAlign.center,
+        Text(share.status,
+            textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
         LinearProgressIndicator(value: share.isTransferring ? share.progress : null),
         if (share.isTransferring || share.transferredBytes > 0) ...[
           const SizedBox(height: 6),
-          Text('${_bytes(share.transferredBytes)} von ${_bytes(share.apkBytes)} • ${_bytes(share.bytesPerSecond)}/s', textAlign: TextAlign.center,
+          Text(
+              l10n.appShareTransferProgress(_bytes(share.transferredBytes),
+                  _bytes(share.apkBytes), '${_bytes(share.bytesPerSecond)}/s'),
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall),
         ],
         const SizedBox(height: 20),
@@ -114,21 +125,21 @@ class _ActiveShare extends StatelessWidget {
             await Clipboard.setData(ClipboardData(text: url));
             if (context.mounted) {
               ScaffoldMessenger.of(context)
-                  .showSnackBar(const SnackBar(content: Text('Link kopiert')));
+                  .showSnackBar(SnackBar(content: Text(l10n.commonCopied)));
             }
           },
           icon: const Icon(Icons.copy_rounded),
-          label: const Text('Link kopieren'),
+          label: Text(l10n.appShareCopyLink),
         ),
         const SizedBox(height: 10),
         FilledButton.icon(
             onPressed: share.share,
             icon: const Icon(Icons.share_rounded),
-            label: const Text('Teilen')),
+            label: Text(l10n.commonShare)),
         TextButton.icon(
             onPressed: share.stop,
             icon: const Icon(Icons.close_rounded),
-            label: const Text('Download beenden')),
+            label: Text(l10n.appShareStopDownload)),
       ],
     );
   }

@@ -22,6 +22,7 @@ import '../services/audio_policy.dart';
 import '../services/audio_processor.dart';
 import '../services/speech_turn_buffer.dart';
 import '../services/error_logger.dart';
+import '../l10n/app_localizations.dart';
 import 'chat_screen.dart';
 
 class SessionScreen extends StatefulWidget {
@@ -141,8 +142,8 @@ class _SessionScreenState extends State<SessionScreen>
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              'Fish-Stimme für deine Ausgabe: ${_fishVoices[voiceId] ?? voiceId}')));
+          content: Text(AppLocalizations.of(context)
+              .sessionFishVoiceSelected(_fishVoices[voiceId] ?? voiceId))));
     }
   }
 
@@ -332,16 +333,14 @@ class _SessionScreenState extends State<SessionScreen>
               if (!_clippingDetected && AudioProcessor.detectClipping(chunk)) {
                 _clippingDetected = true;
                 if (mounted) {
+                  final l10n = AppLocalizations.of(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text(
-                        'Mikrofon übersteuert! Sprich etwas leiser oder '
-                        'vergrößere den Abstand zum Mikrofon.',
-                      ),
+                      content: Text(l10n.sessionMicClipping),
                       backgroundColor: Theme.of(context).colorScheme.error,
                       duration: const Duration(seconds: 4),
                       action: SnackBarAction(
-                        label: 'OK',
+                        label: l10n.commonOk,
                         textColor: Colors.white,
                         onPressed: () =>
                             ScaffoldMessenger.of(context).hideCurrentSnackBar(),
@@ -461,25 +460,23 @@ class _SessionScreenState extends State<SessionScreen>
   }
 
   Future<void> _confirmEndSession(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Session beenden?'),
-        content: const Text(
-          'Bist du sicher, dass du die Session beenden möchtest? '
-          'Die Verbindung wird getrennt und die Übersetzung gestoppt.',
-        ),
+        title: Text(l10n.sessionEndConfirmTitle),
+        content: Text(l10n.sessionEndConfirmBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Beenden'),
+            child: Text(l10n.commonEnd),
           ),
         ],
       ),
@@ -746,17 +743,18 @@ class _SessionScreenState extends State<SessionScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final audio = context.watch<AudioService>();
     final session = context.watch<SessionService>().currentSession;
     final isHost = session?.role == 'host';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(session?.roomId ?? 'Session'),
+        title: Text(session?.roomId ?? l10n.sessionDefaultTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline),
-            tooltip: 'Chat in Session öffnen',
+            tooltip: l10n.sessionOpenChatTooltip,
             onPressed: () => showModalBottomSheet<void>(
               context: context,
               isScrollControlled: true,
@@ -804,8 +802,8 @@ class _SessionScreenState extends State<SessionScreen>
                     // Status text
                     Text(
                       audio.isPeerConnected
-                          ? 'Verbunden — sprich jetzt!'
-                          : 'Warte auf Verbindung...',
+                          ? l10n.sessionConnectedSpeakNow
+                          : l10n.sessionWaitingForConnection,
                       style: Theme.of(context).textTheme.headlineSmall,
                       textAlign: TextAlign.center,
                     ),
@@ -814,10 +812,10 @@ class _SessionScreenState extends State<SessionScreen>
                     DropdownButtonFormField<String>(
                       value: _sessionTargetLanguage,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Ausgabe in',
-                        prefixIcon: Icon(Icons.translate),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.sessionOutputInLabel,
+                        prefixIcon: const Icon(Icons.translate),
+                        border: const OutlineInputBorder(),
                       ),
                       items: _languageLabels.entries
                           .map((entry) => DropdownMenuItem<String>(
@@ -885,13 +883,13 @@ class _SessionScreenState extends State<SessionScreen>
                             alignment: Alignment.centerRight,
                             child: TextButton.icon(
                               icon: const Icon(Icons.graphic_eq, size: 18),
-                              label: const Text('Testton für Pegel'),
+                              label: Text(l10n.sessionLevelTestTone),
                               onPressed: () async {
                                 final ok = await _snailAudio.playTestTone();
                                 if (!mounted || ok) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Testton konnte nicht gestartet werden'),
+                                  SnackBar(
+                                    content: Text(l10n.sessionTestToneFailed),
                                   ),
                                 );
                               },
@@ -901,14 +899,15 @@ class _SessionScreenState extends State<SessionScreen>
                       ),
                     ),
                     Text(
-                      'Eingangssprache: automatisch erkannt · Ausgabe: ${_sessionTargetLanguage.toUpperCase()}',
+                      l10n.sessionInputOutputSummary(
+                          _sessionTargetLanguage.toUpperCase()),
                       style: Theme.of(context).textTheme.bodySmall,
                       textAlign: TextAlign.center,
                     ),
                     if (_fishTranslationError != null) ...[
                       const SizedBox(height: 6),
                       Text(
-                        'Keine Übersetzung: $_fishTranslationError',
+                        l10n.sessionNoTranslation(_fishTranslationError!),
                         style: Theme.of(context)
                             .textTheme
                             .bodySmall
@@ -934,10 +933,10 @@ class _SessionScreenState extends State<SessionScreen>
                                 .config
                                 .voiceId
                             : _fishVoices.keys.first,
-                        decoration: const InputDecoration(
-                          labelText: 'Meine Fish-Audio-Stimme',
-                          prefixIcon: Icon(Icons.record_voice_over),
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: l10n.sessionMyFishVoiceLabel,
+                          prefixIcon: const Icon(Icons.record_voice_over),
+                          border: const OutlineInputBorder(),
                         ),
                         items: _fishVoices.entries
                             .map((entry) => DropdownMenuItem<String>(
@@ -949,7 +948,7 @@ class _SessionScreenState extends State<SessionScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Diese Stimme wird nur für deine übersetzte Ausgabe verwendet.',
+                        l10n.sessionVoiceHint,
                         style: Theme.of(context).textTheme.bodySmall,
                         textAlign: TextAlign.center,
                       ),
@@ -961,20 +960,21 @@ class _SessionScreenState extends State<SessionScreen>
                           child: DropdownButtonFormField<AudioOutput>(
                             value: _audioPolicy.output,
                             isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Ausgabe',
-                              prefixIcon: Icon(Icons.volume_up),
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: l10n.sessionOutputLabel,
+                              prefixIcon: const Icon(Icons.volume_up),
+                              border: const OutlineInputBorder(),
                             ),
-                            items: const [
+                            items: [
                               DropdownMenuItem(
-                                  value: AudioOutput.auto, child: Text('Auto')),
+                                  value: AudioOutput.auto,
+                                  child: Text(l10n.audioRouteAuto)),
                               DropdownMenuItem(
                                   value: AudioOutput.speaker,
-                                  child: Text('Lautsprecher')),
+                                  child: Text(l10n.audioRouteSpeaker)),
                               DropdownMenuItem(
                                   value: AudioOutput.headset,
-                                  child: Text('Headset')),
+                                  child: Text(l10n.audioRouteHeadset)),
                             ],
                             onChanged: (value) {
                               if (value != null) {
@@ -989,20 +989,21 @@ class _SessionScreenState extends State<SessionScreen>
                           child: DropdownButtonFormField<AudioInput>(
                             value: AudioInput.auto,
                             isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Mikrofon',
-                              prefixIcon: Icon(Icons.mic),
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: l10n.sessionMicrophoneLabel,
+                              prefixIcon: const Icon(Icons.mic),
+                              border: const OutlineInputBorder(),
                             ),
-                            items: const [
+                            items: [
                               DropdownMenuItem(
-                                  value: AudioInput.auto, child: Text('Auto')),
+                                  value: AudioInput.auto,
+                                  child: Text(l10n.audioRouteAuto)),
                               DropdownMenuItem(
                                   value: AudioInput.phone,
-                                  child: Text('Telefon')),
+                                  child: Text(l10n.audioRoutePhone)),
                               DropdownMenuItem(
                                   value: AudioInput.headset,
-                                  child: Text('Headset')),
+                                  child: Text(l10n.audioRouteHeadset)),
                             ],
                             onChanged: (value) {
                               if (value != null) _snailAudio.setInput(value);
@@ -1012,8 +1013,7 @@ class _SessionScreenState extends State<SessionScreen>
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                        'Audio-Geräte können während der Session gewechselt werden.',
+                    Text(l10n.sessionAudioDeviceHint,
                         style: Theme.of(context).textTheme.bodySmall),
 
                     if (_openAi != null) ...[
@@ -1024,26 +1024,27 @@ class _SessionScreenState extends State<SessionScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Live-Transkript',
+                              Text(l10n.sessionLiveTranscriptTitle,
                                   style:
                                       Theme.of(context).textTheme.titleSmall),
                               const SizedBox(height: 4),
                               Text(_openAi!.inputTranscript.isEmpty
-                                  ? 'Quelle wird erkannt …'
+                                  ? l10n.sessionSourceDetecting
                                   : _openAi!.inputTranscript),
                               const Divider(),
                               Text(_openAi!.outputTranscript.isEmpty
-                                  ? 'Übersetzung wird erzeugt …'
+                                  ? l10n.sessionTranslationGenerating
                                   : _openAi!.outputTranscript),
                               const SizedBox(height: 4),
-                              Text('Realtime: ${_openAi!.state}',
+                              Text(l10n.sessionRealtimeState(_openAi!.state),
                                   style:
                                       Theme.of(context).textTheme.labelSmall),
                               if (_openAi!.lastError?.trim().isNotEmpty ==
                                   true) ...[
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Verbindungsdetail: ${_openAi!.lastError}',
+                                  l10n.sessionConnectionDetail(
+                                      _openAi!.lastError!),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context)
@@ -1092,7 +1093,7 @@ class _SessionScreenState extends State<SessionScreen>
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Code: ${session.roomId}',
+                        l10n.sessionRoomCode(session.roomId),
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontFamily: 'monospace',
@@ -1100,7 +1101,7 @@ class _SessionScreenState extends State<SessionScreen>
                                 ),
                       ),
                       const SizedBox(height: 8),
-                      const Text('Lass deinen Gesprächspartner scannen'),
+                      Text(l10n.sessionLetPartnerScan),
                     ],
 
                     SizedBox(height: compact ? 20 : 48),
@@ -1128,7 +1129,9 @@ class _SessionScreenState extends State<SessionScreen>
                       builder: (context, level, _) => _LevelMeter(level: level),
                     ),
                     const SizedBox(height: 8),
-                    Text(audio.isMuted ? 'Stumm' : 'Aktiv'),
+                    Text(audio.isMuted
+                        ? l10n.sessionMuted
+                        : l10n.sessionActive),
 
                     SizedBox(height: compact ? 20 : 48),
 
@@ -1136,7 +1139,7 @@ class _SessionScreenState extends State<SessionScreen>
                     OutlinedButton.icon(
                       onPressed: () => _confirmEndSession(context),
                       icon: const Icon(Icons.call_end, color: Colors.red),
-                      label: const Text('Session beenden'),
+                      label: Text(l10n.sessionEndButton),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.red),
@@ -1169,6 +1172,7 @@ class _LatencyPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
     final tfa = service.timeToFirstAudio;
     final tft = service.timeToFirstTranscript;
@@ -1188,19 +1192,19 @@ class _LatencyPanel extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _LatencyChip(
-                  label: 'Input',
+                  label: l10n.sessionLatencyInput,
                   value: _fmt(tfa),
                   icon: Icons.mic_rounded,
                   colors: colors,
                 ),
                 _LatencyChip(
-                  label: 'Output',
+                  label: l10n.sessionLatencyOutput,
                   value: _fmt(tft),
                   icon: Icons.headphones_rounded,
                   colors: colors,
                 ),
                 _LatencyChip(
-                  label: 'Gesamt',
+                  label: l10n.sessionLatencyTotal,
                   value: tfa != null && tft != null
                       ? _fmt(Duration(
                           milliseconds:

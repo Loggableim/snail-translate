@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../services/error_logger.dart';
 
 class ErrorLogScreen extends StatefulWidget {
@@ -13,13 +14,14 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
   bool _detailsVisible = true;
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Fehlerprotokoll'),
+        title: Text(l10n.errorLogTitle),
         actions: [
           Consumer<ErrorLogger>(
             builder: (_, logger, __) => IconButton(
-              tooltip: 'Logs kopieren',
+              tooltip: l10n.errorLogCopyLogsTooltip,
               icon: const Icon(Icons.copy_all_rounded),
               onPressed: logger.getLogs().isEmpty
                   ? null
@@ -28,15 +30,15 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                           ClipboardData(text: logger.exportLogs()));
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Fehlerprotokoll kopiert')));
+                            SnackBar(content: Text(l10n.errorLogCopied)));
                       }
                     },
             ),
           ),
           IconButton(
-            tooltip:
-                _detailsVisible ? 'Details ausblenden' : 'Details einblenden',
+            tooltip: _detailsVisible
+                ? l10n.errorLogHideDetails
+                : l10n.errorLogShowDetails,
             icon: Icon(_detailsVisible
                 ? Icons.visibility_off_outlined
                 : Icons.visibility_outlined),
@@ -49,18 +51,18 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                   showDialog(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('Protokoll löschen?'),
+                      title: Text(l10n.errorLogClearConfirmTitle),
                       actions: [
                         TextButton(
                             onPressed: () => Navigator.pop(ctx),
-                            child: const Text('Abbrechen')),
+                            child: Text(l10n.commonCancel)),
                         TextButton(
                           onPressed: () {
                             logger.clearLogs();
                             Navigator.pop(ctx);
                           },
-                          child: const Text('Löschen',
-                              style: TextStyle(color: Colors.red)),
+                          child: Text(l10n.commonDelete,
+                              style: const TextStyle(color: Colors.red)),
                         ),
                       ],
                     ),
@@ -68,8 +70,7 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                 }
               },
               itemBuilder: (_) => [
-                const PopupMenuItem(
-                    value: 'clear', child: Text('Alle löschen')),
+                PopupMenuItem(value: 'clear', child: Text(l10n.errorLogClearAll)),
               ],
             ),
           ),
@@ -79,14 +80,14 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
         builder: (_, logger, __) {
           final logs = logger.getLogs();
           if (logs.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle, size: 64, color: Colors.green),
-                  SizedBox(height: 16),
-                  Text('Keine Fehler — alles sauber!',
-                      style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  const Icon(Icons.check_circle, size: 64, color: Colors.green),
+                  const SizedBox(height: 16),
+                  Text(l10n.errorLogEmpty,
+                      style: const TextStyle(color: Colors.grey, fontSize: 16)),
                 ],
               ),
             );
@@ -100,14 +101,13 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
                   child: FilledButton.icon(
                     icon: const Icon(Icons.copy_all_rounded),
-                    label: const Text('Fehlerlogs kopieren'),
+                    label: Text(l10n.errorLogCopyLogs),
                     onPressed: () async {
                       await Clipboard.setData(
                           ClipboardData(text: logger.exportLogs()));
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Fehlerlogs in Zwischenablage kopiert')),
+                          SnackBar(content: Text(l10n.errorLogCopiedToClipboard)),
                         );
                       }
                     },

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../services/transcript_history.dart';
 
 class HistoryScreen extends StatelessWidget {
@@ -7,15 +8,16 @@ class HistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Verlauf'),
+        title: Text(l10n.historyTitle),
         actions: [
           Consumer<TranscriptHistory>(
             builder: (_, history, __) => history.entries.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.delete_sweep),
-                    tooltip: 'Alle löschen',
+                    tooltip: l10n.historyClearAllTooltip,
                     onPressed: () => _confirmClearAll(context, history),
                   )
                 : const SizedBox.shrink(),
@@ -25,14 +27,14 @@ class HistoryScreen extends StatelessWidget {
       body: Consumer<TranscriptHistory>(
         builder: (_, history, __) {
           if (history.entries.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.history, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('Keine Transkripte',
-                      style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  const Icon(Icons.history, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(l10n.historyEmpty,
+                      style: const TextStyle(color: Colors.grey, fontSize: 16)),
                 ],
               ),
             );
@@ -137,21 +139,22 @@ class HistoryScreen extends StatelessWidget {
   }
 
   void _confirmClearAll(BuildContext context, TranscriptHistory history) {
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Alle löschen?'),
-        content: const Text('Möchtest du wirklich alle Transkripte löschen?'),
+        title: Text(l10n.historyClearAllConfirmTitle),
+        content: Text(l10n.historyClearAllConfirmBody),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Abbrechen')),
+              child: Text(l10n.commonCancel)),
           TextButton(
             onPressed: () {
               history.clearHistory();
               Navigator.pop(ctx);
             },
-            child: const Text('Löschen', style: TextStyle(color: Colors.red)),
+            child: Text(l10n.commonDelete, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -159,18 +162,19 @@ class HistoryScreen extends StatelessWidget {
   }
 
   Future<bool> _confirmDelete(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Löschen?'),
-        content: const Text('Diesen Eintrag löschen?'),
+        title: Text(l10n.historyDeleteConfirmTitle),
+        content: Text(l10n.historyDeleteConfirmBody),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen')),
+              child: Text(l10n.commonCancel)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Löschen', style: TextStyle(color: Colors.red)),
+            child: Text(l10n.commonDelete, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../services/error_logger.dart';
 import '../services/session_service.dart';
 import '../services/user_identity_service.dart';
@@ -17,17 +18,18 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Einstellungen'), actions: [
+      appBar: AppBar(title: Text(l10n.commonSettings), actions: [
         IconButton(
             icon: const Icon(Icons.key),
-            tooltip: 'BYOK-Provider',
+            tooltip: l10n.settingsByokProviderTooltip,
             onPressed: () => Navigator.pushNamed(context, '/provider-settings'))
       ]),
       body: ListView(
         children: [
           // ── Meine Sprache ──
-          _sectionHeader('Meine Sprache'),
+          _sectionHeader(l10n.settingsMyLanguageSection),
           Consumer<SessionService>(
             builder: (_, session, __) {
               final current = session.myLanguage;
@@ -35,9 +37,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: DropdownButtonFormField<String>(
                   value: current,
-                  decoration: const InputDecoration(
-                    labelText: 'Ich spreche',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: l10n.settingsISpeak,
+                    border: const OutlineInputBorder(),
                   ),
                   items: const [
                     DropdownMenuItem(value: 'de', child: Text('Deutsch')),
@@ -63,8 +65,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: DropdownButtonFormField<String>(
                 value: session.targetLanguage,
-                decoration: const InputDecoration(
-                    labelText: 'Übersetzen in', border: OutlineInputBorder()),
+                decoration: InputDecoration(
+                    labelText: l10n.settingsTranslateInto,
+                    border: const OutlineInputBorder()),
                 items: const [
                   DropdownMenuItem(value: 'de', child: Text('Deutsch')),
                   DropdownMenuItem(value: 'en', child: Text('English')),
@@ -84,45 +87,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
 
-          _sectionHeader('Unterstützte Sprachen'),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
+          _sectionHeader(l10n.settingsSupportedLanguagesSection),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Snail übersetzt live zwischen diesen Sprachen. '
-              'Weitere Sprachen folgen mit kommenden Updates.',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
+              l10n.settingsSupportedLanguagesBody,
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
             ),
           ),
           const SizedBox(height: 10),
           const _LanguageChips(),
           const SizedBox(height: 16),
 
-          _sectionHeader('Audio'),
+          _sectionHeader(l10n.settingsAudioSection),
           Consumer<AudioPolicy>(
             builder: (_, policy, __) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: DropdownButtonFormField<AudioPolicyProfile>(
                 value: policy.profile,
-                decoration: const InputDecoration(
-                  labelText: 'Audio- und Echo-Profil',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.settingsAudioEchoProfile,
+                  border: const OutlineInputBorder(),
                 ),
-                items: const [
+                items: [
                   DropdownMenuItem(
                     value: AudioPolicyProfile.auto,
-                    child: Text('Automatisch'),
+                    child: Text(l10n.settingsProfileAuto),
                   ),
                   DropdownMenuItem(
                     value: AudioPolicyProfile.headset,
-                    child: Text('Headset'),
+                    child: Text(l10n.audioRouteHeadset),
                   ),
                   DropdownMenuItem(
                     value: AudioPolicyProfile.speakerEcho,
-                    child: Text('Lautsprecher / Echo'),
+                    child: Text(l10n.settingsProfileSpeakerEcho),
                   ),
                   DropdownMenuItem(
                     value: AudioPolicyProfile.longerSpeech,
-                    child: Text('Längere Sätze'),
+                    child: Text(l10n.settingsProfileLongerSentences),
                   ),
                 ],
                 onChanged: (value) {
@@ -134,30 +136,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 12),
           ListTile(
             leading: const Icon(Icons.volume_up_rounded),
-            title: const Text('Lautsprecher testen'),
-            subtitle: const Text('Spielt lokal einen kurzen Testton ab. Keine Aufnahme und kein API-Aufruf.'),
+            title: Text(l10n.settingsTestSpeaker),
+            subtitle: Text(l10n.settingsTestSpeakerHint),
             onTap: () async {
               final ok = await SnailAudio().playTestTone();
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(ok ? 'Testton wird über den Lautsprecher ausgegeben' : 'Testton konnte nicht gestartet werden'),
+                  content: Text(ok
+                      ? l10n.settingsTestToneOutputting
+                      : l10n.sessionTestToneFailed),
                 ));
               }
             },
           ),
 
           // ── API-Keys ──
-          _sectionHeader('Meine Identität'),
+          _sectionHeader(l10n.settingsMyIdentitySection),
           Consumer<UserIdentityService>(
             builder: (_, identity, __) => ListTile(
               leading: const Icon(Icons.qr_code_2),
-              title: Text(identity.identity?.username ?? 'Snail User'),
-              subtitle: Text(identity.identity?.userId ?? 'wird eingerichtet'),
+              title: Text(identity.identity?.username ?? l10n.settingsSnailUserFallback),
+              subtitle: Text(
+                  identity.identity?.userId ?? l10n.settingsBeingSetUp),
               trailing: identity.identity == null
                   ? null
                   : IconButton(
                       icon: const Icon(Icons.edit),
-                      tooltip: 'Username ändern',
+                      tooltip: l10n.settingsChangeUsernameTooltip,
                       onPressed: () => _editUsername(context, identity),
                     ),
               onTap: identity.identity == null
@@ -167,27 +172,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.account_circle_outlined),
-            title: const Text('Profil und Nutzung'),
-            subtitle: const Text('Identität, Kontingent und Sitzungsverlauf'),
+            title: Text(l10n.settingsProfileAndUsage),
+            subtitle: Text(l10n.settingsProfileAndUsageSubtitle),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.pushNamed(context, '/profile'),
           ),
-          _sectionHeader('BYOK-Übersetzung'),
+          _sectionHeader(l10n.settingsByokSection),
           ListTile(
-            leading: Icon(Icons.key),
-            title: Text('Eigener Provider'),
-            subtitle: Text(
-                'Ollama lokal/private URL oder günstiges OpenAI-Modell. Schlüssel werden zur Laufzeit konfiguriert.'),
+            leading: const Icon(Icons.key),
+            title: Text(l10n.settingsOwnProvider),
+            subtitle: Text(l10n.settingsOwnProviderSubtitle),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.pushNamed(context, '/provider-settings'),
           ),
           const SizedBox(height: 16),
 
           // ── Fehlerprotokoll ──
-          _sectionHeader('Fehlerprotokoll'),
+          _sectionHeader(l10n.errorLogTitle),
           ListTile(
             leading: const Icon(Icons.bug_report),
-            title: const Text('Fehlerprotokoll anzeigen'),
+            title: Text(l10n.settingsShowErrorLog),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const ErrorLogScreen())),
@@ -198,28 +202,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               return ListTile(
                 leading: const Icon(Icons.delete_outline),
                 title: Text(count > 0
-                    ? 'Protokoll löschen ($count Einträge)'
-                    : 'Protokoll löschen'),
+                    ? l10n.settingsClearLogWithCount(count)
+                    : l10n.settingsClearLog),
                 enabled: count > 0,
                 onTap: count > 0
                     ? () {
                         showDialog(
                           context: context,
                           builder: (ctx) => AlertDialog(
-                            title: const Text('Protokoll löschen?'),
-                            content:
-                                Text('$count Einträge unwiderruflich löschen?'),
+                            title: Text(l10n.errorLogClearConfirmTitle),
+                            content: Text(
+                                l10n.settingsClearLogConfirmBody(count)),
                             actions: [
                               TextButton(
                                   onPressed: () => Navigator.pop(ctx),
-                                  child: const Text('Abbrechen')),
+                                  child: Text(l10n.commonCancel)),
                               TextButton(
                                 onPressed: () {
                                   logger.clearLogs();
                                   Navigator.pop(ctx);
                                 },
-                                child: const Text('Löschen',
-                                    style: TextStyle(color: Colors.red)),
+                                child: Text(l10n.commonDelete,
+                                    style: const TextStyle(color: Colors.red)),
                               ),
                             ],
                           ),
@@ -232,11 +236,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 32),
 
           // ── App-Info ──
-          _sectionHeader('App'),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('Snail v0.2.0'),
-            subtitle: Text('Echtzeit-Konversationsübersetzer'),
+          _sectionHeader(l10n.settingsAppSection),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('Snail v0.2.0'),
+            subtitle: Text(l10n.settingsAppSubtitle),
           ),
         ],
       ),
@@ -260,25 +264,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _editUsername(
       BuildContext context, UserIdentityService identity) async {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController(text: identity.identity!.username);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Username ändern'),
+        title: Text(l10n.settingsChangeUsernameTitle),
         content: TextField(
             controller: controller,
             autofocus: true,
-            decoration: const InputDecoration(labelText: 'Username')),
+            decoration: InputDecoration(labelText: l10n.settingsUsernameLabel)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Abbrechen')),
+              child: Text(l10n.commonCancel)),
           FilledButton(
               onPressed: () {
                 identity.setUsername(controller.text);
                 Navigator.pop(dialogContext);
               },
-              child: const Text('Speichern')),
+              child: Text(l10n.commonSave)),
         ],
       ),
     );

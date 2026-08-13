@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import '../l10n/app_localizations.dart';
 import '../services/snail_audio.dart';
 import '../services/openai_realtime_service.dart';
 import '../services/gemini_live_service.dart';
@@ -53,8 +54,11 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
   bool _running = false;
   String _phoneLanguage = 'Deutsch';
   String _headsetLanguage = 'English';
-  String _lastSource = 'Noch keine Quelle erkannt';
-  String _status = 'Bereit';
+  // Raw state rather than pre-translated text, so the locale can change
+  // (or the widget can simply be localized) without stale strings sticking
+  // around in State fields declared before a BuildContext exists.
+  String? _lastSourceKey;
+  _StandaloneStatus _status = const _StandaloneStatus.ready();
   int _sourceFrames = 0;
   DateTime? _lastFrameAt;
   bool _hasHeadset = false;
@@ -80,28 +84,27 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       if (mounted) {
         setState(() {
           _running = false;
-          _status = 'Bereit';
+          _status = const _StandaloneStatus.ready();
         });
       }
       return;
     }
+    final l10n = AppLocalizations.of(context);
     final config = context.read<ProviderConfigService>().config;
     final sessionService = context.read<SessionService>();
     final audioPolicy = context.read<AudioPolicy>();
     if (config.provider == TranslationProvider.ollama) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text(
-              'Für Live-Audio bitte OpenAI Realtime oder Gemini Live in BYOK-Provider auswählen.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.standaloneNeedRealtimeProviderHint)));
       return;
     }
     if (config.provider != TranslationProvider.openAi &&
         config.apiKey.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text(
-              'Für den Standalone-Modus zuerst einen BYOK-Key hinterlegen.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.standaloneNeedByokKeyHint)));
       return;
     }
-    setState(() => _status = 'Live-Übersetzung wird verbunden …');
+    setState(() => _status = const _StandaloneStatus.connecting());
     try {
       final permissionProbe = await navigator.mediaDevices
           .getUserMedia({'audio': true, 'video': false});
@@ -110,8 +113,8 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Mikrofon-Berechtigung wurde nicht erteilt.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.standaloneMicPermissionDenied)));
       }
       return;
     }
@@ -125,8 +128,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
                 .fetchOpenAiClientSecret(_languageCodes[_headsetLanguage]!)
             : config.apiKey.trim();
         if (openAiCredential == null || openAiCredential.isEmpty) {
-          throw StateError(
-              'OpenAI-Client-Secret konnte für den Schnellübersetzer nicht abgerufen werden');
+          throw StateError(l10n.standaloneClientSecretFailed);
         }
         final openAiConnections = <Future<void>>[
           _phoneOpenAi.connect(
@@ -200,8 +202,8 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
           _headsetFish.disconnect()
         ]);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Dual-Mikrofon konnte nicht gestartet werden')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.standaloneDualMicStartFailed)));
         return;
       }
       _audioDiagnostics = await _audio.getAudioDiagnostics();
@@ -212,8 +214,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       }
       _subscription = _audio.standaloneStream?.listen((frame) {
         if (!mounted) return;
-        _lastSource =
-            frame['source'] == 'phone' ? 'Handy-Mikrofon' : 'Headset-Mikrofon';
+        _lastSourceKey = frame['source'] == 'phone' ? 'phone' : 'headset';
         _sourceFrames++;
         _lastFrameAt = DateTime.now();
         final bytes = frame['bytes'] as Uint8List;
@@ -251,9 +252,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       });
       setState(() {
         _running = true;
-        _status = _hasHeadset
-            ? 'Live-Übersetzung aktiv'
-            : 'Live-Übersetzung aktiv – ein Mikrofon';
+        _status = _StandaloneStatus.active(singleMic: !_hasHeadset);
       });
       _uiRefreshTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
         if (!mounted || !_running) return;
@@ -274,14 +273,13 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
                   ];
         final stale = _lastFrameAt == null ||
             DateTime.now().difference(_lastFrameAt!).inMilliseconds > 2000;
-        final next = states.contains('degraded') || states.contains('error')
-            ? '${config.provider.displayName}: Wiederverbindung läuft'
-            : stale
-                ? 'Verbunden – warte auf Sprache'
-                : (_hasHeadset
-                    ? 'Live-Übersetzung aktiv'
-                    : 'Live-Übersetzung aktiv – ein Mikrofon');
-        if (next != _status) setState(() => _status = next);
+        final _StandaloneStatus next =
+            states.contains('degraded') || states.contains('error')
+                ? _StandaloneStatus.reconnecting(config.provider.displayName)
+                : stale
+                    ? const _StandaloneStatus.connectedWaiting()
+                    : _StandaloneStatus.active(singleMic: !_hasHeadset);
+        setState(() => _status = next);
       });
     } catch (error) {
       await Future.wait([
@@ -293,8 +291,8 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         _headsetFish.disconnect()
       ]);
       if (mounted) {
-        setState(() => _status =
-            '${config.provider.displayName}: Verbindung fehlgeschlagen');
+        setState(() => _status = _StandaloneStatus.connectionFailed(
+            config.provider.displayName));
       }
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -355,7 +353,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
             // translation while nothing was translated at all.
             if (mounted) {
               setState(() =>
-                  _status = 'Keine Übersetzung: ${result.reason}');
+                  _status = _StandaloneStatus.noTranslation(result.reason!));
             }
             continue;
           }
@@ -364,7 +362,10 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
           output.flush();
         }
       } catch (error) {
-        if (mounted) setState(() => _status = 'Fish-Pipeline Fehler: $error');
+        if (mounted) {
+          setState(() =>
+              _status = _StandaloneStatus.fishError(error.toString()));
+        }
       } finally {
         _fishBusy[source] = false;
       }
@@ -404,56 +405,69 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Schnellübersetzer')),
-        body: ListView(padding: const EdgeInsets.all(20), children: [
-          const Text('Ein Gerät, zwei Mikrofone',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          const Text(
-              'Das Handy-Mikrofon hört die Gesprächsperson. Das Headset-Mikrofon nimmt den Nutzer auf. Beide Quellen bleiben getrennt, damit Richtung, Sprecher und Noise Suppression sauber zugeordnet werden können.'),
-          const SizedBox(height: 20),
-          Consumer<ProviderConfigService>(
-            builder: (_, service, __) => Card(
-              child: ListTile(
-                leading: const Icon(Icons.hub_outlined),
-                title: const Text('Übersetzungs-Provider'),
-                subtitle: Text(service.config.provider.displayName),
-              ),
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final active = _audioDiagnostics['aecActive'] == true
+        ? l10n.standaloneActive
+        : l10n.standaloneInactive;
+    final nsActive = _audioDiagnostics['noiseSuppressionActive'] == true
+        ? l10n.standaloneActive
+        : l10n.standaloneInactive;
+    final lastSourceText = switch (_lastSourceKey) {
+      'phone' => l10n.standalonePhoneMic,
+      'headset' => l10n.standaloneHeadsetMic,
+      _ => l10n.standaloneNoSourceYet,
+    };
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.standaloneTitle)),
+      body: ListView(padding: const EdgeInsets.all(20), children: [
+        Text(l10n.standaloneHeadline,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text(l10n.standaloneExplanation),
+        const SizedBox(height: 20),
+        Consumer<ProviderConfigService>(
+          builder: (_, service, __) => Card(
+            child: ListTile(
+              leading: const Icon(Icons.hub_outlined),
+              title: Text(l10n.standaloneTranslationProvider),
+              subtitle: Text(service.config.provider.displayName),
             ),
           ),
-          _language('Handy-Mikrofon – Gesprächspartner', _phoneLanguage,
-              (v) => setState(() => _phoneLanguage = v!)),
-          _language('Headset-Mikrofon – Nutzer', _headsetLanguage,
-              (v) => setState(() => _headsetLanguage = v!)),
-          const SizedBox(height: 20),
+        ),
+        _language(l10n.standalonePhoneMicPartner, _phoneLanguage,
+            (v) => setState(() => _phoneLanguage = v!)),
+        _language(l10n.standaloneHeadsetMicUser, _headsetLanguage,
+            (v) => setState(() => _headsetLanguage = v!)),
+        const SizedBox(height: 20),
+        Card(
+            child: ListTile(
+                leading: Icon(_running ? Icons.mic : Icons.mic_off),
+                title: Text(_status.text(l10n)),
+                subtitle: Text(l10n.standaloneFrameSummary(
+                    lastSourceText,
+                    _sourceFrames,
+                    _hasHeadset ? '' : l10n.standaloneNoHeadsetSuffix)))),
+        if (_audioDiagnostics.isNotEmpty)
           Card(
               child: ListTile(
-                  leading: Icon(_running ? Icons.mic : Icons.mic_off),
-                  title: Text(_status),
-                  subtitle: Text(
-                      '$_lastSource · $_sourceFrames Audioframes${_hasHeadset ? '' : ' · kein Headset'}'))),
-          if (_audioDiagnostics.isNotEmpty)
-            Card(
-                child: ListTile(
-                    leading: const Icon(Icons.settings_input_component),
-                    title: Text(_audioDiagnostics['outputRoute']?.toString() ??
-                        'Audio-Route unbekannt'),
-                    subtitle: Text(
-                        'AEC: ${_audioDiagnostics['aecActive'] == true ? 'aktiv' : 'nicht aktiv'} · '
-                        'NS: ${_audioDiagnostics['noiseSuppressionActive'] == true ? 'aktiv' : 'nicht aktiv'}'))),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-              onPressed: _toggle,
-              icon: Icon(_running ? Icons.stop : Icons.play_arrow),
-              label: Text(
-                  _running ? 'Übersetzung stoppen' : 'Übersetzung starten')),
-          const SizedBox(height: 12),
-          const Text(
-              'Hinweis: Auf manchen Android-Geräten erlaubt der Audiotreiber nicht zwei parallele AudioRecord-Instanzen. Dann wird der Modus mit einer Quelle angeboten; die App zeigt den Zustand an.',
-              style: TextStyle(fontSize: 12)),
-        ]),
-      );
+                  leading: const Icon(Icons.settings_input_component),
+                  title: Text(_audioDiagnostics['outputRoute']?.toString() ??
+                      l10n.standaloneUnknownAudioRoute),
+                  subtitle: Text(l10n.standaloneAecNsSummary(active, nsActive)))),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+            onPressed: _toggle,
+            icon: Icon(_running ? Icons.stop : Icons.play_arrow),
+            label: Text(_running
+                ? l10n.standaloneStopTranslation
+                : l10n.standaloneStartTranslation)),
+        const SizedBox(height: 12),
+        Text(l10n.standaloneSingleAudioRecordHint,
+            style: const TextStyle(fontSize: 12)),
+      ]),
+    );
+  }
 
   Widget _language(
           String label, String value, ValueChanged<String?> onChanged) =>
@@ -477,4 +491,44 @@ class _PlaybackChunk {
 
   final Uint8List bytes;
   final AudioOutput output;
+}
+
+/// The status line's semantic state, translated at display time in build().
+class _StandaloneStatus {
+  const _StandaloneStatus.ready() : _kind = 'ready', _arg = null;
+  const _StandaloneStatus.connecting() : _kind = 'connecting', _arg = null;
+  const _StandaloneStatus.active({required bool singleMic})
+      : _kind = singleMic ? 'activeSingleMic' : 'active',
+        _arg = null;
+  const _StandaloneStatus.reconnecting(String provider)
+      : _kind = 'reconnecting',
+        _arg = provider;
+  const _StandaloneStatus.connectedWaiting()
+      : _kind = 'connectedWaiting',
+        _arg = null;
+  const _StandaloneStatus.connectionFailed(String provider)
+      : _kind = 'connectionFailed',
+        _arg = provider;
+  const _StandaloneStatus.noTranslation(String reason)
+      : _kind = 'noTranslation',
+        _arg = reason;
+  const _StandaloneStatus.fishError(String error)
+      : _kind = 'fishError',
+        _arg = error;
+
+  final String _kind;
+  final String? _arg;
+
+  String text(AppLocalizations l10n) => switch (_kind) {
+        'ready' => l10n.standaloneStatusReady,
+        'connecting' => l10n.standaloneStatusConnecting,
+        'active' => l10n.standaloneStatusActive,
+        'activeSingleMic' => l10n.standaloneStatusActiveSingleMic,
+        'reconnecting' => l10n.standaloneStatusReconnecting(_arg!),
+        'connectedWaiting' => l10n.standaloneStatusConnectedWaiting,
+        'connectionFailed' => l10n.standaloneStatusConnectionFailed(_arg!),
+        'noTranslation' => l10n.sessionNoTranslation(_arg!),
+        'fishError' => l10n.standaloneStatusFishError(_arg!),
+        _ => '',
+      };
 }

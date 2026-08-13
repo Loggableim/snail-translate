@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'l10n/app_localizations.dart';
 import 'services/session_service.dart';
 import 'services/audio_service.dart';
 import 'services/user_identity_service.dart';
@@ -28,6 +30,25 @@ import 'screens/contacts_screen.dart';
 import 'screens/standalone_screen.dart';
 import 'screens/app_share_screen.dart';
 import 'screens/profile_screen.dart';
+
+/// Picks the app locale for a given device locale.
+///
+/// Matches by language code only (ignoring region/script), so e.g. `de_AT`
+/// still resolves to the `de` translation. Falls back to English, not German
+/// (the ARB template language), for any language Snail does not ship a
+/// translation for — an unsupported locale should not silently look like a
+/// German-only app to everyone else. Runs on every app start, so a language
+/// change in system settings is picked up immediately, not just at install.
+Locale resolveAppLocale(Locale? deviceLocale, Iterable<Locale> supportedLocales) {
+  if (deviceLocale != null) {
+    for (final supported in supportedLocales) {
+      if (supported.languageCode == deviceLocale.languageCode) {
+        return supported;
+      }
+    }
+  }
+  return const Locale('en');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -99,6 +120,14 @@ class SnailApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: theme.themeMode,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            localeResolutionCallback: resolveAppLocale,
             initialRoute: '/welcome',
             routes: {
               '/welcome': (_) => const WelcomeScreen(),

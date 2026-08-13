@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../l10n/app_localizations.dart';
 import '../services/user_identity_service.dart';
 
 class IdentityQrScreen extends StatelessWidget {
@@ -8,8 +9,9 @@ class IdentityQrScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Meine Snail-ID')),
+      appBar: AppBar(title: Text(l10n.identityQrTitle)),
       body: Consumer<UserIdentityService>(
         builder: (_, identity, __) {
           final data = identity.qrPayload;
@@ -29,7 +31,7 @@ class IdentityQrScreen extends StatelessWidget {
                   Text(identity.identity!.username,
                       style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 8),
-                  Text('Scannen, um mich als Kontakt hinzuzufügen',
+                  Text(l10n.identityQrScanHint,
                       style: Theme.of(context).textTheme.bodyMedium),
                   const SizedBox(height: 24),
                   DecoratedBox(

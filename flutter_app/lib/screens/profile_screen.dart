@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../services/session_service.dart';
 import '../models/session.dart';
 import '../services/user_identity_service.dart';
@@ -31,8 +32,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil')),
+      appBar: AppBar(title: Text(l10n.profileTitle)),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -61,7 +63,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'QR-ID: ${identity.shortId}',
+                              l10n.profileQrId(identity.shortId),
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ],
@@ -82,13 +84,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _quota?.tier == 'paid' ? Icons.workspace_premium : Icons.person,
                 color: _quota?.tier == 'paid' ? Colors.amber : null,
               ),
-              title: Text(_quota?.tier == 'paid' ? 'Pro' : 'Free'),
-              subtitle: Text('${_quota?.formattedRemaining ?? 'Lädt...'} · '
+              title: Text(
+                  _quota?.tier == 'paid' ? l10n.profileTierPro : l10n.profileTierFree),
+              subtitle: Text('${_quota?.formattedRemaining ?? l10n.commonLoading} · '
                   '${context.watch<ProviderConfigService>().config.provider.displayName}'),
               trailing: _quota?.tier != 'paid'
                   ? TextButton(
                       onPressed: () => Navigator.pushNamed(context, '/paywall'),
-                      child: const Text('Upgrade'),
+                      child: Text(l10n.profileUpgrade),
                     )
                   : null,
             ),
@@ -99,7 +102,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             builder: (_, service, __) => Card(
               child: ListTile(
                 leading: const Icon(Icons.hub_outlined),
-                title: const Text('Aktiver Übersetzungs-Provider'),
+                title: Text(l10n.profileActiveProvider),
                 subtitle: Text(service.config.provider.displayName),
               ),
             ),
@@ -117,13 +120,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     ListTile(
                       leading: const Icon(Icons.timer),
-                      title: const Text('Genutzte Zeit'),
+                      title: Text(l10n.profileTimeUsed),
                       subtitle: Text(_quota?.formattedUsed ?? '0m 0s'),
                     ),
                     const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.translate),
-                      title: const Text('Übersetzte Sessions'),
+                      title: Text(l10n.profileTranslatedSessions),
                       subtitle: Text('$sessionCount'),
                     ),
                   ],
@@ -141,7 +144,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               }
             },
             icon: const Icon(Icons.logout, color: Colors.red),
-            label: const Text('Abmelden'),
+            label: Text(l10n.profileLogout),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.red,
               side: const BorderSide(color: Colors.red),

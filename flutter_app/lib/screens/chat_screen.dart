@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../services/audio_service.dart';
 import '../services/session_service.dart';
 import '../models/sticker_message.dart';
@@ -26,29 +27,28 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final audio = context.watch<AudioService>();
     final session = context.watch<SessionService>();
     if (!session.isInSession) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Snail Messenger')),
+        appBar: AppBar(title: Text(l10n.chatMessengerTitle)),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               const Icon(Icons.forum_outlined, size: 72),
               const SizedBox(height: 16),
-              const Text(
-                  'Für den Messenger zuerst eine Session öffnen oder beitreten.',
-                  textAlign: TextAlign.center),
+              Text(l10n.chatNeedsSessionHint, textAlign: TextAlign.center),
               const SizedBox(height: 20),
               FilledButton.icon(
                   onPressed: () => Navigator.pushNamed(context, '/qr-host'),
                   icon: const Icon(Icons.add),
-                  label: const Text('Chat-Session starten')),
+                  label: Text(l10n.chatStartChatSession)),
               TextButton.icon(
                   onPressed: () => Navigator.pushNamed(context, '/join'),
                   icon: const Icon(Icons.login),
-                  label: const Text('Session beitreten')),
+                  label: Text(l10n.chatJoinSession)),
             ]),
           ),
         ),
@@ -60,18 +60,21 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
+        title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Snail Chat', style: TextStyle(fontWeight: FontWeight.w800)),
-              Text('Live-Übersetzung aktiv',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.normal))
+              const Text('Snail Chat',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              Text(l10n.chatLiveTranslationActive,
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.normal))
             ]),
         actions: [
           if (audio.pendingCount > 0)
             Padding(
               padding: const EdgeInsets.only(right: 12),
-              child: Center(child: Text('${audio.pendingCount} ausstehend')),
+              child: Center(
+                  child: Text(l10n.chatPendingCount(audio.pendingCount))),
             ),
         ],
       ),
@@ -157,7 +160,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       onPressed: () => _sendSticker(audio)),
                   IconButton(
                       icon: const Icon(Icons.library_add_outlined),
-                      tooltip: 'Telegram-Stickerpack importieren',
+                      tooltip: AppLocalizations.of(context)
+                          .chatImportTelegramPackTooltip,
                       onPressed: _importTelegramPack),
                   Expanded(
                       child: TextField(
@@ -254,30 +258,30 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _importTelegramPack() async {
+    final l10n = AppLocalizations.of(context);
     final link = TextEditingController();
     final token = TextEditingController();
     final values = await showDialog<List<String>>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Telegram-Stickerpack'),
+        title: Text(l10n.chatTelegramStickerPackTitle),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(
               controller: link,
-              decoration: const InputDecoration(
-                  labelText: 'Pack-Link (t.me/addstickers/...)')),
+              decoration: InputDecoration(
+                  labelText: l10n.chatPackLinkLabel)),
           TextField(
               controller: token,
               obscureText: true,
-              decoration:
-                  const InputDecoration(labelText: 'Telegram-Bot-Token')),
+              decoration: InputDecoration(labelText: l10n.chatBotTokenLabel)),
         ]),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Abbrechen')),
+              child: Text(l10n.commonCancel)),
           FilledButton(
               onPressed: () => Navigator.pop(context, [link.text, token.text]),
-              child: const Text('Importieren')),
+              child: Text(l10n.chatImportButton)),
         ],
       ),
     );
@@ -289,12 +293,12 @@ class _ChatScreenState extends State<ChatScreen> {
           await _telegram.importPack(botToken: values[1], packLink: values[0]);
       if (!mounted) return;
       setState(() => _importedStickers = imported);
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${imported.length} Sticker importiert')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.chatStickersImported(imported.length))));
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Telegram-Import fehlgeschlagen: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(l10n.chatTelegramImportFailed(error.toString()))));
       }
     }
   }
@@ -333,8 +337,9 @@ class _ChatScreenState extends State<ChatScreen> {
       _controller.clear();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Übersetzung fehlgeschlagen: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context)
+                .chatTranslationFailed(error.toString()))));
       }
     } finally {
       if (mounted) setState(() => _translating = false);

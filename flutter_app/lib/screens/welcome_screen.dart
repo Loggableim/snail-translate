@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../services/snail_audio.dart';
 import '../services/fish_audio_asr_service.dart';
@@ -125,6 +126,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   Future<void> _initMic() async {
     if (_micInitialized) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _micState = _MicTestState.initializing);
     try {
       final permission = await _audio.requestMicrophonePermission();
@@ -132,8 +134,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         if (!mounted) return;
         _micInitialized = true;
         _micAvailable = false;
-        _micError =
-            'Snail benötigt den Mikrofonzugriff für die Testaufnahme und die Live-Übersetzung. Erlaube ihn bitte im Systemdialog oder in den Android-Einstellungen.';
+        _micError = l10n.welcomeMicPermissionDenied;
         setState(() => _micState = _MicTestState.idle);
         return;
       }
@@ -141,16 +142,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       if (!mounted) return;
       _micInitialized = true;
       _micAvailable = ok;
-      _micError = ok
-          ? null
-          : 'Das Mikrofon konnte auf diesem Gerät nicht gestartet werden.';
+      _micError = ok ? null : l10n.welcomeMicUnavailable;
       setState(() => _micState = _MicTestState.idle);
     } catch (_) {
       if (!mounted) return;
       _micInitialized = true;
       _micAvailable = false;
-      _micError =
-          'Das Mikrofon konnte nicht vorbereitet werden. Prüfe die Berechtigung in den Android-Einstellungen.';
+      _micError = l10n.welcomeMicPrepareFailed;
       setState(() => _micState = _MicTestState.idle);
     }
   }
@@ -158,6 +156,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   Future<void> _startRecording() async {
     await _initMic();
     if (!_micAvailable || !mounted) return;
+    final l10n = AppLocalizations.of(context);
 
     _recordedChunks.clear();
     _recordedBytes = 0;
@@ -183,8 +182,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       if (!mounted) return;
       setState(() {
         _micState = _MicTestState.idle;
-        _micError =
-            'Die Aufnahme konnte nicht gestartet werden. Prüfe, ob kein anderes Programm das Mikrofon verwendet.';
+        _micError = l10n.welcomeMicStartFailed;
       });
       return;
     }
@@ -205,16 +203,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     await _micSubscription?.cancel();
     _micSubscription = null;
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _micState =
           _recordedBytes > 0 ? _MicTestState.recorded : _MicTestState.idle;
       if (_recordedBytes > 0) {
-        _micResult =
-            'Aufnahme erhalten: ${(_recordedBytes / 1024).round()} KB PCM. Wiedergabe wird gestartet …';
+        _micResult = l10n
+            .welcomeRecordingReceived((_recordedBytes / 1024).round());
       }
       if (_recordedBytes == 0) {
-        _micError =
-            'Es wurden keine Audiodaten empfangen. Prüfe die Mikrofonberechtigung und versuche es erneut.';
+        _micError = l10n.welcomeNoAudioReceived;
       }
     });
     if (_recordedBytes > 0) {
@@ -224,11 +222,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   Future<void> _transcribeRecording() async {
+    final l10n = AppLocalizations.of(context);
     final apiKey = context.read<ProviderConfigService>().config.apiKey.trim();
     if (apiKey.isEmpty || _recordedChunks.isEmpty) {
       if (mounted) {
-        setState(() => _micResult =
-            'Aufnahme erfolgreich. Für die Transkription zuerst einen Fish-Audio-Key speichern.');
+        setState(() => _micResult = l10n.welcomeNeedKeyForTranscription);
       }
       return;
     }
@@ -244,13 +242,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       if (!mounted) return;
       setState(() {
         _micTranscript =
-            transcript.isEmpty ? '(keine Sprache erkannt)' : transcript;
-        _micResult = 'Aufnahme und Transkription erfolgreich.';
+            transcript.isEmpty ? l10n.welcomeNoSpeechDetected : transcript;
+        _micResult = l10n.welcomeTranscriptionSuccess;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() => _micResult =
-          'Aufnahme abgespielt, Transkription fehlgeschlagen: ${_shortError(error)}');
+          l10n.welcomeTranscriptionFailed(_shortError(error)));
     }
   }
 
@@ -269,10 +267,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     await _audio.playPcm16(pcm, sampleRate: 16000, output: AudioOutput.speaker);
     _playingBack = false;
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _micState = _MicTestState.recorded;
-      _micResult =
-          'Aufnahme erfolgreich abgespielt (${(pcm.length / 1024).round()} KB).';
+      _micResult = l10n.welcomePlaybackSuccess((pcm.length / 1024).round());
     });
   }
 
@@ -280,6 +278,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -359,7 +358,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Echtzeit-Sprachübersetzung\nfür zwei Personen.',
+                              l10n.welcomeAppTagline,
                               textAlign: TextAlign.center,
                               style: Theme.of(context)
                                   .textTheme
@@ -380,24 +379,24 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                         .withValues(alpha: 0.3),
                                 borderRadius: BorderRadius.circular(22),
                               ),
-                              child: const Column(
+                              child: Column(
                                 children: [
                                   _FeatureRow(
                                     icon: Icons.mic_rounded,
                                     color: AppTheme.lilac,
-                                    text: 'Sprich in deiner Sprache',
+                                    text: l10n.welcomeFeatureSpeak,
                                   ),
-                                  SizedBox(height: 14),
+                                  const SizedBox(height: 14),
                                   _FeatureRow(
                                     icon: Icons.translate_rounded,
                                     color: AppTheme.mint,
-                                    text: 'Snail übersetzt live',
+                                    text: l10n.welcomeFeatureTranslate,
                                   ),
-                                  SizedBox(height: 14),
+                                  const SizedBox(height: 14),
                                   _FeatureRow(
                                     icon: Icons.headphones_rounded,
                                     color: AppTheme.deepMint,
-                                    text: 'Dein Gegenüber hört die Übersetzung',
+                                    text: l10n.welcomeFeatureHear,
                                   ),
                                 ],
                               ),
@@ -412,9 +411,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               child: FilledButton.icon(
                                 onPressed: () => _goToPage(3),
                                 icon: const Icon(Icons.arrow_forward_rounded),
-                                label: const Text(
-                                  'Weiter',
-                                  style: TextStyle(
+                                label: Text(
+                                  l10n.commonNext,
+                                  style: const TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -438,9 +437,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                       .pushReplacementNamed('/join');
                                 },
                                 icon: const Icon(Icons.login_rounded, size: 20),
-                                label: const Text(
-                                  'Ich habe einen Code',
-                                  style: TextStyle(
+                                label: Text(
+                                  l10n.welcomeIHaveCode,
+                                  style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -454,8 +453,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Kein Konto nötig. '
-                              'Deine Daten bleiben auf deinem Gerät.',
+                              l10n.welcomeNoAccountNeeded,
                               textAlign: TextAlign.center,
                               style: Theme.of(context)
                                   .textTheme
@@ -481,7 +479,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           _MicIcon(state: _micState, colors: colors),
                           const SizedBox(height: 24),
                           Text(
-                            'Mikrofon testen',
+                            l10n.welcomeMicTestTitle,
                             style: Theme.of(context)
                                 .textTheme
                                 .headlineSmall
@@ -510,11 +508,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    'Snail braucht dein Mikrofon, um deine '
-                                    'Sprache live zu übersetzen. '
-                                    'Deine Stimme wird nur während einer '
-                                    'aktiven Session aufgenommen. '
-                                    'Nichts wird dauerhaft gespeichert.',
+                                    l10n.welcomeMicExplanation,
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: colors.onSurface
@@ -553,7 +547,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           if (_micTranscript != null) ...[
                             const SizedBox(height: 10),
                             SelectableText(
-                              'Transkription: „$_micTranscript“',
+                              l10n.welcomeTranscriptLabel(_micTranscript!),
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
@@ -572,7 +566,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             children: [
                               TextButton(
                                 onPressed: _finish,
-                                child: const Text('Überspringen'),
+                                child: Text(l10n.commonSkip),
                               ),
                             ],
                           ),
@@ -595,7 +589,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             ),
                             const SizedBox(height: 24),
                             Text(
-                              'So funktioniert Snail',
+                              l10n.welcomeHowItWorksTitle,
                               style: Theme.of(context)
                                   .textTheme
                                   .headlineSmall
@@ -603,8 +597,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Zwei Personen, zwei Sprachen — '
-                              'Snail übersetzt in beide Richtungen.',
+                              l10n.welcomeHowItWorksSubtitle,
                               textAlign: TextAlign.center,
                               style: Theme.of(context)
                                   .textTheme
@@ -632,8 +625,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   _TutorialStep(
                                     icon: Icons.person_rounded,
                                     color: AppTheme.lilac,
-                                    label: 'Person A',
-                                    detail: 'Spricht in ihrer Sprache',
+                                    label: l10n.welcomePersonA,
+                                    detail: l10n.welcomePersonASpeaks,
                                     arrow: Icons.arrow_downward_rounded,
                                   ),
                                   const SizedBox(height: 8),
@@ -642,7 +635,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                     icon: Icons.translate_rounded,
                                     color: AppTheme.mint,
                                     label: 'Snail',
-                                    detail: 'Übersetzt live in Echtzeit',
+                                    detail: l10n.welcomeSnailTranslatesLive,
                                     arrow: Icons.arrow_downward_rounded,
                                   ),
                                   const SizedBox(height: 8),
@@ -650,8 +643,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   _TutorialStep(
                                     icon: Icons.headphones_rounded,
                                     color: AppTheme.deepMint,
-                                    label: 'Person B',
-                                    detail: 'Hört die Übersetzung',
+                                    label: l10n.welcomePersonB,
+                                    detail: l10n.welcomePersonBHears,
                                     arrow: Icons.arrow_upward_rounded,
                                   ),
                                   const SizedBox(height: 8),
@@ -659,9 +652,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   _TutorialStep(
                                     icon: Icons.swap_horiz_rounded,
                                     color: colors.primary,
-                                    label: '… und zurück',
-                                    detail: 'Die Übersetzung läuft in beide '
-                                        'Richtungen',
+                                    label: l10n.welcomeAndBack,
+                                    detail: l10n.welcomeBothDirections,
                                     arrow: null,
                                   ),
                                 ],
@@ -686,9 +678,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      'Tipp: Sprich in kurzen, klaren Sätzen. '
-                                      'Warte kurz, bis die Übersetzung fertig '
-                                      'ist, bevor du weitersprichst.',
+                                      l10n.welcomeTip,
                                       style: TextStyle(
                                         fontSize: 13,
                                         color: colors.onSurface
@@ -707,9 +697,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               child: FilledButton.icon(
                                 onPressed: _finish,
                                 icon: const Icon(Icons.check_rounded),
-                                label: const Text(
-                                  'Los geht\'s!',
-                                  style: TextStyle(
+                                label: Text(
+                                  l10n.welcomeLetsGo,
+                                  style: const TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -738,14 +728,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   String _micStateDescription() {
     if (_micError != null && _micState == _MicTestState.idle) return _micError!;
+    final l10n = AppLocalizations.of(context);
     return switch (_micState) {
-      _MicTestState.idle => 'Sprich kurz etwas in dein Mikrofon, '
-          'damit du sicher bist, dass alles funktioniert.',
-      _MicTestState.initializing => 'Mikrofon wird vorbereitet …',
-      _MicTestState.recording => 'Aufnahme läuft — sprich jetzt! (3 Sekunden)',
-      _MicTestState.recorded =>
-        'Aufnahme gespeichert. Hör sie dir an oder fahre fort.',
-      _MicTestState.playing => 'Aufnahme wird abgespielt …',
+      _MicTestState.idle => l10n.welcomeMicStateIdle,
+      _MicTestState.initializing => l10n.welcomeMicStateInitializing,
+      _MicTestState.recording => l10n.welcomeMicStateRecording,
+      _MicTestState.recorded => l10n.welcomeMicStateRecorded,
+      _MicTestState.playing => l10n.welcomeMicStatePlaying,
     };
   }
 }
@@ -869,6 +858,7 @@ class _MicActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return switch (state) {
       _MicTestState.idle || _MicTestState.initializing => SizedBox(
           width: double.infinity,
@@ -879,8 +869,8 @@ class _MicActionButton extends StatelessWidget {
             icon: const Icon(Icons.mic_rounded),
             label: Text(
               state == _MicTestState.initializing
-                  ? 'Wird vorbereitet …'
-                  : 'Aufnahme starten',
+                  ? l10n.welcomePreparing
+                  : l10n.welcomeStartRecording,
               style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
@@ -903,9 +893,9 @@ class _MicActionButton extends StatelessWidget {
               height: 20,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            label: const Text(
-              'Aufnahme läuft …',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            label: Text(
+              l10n.welcomeRecordingInProgress,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
             ),
             style: OutlinedButton.styleFrom(
               shape: RoundedRectangleBorder(
@@ -922,9 +912,9 @@ class _MicActionButton extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onPlayRecording,
                   icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text(
-                    'Abspielen',
-                    style: TextStyle(
+                  label: Text(
+                    l10n.welcomePlaybackAction,
+                    style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                     ),
@@ -944,9 +934,9 @@ class _MicActionButton extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onFinish,
                   icon: const Icon(Icons.check_rounded),
-                  label: const Text(
-                    'Fertig',
-                    style: TextStyle(
+                  label: Text(
+                    l10n.commonDone,
+                    style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                     ),
@@ -971,9 +961,9 @@ class _MicActionButton extends StatelessWidget {
               height: 20,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            label: const Text(
-              'Wiedergabe …',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            label: Text(
+              l10n.welcomePlayingEllipsis,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
             ),
             style: OutlinedButton.styleFrom(
               shape: RoundedRectangleBorder(
@@ -1043,6 +1033,7 @@ class _LanguageSplash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
     final greeting = greetings[greetingIndex];
     return Padding(
@@ -1090,8 +1081,9 @@ class _LanguageSplash extends StatelessWidget {
             height: 54,
             child: FilledButton(
               onPressed: onContinue,
-              child: const Text('Weiter',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              child: Text(l10n.commonNext,
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w700)),
             ),
           ),
         ],
@@ -1168,28 +1160,27 @@ class _ProviderKeyWelcomeState extends State<_ProviderKeyWelcome> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(Icons.key_rounded, size: 64, color: colors.primary),
         const SizedBox(height: 20),
-        Text('Fish Audio einrichten',
+        Text(l10n.welcomeFishSetupTitle,
             textAlign: TextAlign.center,
             style: Theme.of(context)
                 .textTheme
                 .headlineSmall
                 ?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height: 10),
-        const Text(
-            'Snail nutzt standardmäßig Fish Audio für die günstige Echtzeit-Sprachausgabe.\nDein Schlüssel bleibt auf diesem Gerät.',
-            textAlign: TextAlign.center),
+        Text(l10n.welcomeFishSetupBody, textAlign: TextAlign.center),
         const SizedBox(height: 22),
         TextField(
           controller: _key,
           obscureText: _obscure,
           decoration: InputDecoration(
-            labelText: 'Fish Audio API-Key',
+            labelText: l10n.welcomeFishApiKeyLabel,
             hintText: 'sk-fish-…',
             prefixIcon: const Icon(Icons.lock_outline_rounded),
             suffixIcon: IconButton(
@@ -1204,7 +1195,7 @@ class _ProviderKeyWelcomeState extends State<_ProviderKeyWelcome> {
           onPressed: () =>
               Navigator.of(context).pushNamed('/provider-settings'),
           icon: const Icon(Icons.tune_rounded),
-          label: const Text('Andere API / Provider verwenden'),
+          label: Text(l10n.welcomeUseOtherProvider),
         ),
         const SizedBox(height: 18),
         SizedBox(
@@ -1217,9 +1208,9 @@ class _ProviderKeyWelcomeState extends State<_ProviderKeyWelcome> {
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Weiter',
-                    style:
-                        TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                : Text(l10n.commonNext,
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w700)),
           ),
         ),
       ]),
@@ -1247,6 +1238,7 @@ class _LanguageConfirmation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final session = context.watch<SessionService>();
     final colors = Theme.of(context).colorScheme;
     final detectedLang = session.myLanguage;
@@ -1269,7 +1261,7 @@ class _LanguageConfirmation extends StatelessWidget {
               Icon(Icons.language_rounded, size: 18, color: colors.primary),
               const SizedBox(width: 8),
               Text(
-                'Deine Sprache',
+                l10n.welcomeYourLanguage,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
@@ -1314,7 +1306,7 @@ class _LanguageConfirmation extends StatelessWidget {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'automatisch erkannt',
+                  l10n.welcomeAutoDetected,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12,
@@ -1329,7 +1321,7 @@ class _LanguageConfirmation extends StatelessWidget {
                   foregroundColor: colors.primary,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
-                child: const Text('Ändern'),
+                child: Text(l10n.welcomeChange),
               ),
             ],
           ),
@@ -1340,10 +1332,11 @@ class _LanguageConfirmation extends StatelessWidget {
 
   static Future<void> _showLanguagePicker(
       BuildContext context, SessionService session) async {
+    final l10n = AppLocalizations.of(context);
     final selected = await showDialog<String>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Sprache wählen'),
+        title: Text(l10n.welcomeChooseLanguage),
         children: _languages.map((lang) {
           return SimpleDialogOption(
             onPressed: () => Navigator.pop(ctx, lang.code),

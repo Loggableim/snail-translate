@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../services/contact_service.dart';
 import '../services/user_identity_service.dart';
 
@@ -37,21 +38,22 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Future<void> _addManually() async {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
     final payload = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Snail-ID hinzufügen'),
+        title: Text(l10n.contactsAddIdTitle),
         content: TextField(
             controller: controller,
             decoration: const InputDecoration(hintText: 'snail://user/...')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Abbrechen')),
+              child: Text(l10n.commonCancel)),
           FilledButton(
               onPressed: () => Navigator.pop(dialogContext, controller.text),
-              child: const Text('Hinzufügen')),
+              child: Text(l10n.contactsAddButton)),
         ],
       ),
     );
@@ -60,7 +62,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final ok = await context.read<ContactService>().addFromQr(payload);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Ungültige Snail-ID')));
+          .showSnackBar(SnackBar(content: Text(l10n.contactsInvalidId)));
     }
   }
 
@@ -74,21 +76,22 @@ class _ContactsScreenState extends State<ContactsScreen> {
         _ContactScanStep.error => Icons.error_outline_rounded,
       };
 
-  String _scanLabel(_ContactScanStep step) => switch (step) {
-        _ContactScanStep.idle => 'QR-ID scannen',
-        _ContactScanStep.starting => 'Kamera wird gestartet …',
-        _ContactScanStep.scanning => 'QR-Code suchen …',
-        _ContactScanStep.detected => 'Kontakt wird hinzugefügt …',
-        _ContactScanStep.error => 'Fehler beim Scannen',
+  String _scanLabel(_ContactScanStep step, AppLocalizations l10n) =>
+      switch (step) {
+        _ContactScanStep.idle => l10n.contactsScanId,
+        _ContactScanStep.starting => l10n.contactsCameraStarting,
+        _ContactScanStep.scanning => l10n.contactsSearchingQr,
+        _ContactScanStep.detected => l10n.contactsAddingContact,
+        _ContactScanStep.error => l10n.contactsScanError,
       };
 
-  String? _scanSubtitle(_ContactScanStep step) => switch (step) {
+  String? _scanSubtitle(_ContactScanStep step, AppLocalizations l10n) =>
+      switch (step) {
         _ContactScanStep.idle => null,
-        _ContactScanStep.starting => 'Bitte warten',
-        _ContactScanStep.scanning =>
-          'Richte die Kamera auf den Snail-QR-Code des Kontakts',
-        _ContactScanStep.detected => 'QR-Code erkannt',
-        _ContactScanStep.error => 'Keine gültige Snail-ID erkannt',
+        _ContactScanStep.starting => l10n.contactsPleaseWait,
+        _ContactScanStep.scanning => l10n.contactsAimCamera,
+        _ContactScanStep.detected => l10n.contactsQrDetected,
+        _ContactScanStep.error => l10n.contactsNoValidId,
       };
 
   Color _scanColor(_ContactScanStep step, ColorScheme colors) => switch (step) {
@@ -102,15 +105,16 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final contacts = context.watch<ContactService>();
     final identity = context.watch<UserIdentityService>();
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Kontakte'), actions: [
+      appBar: AppBar(title: Text(l10n.contactsTitle), actions: [
         IconButton(
             onPressed: _addManually,
             icon: const Icon(Icons.person_add),
-            tooltip: 'ID eingeben'),
+            tooltip: l10n.contactsEnterIdTooltip),
       ]),
       body: Column(children: [
         Card(
@@ -120,8 +124,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
               backgroundColor: colors.primaryContainer,
               child: Icon(Icons.qr_code_rounded, color: colors.primary),
             ),
-            title: const Text('Mein QR-Code',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            title: Text(l10n.contactsMyQrCode,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
             subtitle: Text(identity.username),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.pushNamed(context, '/my-qr'),
@@ -158,17 +162,17 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        _scanLabel(_scanStep),
+                        _scanLabel(_scanStep, l10n),
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                           color: _scanColor(_scanStep, colors),
                         ),
                       ),
-                      if (_scanSubtitle(_scanStep) != null) ...[
+                      if (_scanSubtitle(_scanStep, l10n) != null) ...[
                         const SizedBox(height: 2),
                         Text(
-                          _scanSubtitle(_scanStep)!,
+                          _scanSubtitle(_scanStep, l10n)!,
                           style: TextStyle(
                             fontSize: 12,
                             color: colors.onSurface.withValues(alpha: 0.6),
@@ -182,7 +186,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   TextButton.icon(
                     onPressed: _startScanning,
                     icon: const Icon(Icons.refresh, size: 18),
-                    label: const Text('Erneut'),
+                    label: Text(l10n.contactsRetry),
                     style: TextButton.styleFrom(
                       foregroundColor: colors.error,
                     ),
@@ -191,7 +195,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   IconButton(
                     onPressed: _stopScanning,
                     icon: const Icon(Icons.close, size: 20),
-                    tooltip: 'Scanner schließen',
+                    tooltip: l10n.contactsCloseScannerTooltip,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(
                         minWidth: 36, minHeight: 36),
@@ -242,10 +246,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
               child: FilledButton.icon(
                   onPressed: _startScanning,
                   icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('QR-ID scannen'))),
+                  label: Text(l10n.contactsScanId))),
         Expanded(
             child: contacts.contacts.isEmpty
-                ? const Center(child: Text('Noch keine Kontakte'))
+                ? Center(child: Text(l10n.contactsNoneYet))
                 : ListView.builder(
                     itemCount: contacts.contacts.length,
                     itemBuilder: (_, index) {
@@ -264,11 +268,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
                             }
                             if (value == 'delete') contacts.remove(contact);
                           },
-                          itemBuilder: (_) => const [
+                          itemBuilder: (_) => [
                             PopupMenuItem(
-                                value: 'start', child: Text('Session starten')),
+                                value: 'start',
+                                child: Text(l10n.homeStartSession)),
                             PopupMenuItem(
-                                value: 'delete', child: Text('Löschen')),
+                                value: 'delete', child: Text(l10n.commonDelete)),
                           ],
                         ),
                       );

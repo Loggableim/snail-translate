@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:snail/l10n/app_localizations.dart';
 import 'package:snail/screens/welcome_screen.dart';
 import 'package:snail/services/provider_config_service.dart';
 import 'package:snail/services/session_service.dart';
@@ -13,7 +14,14 @@ Widget _wrapWithProviders(Widget child) {
       ChangeNotifierProvider(create: (_) => SessionService()),
       ChangeNotifierProvider(create: (_) => ProviderConfigService()),
     ],
-    child: MaterialApp(home: child),
+    // Pinned to German: these tests assert on the ARB template strings, not
+    // on localization behavior itself.
+    child: MaterialApp(
+      locale: const Locale('de'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: child,
+    ),
   );
 }
 

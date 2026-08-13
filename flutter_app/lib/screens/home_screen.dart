@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../services/session_service.dart';
 
 Future<void> _showCodeDialog(BuildContext context) async {
+  final l10n = AppLocalizations.of(context);
   final controller = TextEditingController();
   final result = await showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Session-Code eingeben'),
+      title: Text(l10n.homeCodeDialogTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Gib den Session-Code deines Gesprächspartners ein.',
-            style: TextStyle(fontSize: 14),
+          Text(
+            l10n.homeCodeDialogBody,
+            style: const TextStyle(fontSize: 14),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -27,7 +29,7 @@ Future<void> _showCodeDialog(BuildContext context) async {
               letterSpacing: 4,
             ),
             decoration: InputDecoration(
-              hintText: 'snail-XXXX',
+              hintText: l10n.homeCodeDialogHint,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -38,11 +40,11 @@ Future<void> _showCodeDialog(BuildContext context) async {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('Abbrechen'),
+          child: Text(l10n.commonCancel),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-          child: const Text('Beitreten'),
+          child: Text(l10n.commonJoin),
         ),
       ],
     ),
@@ -58,7 +60,7 @@ Future<void> _showCodeDialog(BuildContext context) async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          context.read<SessionService>().error ?? 'Beitritt fehlgeschlagen',
+          context.read<SessionService>().error ?? l10n.homeJoinFailed,
         ),
       ),
     );
@@ -70,6 +72,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = context.watch<ThemeProvider>();
     final colors = Theme.of(context).colorScheme;
     final compact = MediaQuery.orientationOf(context) == Orientation.landscape;
@@ -98,7 +101,7 @@ class HomeScreen extends StatelessWidget {
                 compact: compact,
                 onTap: () => Navigator.pushNamed(context, '/standalone')),
             SizedBox(height: compact ? 12 : 24),
-            Text('Schnellzugriff',
+            Text(l10n.homeQuickAccess,
                 style: Theme.of(context)
                     .textTheme
                     .titleLarge
@@ -108,14 +111,14 @@ class HomeScreen extends StatelessWidget {
               Expanded(
                   child: _QuickAction(
                       icon: Icons.qr_code_rounded,
-                      label: 'Session starten',
+                      label: l10n.homeStartSession,
                       color: colors.primary,
                       onTap: () => Navigator.pushNamed(context, '/qr-host'))),
               const SizedBox(width: 12),
               Expanded(
                   child: _QuickAction(
                       icon: Icons.qr_code_scanner_rounded,
-                      label: 'Beitreten',
+                      label: l10n.commonJoin,
                       color: colors.secondary,
                       onTap: () => Navigator.pushNamed(context, '/join'))),
             ]),
@@ -124,7 +127,7 @@ class HomeScreen extends StatelessWidget {
               Expanded(
                   child: _QuickAction(
                       icon: Icons.keyboard_rounded,
-                      label: 'Code eingeben',
+                      label: l10n.homeEnterCode,
                       color: colors.tertiary,
                       onTap: () => _showCodeDialog(context))),
               const SizedBox(width: 12),
@@ -135,14 +138,14 @@ class HomeScreen extends StatelessWidget {
               Expanded(
                   child: _QuickAction(
                       icon: Icons.chat_bubble_rounded,
-                      label: 'Messenger',
+                      label: l10n.homeMessenger,
                       color: colors.primary,
                       onTap: () => Navigator.pushNamed(context, '/chat'))),
               const SizedBox(width: 12),
               Expanded(
                   child: _QuickAction(
                       icon: Icons.people_alt_rounded,
-                      label: 'Kontakte',
+                      label: l10n.homeContacts,
                       color: colors.secondary,
                       onTap: () => Navigator.pushNamed(context, '/contacts'))),
             ]),
@@ -153,10 +156,9 @@ class HomeScreen extends StatelessWidget {
                   backgroundColor: colors.primaryContainer,
                   child: Icon(Icons.share_rounded, color: colors.primary),
                 ),
-                title: const Text('App direkt teilen',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle:
-                    const Text('APK per QR-Code im lokalen Netzwerk anbieten'),
+                title: Text(l10n.homeShareApp,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(l10n.homeShareAppSubtitle),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.pushNamed(context, '/app-share'),
               ),
@@ -170,9 +172,9 @@ class HomeScreen extends StatelessWidget {
                         backgroundColor: colors.primaryContainer,
                         child:
                             Icon(Icons.history_rounded, color: colors.primary)),
-                    title: const Text('Übersetzungsverlauf',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: const Text('Frühere Gespräche ansehen'),
+                    title: Text(l10n.homeHistoryTitle,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text(l10n.homeHistorySubtitle),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.pushNamed(context, '/history'))),
           ]),
@@ -186,6 +188,7 @@ class _HeroCard extends StatelessWidget {
   const _HeroCard({required this.onTap, required this.compact});
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
     return InkWell(
         onTap: onTap,
@@ -209,29 +212,30 @@ class _HeroCard extends StatelessWidget {
                   decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: .18),
                       borderRadius: BorderRadius.circular(20)),
-                  child: const Text('LIVE',
-                      style: TextStyle(
+                  child: Text(l10n.homeLiveBadge,
+                      style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
                           fontSize: 11)))
             ]),
             SizedBox(height: compact ? 10 : 28),
-            Text('Schnellübersetzer',
+            Text(l10n.homeQuickTranslator,
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: compact ? 21 : 25,
                     fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
             if (!compact)
-              const Text('Ein Gerät. Zwei Mikrofone. Sofort verständlich.',
-                  style: TextStyle(color: Colors.white70, fontSize: 15)),
+              Text(l10n.homeQuickTranslatorSubtitle,
+                  style: const TextStyle(color: Colors.white70, fontSize: 15)),
             SizedBox(height: compact ? 10 : 20),
             Row(children: [
-              Text('Jetzt starten',
-                  style: TextStyle(
+              Text(l10n.homeStartNow,
+                  style: const TextStyle(
                       color: Colors.white, fontWeight: FontWeight.w700)),
               const SizedBox(width: 8),
-              Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18)
+              const Icon(Icons.arrow_forward_rounded,
+                  color: Colors.white, size: 18)
             ]),
           ]),
         ));

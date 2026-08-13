@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../services/session_service.dart';
 import '../services/snail_audio.dart';
 import '../models/snail_contact.dart';
@@ -49,6 +50,7 @@ class _QrHostScreenState extends State<QrHostScreen> {
   }
 
   Future<void> _testConnection() async {
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _connTest = _ConnTestState.testing;
       _connError = null;
@@ -60,13 +62,13 @@ class _QrHostScreenState extends State<QrHostScreen> {
         _connTest = quota != null
             ? _ConnTestState.success
             : _ConnTestState.failed;
-        if (quota == null) _connError = 'Keine Antwort vom Server';
+        if (quota == null) _connError = l10n.qrHostNoServerResponse;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _connTest = _ConnTestState.failed;
-        _connError = 'Verbindungsfehler: $e';
+        _connError = l10n.qrHostConnectionError(e.toString());
       });
     }
   }
@@ -86,8 +88,8 @@ class _QrHostScreenState extends State<QrHostScreen> {
     } else {
       setState(() {
         _isCreating = false;
-        _error =
-            context.read<SessionService>().error ?? 'Fehler beim Erstellen';
+        _error = context.read<SessionService>().error ??
+            AppLocalizations.of(context).qrHostCreateFailed;
       });
     }
   }
@@ -108,29 +110,31 @@ class _QrHostScreenState extends State<QrHostScreen> {
         _ConnTestState.failed => colors.error,
       };
 
-  String _connLabel(_ConnTestState state) => switch (state) {
-        _ConnTestState.idle => 'Verbindung testen',
-        _ConnTestState.testing => 'Teste Verbindung …',
-        _ConnTestState.success => 'Server erreichbar',
-        _ConnTestState.failed => 'Verbindung fehlgeschlagen',
+  String _connLabel(_ConnTestState state, AppLocalizations l10n) =>
+      switch (state) {
+        _ConnTestState.idle => l10n.qrHostTestConnection,
+        _ConnTestState.testing => l10n.qrHostTestingConnection,
+        _ConnTestState.success => l10n.qrHostServerReachable,
+        _ConnTestState.failed => l10n.qrHostConnectionFailed,
       };
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Session starten')),
+      appBar: AppBar(title: Text(l10n.homeStartSession)),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: _isCreating
-              ? const Column(
+              ? Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Session wird erstellt...'),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(l10n.qrHostCreatingSession),
                   ],
                 )
               : Column(
@@ -166,9 +170,7 @@ class _QrHostScreenState extends State<QrHostScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'Kein Headset erkannt. '
-                                'Für beste Audioqualität und Echo-Unterdrückung '
-                                'empfehlen wir ein Headset.',
+                                l10n.qrHostNoHeadsetWarning,
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: colors.onSurface
@@ -205,7 +207,7 @@ class _QrHostScreenState extends State<QrHostScreen> {
                                   color: _connColor(_connTest, colors),
                                 ),
                           label: Text(
-                            _connLabel(_connTest),
+                            _connLabel(_connTest, l10n),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -248,9 +250,10 @@ class _QrHostScreenState extends State<QrHostScreen> {
                         label: Text(
                           _headsetChecked
                               ? (_contact != null
-                                  ? 'Session mit ${_contact!.username} starten'
-                                  : 'Session starten')
-                              : 'Audio wird geprüft …',
+                                  ? l10n.qrHostStartSessionWith(
+                                      _contact!.username)
+                                  : l10n.homeStartSession)
+                              : l10n.qrHostCheckingAudio,
                           style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
@@ -268,11 +271,11 @@ class _QrHostScreenState extends State<QrHostScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.check_circle_rounded,
+                          const Icon(Icons.check_circle_rounded,
                               size: 16, color: Colors.green),
                           const SizedBox(width: 6),
                           Text(
-                            'Headset erkannt',
+                            l10n.qrHostHeadsetDetected,
                             style: TextStyle(
                               fontSize: 13,
                               color: colors.onSurface

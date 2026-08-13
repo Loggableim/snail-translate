@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../l10n/app_localizations.dart';
 import '../services/session_service.dart';
 import '../services/contact_service.dart';
 
@@ -47,8 +48,8 @@ class _JoinScreenState extends State<JoinScreen> {
     } else if (mounted) {
       setState(() {
         _step = _JoinStep.error;
-        _error =
-            context.read<SessionService>().error ?? 'Beitritt fehlgeschlagen';
+        _error = context.read<SessionService>().error ??
+            AppLocalizations.of(context).homeJoinFailed;
       });
     }
   }
@@ -62,7 +63,7 @@ class _JoinScreenState extends State<JoinScreen> {
       if (value.startsWith('snail://user/')) {
         setState(() {
           _step = _JoinStep.detected;
-          _detectedCode = 'Kontakt';
+          _detectedCode = AppLocalizations.of(context).joinContactDetected;
         });
         _saveContactQr(value);
         return;
@@ -104,7 +105,7 @@ class _JoinScreenState extends State<JoinScreen> {
     } else {
       setState(() {
         _step = _JoinStep.error;
-        _error = 'Ungültige Snail-Identität';
+        _error = AppLocalizations.of(context).joinInvalidIdentity;
       });
     }
   }
@@ -133,22 +134,23 @@ class _JoinScreenState extends State<JoinScreen> {
         _JoinStep.error => Icons.error_outline_rounded,
       };
 
-  String _stepLabel(_JoinStep step) => switch (step) {
-        _JoinStep.starting => 'Kamera wird gestartet …',
-        _JoinStep.scanning => 'QR-Code suchen …',
-        _JoinStep.detected => 'QR-Code erkannt!',
-        _JoinStep.joining => 'Session wird beigetreten …',
-        _JoinStep.error => 'Fehler',
+  String _stepLabel(_JoinStep step, AppLocalizations l10n) => switch (step) {
+        _JoinStep.starting => l10n.contactsCameraStarting,
+        _JoinStep.scanning => l10n.contactsSearchingQr,
+        _JoinStep.detected => l10n.joinQrDetected,
+        _JoinStep.joining => l10n.joinJoiningSession,
+        _JoinStep.error => l10n.commonError,
       };
 
-  String? _stepSubtitle(_JoinStep step) => switch (step) {
-        _JoinStep.starting => 'Bitte warten',
-        _JoinStep.scanning =>
-          'Richte die Kamera auf den Snail-QR-Code deines Gesprächspartners',
-        _JoinStep.detected =>
-          _detectedCode != null ? 'Code: $_detectedCode' : 'Wird verarbeitet …',
-        _JoinStep.joining => 'Verbindung wird aufgebaut',
-        _JoinStep.error => _error ?? 'Unbekannter Fehler',
+  String? _stepSubtitle(_JoinStep step, AppLocalizations l10n) =>
+      switch (step) {
+        _JoinStep.starting => l10n.contactsPleaseWait,
+        _JoinStep.scanning => l10n.joinAimCameraHint,
+        _JoinStep.detected => _detectedCode != null
+            ? l10n.sessionRoomCode(_detectedCode!)
+            : l10n.joinProcessing,
+        _JoinStep.joining => l10n.joinConnecting,
+        _JoinStep.error => _error ?? l10n.joinUnknownError,
       };
 
   Color _stepColor(_JoinStep step, ColorScheme colors) => switch (step) {
@@ -163,6 +165,7 @@ class _JoinScreenState extends State<JoinScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
     final landscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
@@ -170,7 +173,7 @@ class _JoinScreenState extends State<JoinScreen> {
 
     if (landscape && _step != _JoinStep.joining) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Session beitreten')),
+        appBar: AppBar(title: Text(l10n.joinTitle)),
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
@@ -180,15 +183,15 @@ class _JoinScreenState extends State<JoinScreen> {
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Session beitreten')),
+      appBar: AppBar(title: Text(l10n.joinTitle)),
       body: _step == _JoinStep.joining
-          ? const Center(
+          ? Center(
               child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Trete Session bei...')
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(l10n.joinJoiningEllipsis)
                 ]))
           : Column(
               children: [
@@ -237,7 +240,7 @@ class _JoinScreenState extends State<JoinScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text('Oder Code eingeben:',
+                                Text(l10n.joinOrEnterCode,
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium),
@@ -268,7 +271,7 @@ class _JoinScreenState extends State<JoinScreen> {
                                           }
                                         },
                                   icon: const Icon(Icons.login),
-                                  label: const Text('Beitreten'),
+                                  label: Text(l10n.commonJoin),
                                   style: ElevatedButton.styleFrom(
                                       minimumSize: const Size(200, 48)),
                                 ),
@@ -293,8 +296,8 @@ class _JoinScreenState extends State<JoinScreen> {
         key: const Key('status_banner'),
         step: _step,
         icon: _stepIcon(_step),
-        label: _stepLabel(_step),
-        subtitle: _stepSubtitle(_step),
+        label: _stepLabel(_step, l10n),
+        subtitle: _stepSubtitle(_step, l10n),
         color: _stepColor(_step, colors),
         onRetry: _step == _JoinStep.error ? _retry : null,
       ),
@@ -302,13 +305,14 @@ class _JoinScreenState extends State<JoinScreen> {
   }
 
   Widget _landscapeCodeForm(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Oder Code eingeben:',
+            Text(l10n.joinOrEnterCode,
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 18),
             TextField(
@@ -331,7 +335,7 @@ class _JoinScreenState extends State<JoinScreen> {
                       if (code.isNotEmpty) _joinRoom(code);
                     },
               icon: const Icon(Icons.login),
-              label: const Text('Beitreten'),
+              label: Text(l10n.commonJoin),
               style: ElevatedButton.styleFrom(minimumSize: const Size(240, 52)),
             ),
             if (_error != null) ...[
@@ -413,7 +417,7 @@ class _StatusBanner extends StatelessWidget {
             TextButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Erneut'),
+              label: Text(AppLocalizations.of(context).contactsRetry),
               style: TextButton.styleFrom(foregroundColor: color),
             ),
         ],

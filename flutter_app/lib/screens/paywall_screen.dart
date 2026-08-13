@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 
 /// Paywall screen — Free vs. Pro comparison.
 /// Vorschau: Clerk-Subscription-Flow folgt in einem späteren Update.
@@ -7,6 +8,7 @@ class PaywallScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Snail Pro'),
@@ -19,9 +21,9 @@ class PaywallScreen extends StatelessWidget {
                 color: Colors.amber.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
-                'Vorschau',
-                style: TextStyle(
+              child: Text(
+                l10n.paywallPreviewBadge,
+                style: const TextStyle(
                   color: Colors.amber,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -38,14 +40,14 @@ class PaywallScreen extends StatelessWidget {
             const Icon(Icons.workspace_premium, size: 64, color: Colors.amber),
             const SizedBox(height: 16),
             Text(
-              'Upgrade auf Snail Pro',
+              l10n.paywallUpgradeTitle,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Unbegrenzt übersetzen, alle Sprachen, beste Qualität.',
+              l10n.paywallUpgradeBody,
               style: Theme.of(context).textTheme.bodyLarge,
               textAlign: TextAlign.center,
             ),
@@ -62,14 +64,18 @@ class PaywallScreen extends StatelessWidget {
                     2: FlexColumnWidth(1),
                   },
                   children: [
-                    _buildHeaderRow(),
-                    _buildRow('Monatliche Nutzung', '30 Min', 'Unbegrenzt'),
-                    _buildRow('Sprachen', 'DE/EN/FR/ES', 'Alle Sprachen'),
-                    _buildRow('STT-Qualität', 'Standard', 'Premium (Nova-2)'),
-                    _buildRow(
-                        'TTS-Qualität', 'Standard', 'Natürlich (fish.audio)'),
-                    _buildRow('Übersetzung', 'DeepL Free', 'DeepL Pro'),
-                    _buildRow('Support', 'Community', 'Priorität'),
+                    _buildHeaderRow(l10n),
+                    _buildRow(l10n.paywallRowMonthlyUsage, l10n.paywallFreeMinutes,
+                        l10n.paywallUnlimited),
+                    _buildRow(l10n.paywallRowLanguages, 'DE/EN/FR/ES',
+                        l10n.paywallAllLanguages),
+                    _buildRow(l10n.paywallRowSttQuality, l10n.paywallStandard,
+                        l10n.paywallPremiumNova2),
+                    _buildRow(l10n.paywallRowTtsQuality, l10n.paywallStandard,
+                        l10n.paywallNaturalFishAudio),
+                    _buildRow(l10n.paywallRowTranslation, 'DeepL Free', 'DeepL Pro'),
+                    _buildRow(l10n.paywallRowSupport, l10n.paywallCommunity,
+                        l10n.paywallPriority),
                   ],
                 ),
               ),
@@ -81,11 +87,11 @@ class PaywallScreen extends StatelessWidget {
               onPressed: () {
                 // TODO: Clerk subscription flow
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Upgrade-Flow folgt in Kürze!')),
+                  SnackBar(content: Text(l10n.paywallUpgradeFlowSoon)),
                 );
               },
               icon: const Icon(Icons.upgrade),
-              label: const Text('Jetzt upgraden — 5,49 €/Monat'),
+              label: Text(l10n.paywallUpgradeNow),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 56),
                 backgroundColor: Colors.amber,
@@ -97,7 +103,7 @@ class PaywallScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Jederzeit kündbar. 7 Tage kostenlos testen.',
+              l10n.paywallCancelAnytime,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -106,27 +112,27 @@ class PaywallScreen extends StatelessWidget {
     );
   }
 
-  TableRow _buildHeaderRow() {
-    return const TableRow(
-      decoration: BoxDecoration(
+  TableRow _buildHeaderRow(AppLocalizations l10n) {
+    return TableRow(
+      decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Colors.grey, width: 0.5)),
       ),
       children: [
-        Padding(
+        const Padding(
           padding: EdgeInsets.all(8),
           child: Text('', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
         Padding(
-          padding: EdgeInsets.all(8),
-          child: Text('Free',
-              style: TextStyle(fontWeight: FontWeight.bold),
+          padding: const EdgeInsets.all(8),
+          child: Text(l10n.paywallFree,
+              style: const TextStyle(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center),
         ),
         Padding(
-          padding: EdgeInsets.all(8),
-          child: Text('Pro',
-              style:
-                  TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+          padding: const EdgeInsets.all(8),
+          child: Text(l10n.paywallPro,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Colors.amber),
               textAlign: TextAlign.center),
         ),
       ],
