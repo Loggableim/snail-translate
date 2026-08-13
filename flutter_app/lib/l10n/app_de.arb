@@ -315,6 +315,10 @@
   "@settingsClearLogConfirmBody": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsErrorLogEntryCount": "{count, plural, =1{1 Eintrag} other{{count} Einträge}}",
+  "@settingsErrorLogEntryCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "settingsAppSection": "App",
   "settingsAppSubtitle": "Echtzeit-Konversationsübersetzer",
   "settingsChangeUsernameTitle": "Username ändern",

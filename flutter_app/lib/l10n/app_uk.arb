@@ -315,6 +315,10 @@
   "@settingsClearLogConfirmBody": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsErrorLogEntryCount": "{count, plural, one{{count} запис} few{{count} записи} many{{count} записів} other{{count} запису}}",
+  "@settingsErrorLogEntryCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "settingsAppSection": "Застосунок",
   "settingsAppSubtitle": "Перекладач розмов у реальному часі",
   "settingsChangeUsernameTitle": "Змінити ім'я користувача",

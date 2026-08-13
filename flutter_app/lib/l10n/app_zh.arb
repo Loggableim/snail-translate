@@ -315,6 +315,10 @@
   "@settingsClearLogConfirmBody": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsErrorLogEntryCount": "{count, plural, other{{count} 条记录}}",
+  "@settingsErrorLogEntryCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "settingsAppSection": "应用",
   "settingsAppSubtitle": "实时对话翻译器",
   "settingsChangeUsernameTitle": "更改用户名",

@@ -315,6 +315,10 @@
   "@settingsClearLogConfirmBody": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsErrorLogEntryCount": "{count, plural, other{{count}件}}",
+  "@settingsErrorLogEntryCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "settingsAppSection": "アプリ",
   "settingsAppSubtitle": "リアルタイム会話翻訳者",
   "settingsChangeUsernameTitle": "ユーザー名を変更",

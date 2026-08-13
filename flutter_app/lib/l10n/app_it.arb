@@ -315,6 +315,10 @@
   "@settingsClearLogConfirmBody": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsErrorLogEntryCount": "{count, plural, =1{1 voce} other{{count} voci}}",
+  "@settingsErrorLogEntryCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "settingsAppSection": "App",
   "settingsAppSubtitle": "Traduttore di conversazione in tempo reale",
   "settingsChangeUsernameTitle": "Cambia nome utente",

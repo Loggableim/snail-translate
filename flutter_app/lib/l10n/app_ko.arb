@@ -315,6 +315,10 @@
   "@settingsClearLogConfirmBody": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsErrorLogEntryCount": "{count, plural, other{{count}개 항목}}",
+  "@settingsErrorLogEntryCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "settingsAppSection": "앱",
   "settingsAppSubtitle": "실시간 대화 번역기",
   "settingsChangeUsernameTitle": "사용자 이름 변경",
