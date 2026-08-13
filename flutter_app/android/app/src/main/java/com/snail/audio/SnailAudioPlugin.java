@@ -353,7 +353,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         // vendors even after setSpeakerphoneOn(true). For the normal
         // no-headset conversation mode choose the built-in speaker
         // explicitly, including a matching STREAM_MUSIC AudioTrack.
-        if ("default".equals(requested)) {
+        if ("default".equals(requested) || "auto".equals(requested)) {
             // Android can report the communication device as speaker
             // while Bluetooth A2DP is the active media output. Prefer
             // the actual media device list for PCM session playback.
