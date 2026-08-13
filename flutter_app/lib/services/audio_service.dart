@@ -22,6 +22,8 @@ class AudioService extends ChangeNotifier {
   final List<Map<String, dynamic>> _signals = [];
   void Function(Uint8List bytes, int sampleRate)? onPcmAudio;
   VoidCallback? onPcmAudioEnd;
+  void Function(Uint8List bytes, int sampleRate)? onFishTtsAudio;
+  VoidCallback? onFishTtsAudioEnd;
   void Function(Uint8List bytes, int sampleRate)? onFallbackPcmAudio;
   void Function(String signalType, dynamic signal)? onSignal;
   VoidCallback? onAuthenticated;
@@ -31,6 +33,7 @@ class AudioService extends ChangeNotifier {
   int _reconnectAttempt = 0;
   Timer? _reconnectTimer;
   Session? _session;
+  Map<String, dynamic>? _fishTtsConfig;
 
   static const _reconnectDelays = [1, 2, 4, 8, 15, 30]; // seconds
 
@@ -128,10 +131,23 @@ class AudioService extends ChangeNotifier {
 
   void _onMessage(dynamic data) {
     try {
+      if (data is List<int>) {
+        final frame = Uint8List.fromList(data);
+        if (frame.length < 4) return;
+        final sampleRate =
+            ByteData.sublistView(frame, 0, 4).getUint32(0, Endian.little);
+        if (sampleRate == 0) {
+          onFishTtsAudioEnd?.call();
+        } else if (frame.length > 4) {
+          onFishTtsAudio?.call(Uint8List.sublistView(frame, 4), sampleRate);
+        }
+        return;
+      }
       final msg = jsonDecode(data as String);
       switch (msg['type']) {
         case 'auth_ok':
           _isAuthenticated = true;
+          _sendFishTtsConfig();
           onAuthenticated?.call();
           chat.flushOutbox();
           notifyListeners();
@@ -286,6 +302,39 @@ class AudioService extends ChangeNotifier {
     _channel?.sink.add(jsonEncode({'type': 'pcm_end'}));
   }
 
+  void configureFishTts({
+    required String voiceId,
+    String model = 's2-pro',
+    double temperature = 0.7,
+    double topP = 0.7,
+    double speed = 1.0,
+  }) {
+    _fishTtsConfig = {
+      'type': 'fish_tts_config',
+      'voiceId': voiceId,
+      'model': model,
+      'temperature': temperature,
+      'topP': topP,
+      'speed': speed,
+    };
+    _sendFishTtsConfig();
+  }
+
+  void _sendFishTtsConfig() {
+    if (!_isConnected || !_isAuthenticated || _fishTtsConfig == null) return;
+    _channel?.sink.add(jsonEncode(_fishTtsConfig));
+  }
+
+  void sendFishTtsText(String text) {
+    if (!_isConnected || !_isAuthenticated || text.trim().isEmpty) return;
+    _channel?.sink.add(jsonEncode({'type': 'fish_tts_text', 'text': text}));
+  }
+
+  void flushFishTts() {
+    if (!_isConnected || !_isAuthenticated) return;
+    _channel?.sink.add(jsonEncode({'type': 'fish_tts_flush'}));
+  }
+
   void sendFallbackPcmAudio(Uint8List pcm16, {int sampleRate = 16000}) {
     if (!_isConnected || _isMuted || pcm16.isEmpty) return;
     _channel?.sink.add(jsonEncode({
@@ -315,6 +364,7 @@ class AudioService extends ChangeNotifier {
     _isAuthenticated = false;
     _isPeerConnected = false;
     _isReconnecting = false;
+    _fishTtsConfig = null;
     notifyListeners();
   }
 }

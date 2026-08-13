@@ -22,7 +22,7 @@ class FishAudioRealtimeService extends ChangeNotifier {
   String? _lastError;
   String? _apiKey;
   String _voiceId = '802e3bc2b27e49c2995d23ef70e6ac89';
-  String _latency = 'balanced';
+  String _latency = 'low';
   String _model = 's2-pro';
   double _temperature = 0.7;
   double _topP = 0.7;
@@ -41,7 +41,7 @@ class FishAudioRealtimeService extends ChangeNotifier {
   Future<void> connect({
     required String apiKey,
     required String voiceId,
-    String latency = 'balanced',
+    String latency = 'low',
     String model = 's2-pro',
     double temperature = 0.7,
     double topP = 0.7,
@@ -51,8 +51,7 @@ class FishAudioRealtimeService extends ChangeNotifier {
     await disconnect();
     _apiKey = apiKey.trim();
     _voiceId = voiceId.trim();
-    _latency =
-        const ['balanced', 'normal'].contains(latency) ? latency : 'balanced';
+    _latency = 'low';
     _model = model.trim().isEmpty ? 's2-pro' : model.trim();
     _temperature = temperature.clamp(0.0, 1.0);
     _topP = topP.clamp(0.0, 1.0);

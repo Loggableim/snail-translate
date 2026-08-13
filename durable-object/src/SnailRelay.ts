@@ -15,6 +15,7 @@ import {
 } from "./auth";
 import { processAudioPipeline } from "./pipeline";
 import { D1MessageStore } from "./d1-store";
+import { FishTtsConnection, framePcm, framePcmEnd } from "./fish-tts";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ interface SessionState {
 }
 
 interface ClientMessage {
-  type: "auth" | "audio" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "chat" | "sticker" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
+  type: "auth" | "audio" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "sticker" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
   token?: string;
   audio?: number[];
   sampleRate?: number;
@@ -59,6 +60,11 @@ interface ClientMessage {
   // Voice message fields
   audioData?: string;
   durationMs?: number;
+  voiceId?: string;
+  model?: string;
+  temperature?: number;
+  topP?: number;
+  speed?: number;
 }
 
 interface ServerMessage {
@@ -110,9 +116,12 @@ export class SnailRelay implements DurableObject {
   private secret: string = "";
   private pingIntervals = new Map<WebSocket, ReturnType<typeof setInterval>>();
   private messageStore: D1MessageStore | null = null;
+  private fishApiKey: string;
+  private fishTts = new Map<"host" | "guest", FishTtsConnection>();
 
   constructor(state: DurableObjectState, env: any) {
     this.state = state;
+    this.fishApiKey = env.FISHAUDIO_API_KEY || "";
     this.session = {
       roomId: "",
       hostId: null,
@@ -454,6 +463,55 @@ export class SnailRelay implements DurableObject {
           break;
         }
 
+        case "fish_tts_config": {
+          if (!authenticated || !peerRole || !msg.voiceId?.trim()) {
+            this.send(ws, { type: "error", error: "Invalid Fish TTS configuration" });
+            return;
+          }
+          if (!this.fishApiKey) {
+            this.send(ws, { type: "error", error: "Server Fish TTS is not configured" });
+            return;
+          }
+          try {
+            await this.fishConnection(peerRole).configure({
+              voiceId: msg.voiceId,
+              model: msg.model,
+              temperature: msg.temperature,
+              topP: msg.topP,
+              speed: msg.speed,
+            });
+          } catch (err) {
+            this.send(ws, { type: "error", error: `Fish TTS connect failed: ${(err as Error).message}` });
+          }
+          break;
+        }
+
+        case "fish_tts_text": {
+          if (!authenticated || !peerRole || !msg.text?.trim()) {
+            this.send(ws, { type: "error", error: "Invalid Fish TTS text" });
+            return;
+          }
+          try {
+            await this.fishConnection(peerRole).sendText(msg.text);
+          } catch (err) {
+            this.send(ws, { type: "error", error: `Fish TTS send failed: ${(err as Error).message}` });
+          }
+          break;
+        }
+
+        case "fish_tts_flush": {
+          if (!authenticated || !peerRole) {
+            this.send(ws, { type: "error", error: "Not authenticated" });
+            return;
+          }
+          try {
+            await this.fishConnection(peerRole).flush();
+          } catch (err) {
+            this.send(ws, { type: "error", error: `Fish TTS flush failed: ${(err as Error).message}` });
+          }
+          break;
+        }
+
         case "pcm_end": {
           if (!authenticated) {
             this.send(ws, { type: "error", error: "Not authenticated" });
@@ -690,6 +748,10 @@ export class SnailRelay implements DurableObject {
         // cannot evict a newly authenticated guest.
         this.session.guestId = null;
       }
+      if (peerRole) {
+        this.fishTts.get(peerRole)?.close();
+        this.fishTts.delete(peerRole);
+      }
 
       if (peer) {
         this.send(peer, { type: "peer_left", peerId: peerRole || "unknown" });
@@ -717,6 +779,28 @@ export class SnailRelay implements DurableObject {
 
   private send(ws: WebSocket, msg: ServerMessage): void {
     try { ws.send(JSON.stringify(msg)); } catch {}
+  }
+
+  private fishConnection(role: "host" | "guest"): FishTtsConnection {
+    let connection = this.fishTts.get(role);
+    if (connection) return connection;
+    connection = new FishTtsConnection(
+      this.fishApiKey,
+      (audio) => {
+        const target = role === "host" ? this.session.guestSocket : this.session.hostSocket;
+        if (target) {
+          try { target.send(framePcm(audio)); } catch {}
+        }
+      },
+      () => {
+        const target = role === "host" ? this.session.guestSocket : this.session.hostSocket;
+        if (target) {
+          try { target.send(framePcmEnd()); } catch {}
+        }
+      },
+    );
+    this.fishTts.set(role, connection);
+    return connection;
   }
 
   private broadcast(msg: ServerMessage): void {
@@ -753,6 +837,8 @@ export class SnailRelay implements DurableObject {
   }
 
   private cleanup(): void {
+    for (const connection of this.fishTts.values()) connection.close();
+    this.fishTts.clear();
     if (this.session.hostSocket) {
       try { this.session.hostSocket.close(4000, "Session ended"); } catch {}
     }

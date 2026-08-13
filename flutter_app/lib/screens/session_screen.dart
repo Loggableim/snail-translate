@@ -13,7 +13,6 @@ import '../models/provider_config.dart';
 import '../models/session.dart';
 import '../services/openai_realtime_service.dart';
 import '../services/fish_audio_asr_service.dart';
-import '../services/fish_audio_realtime_service.dart';
 import '../services/translation_service.dart';
 import '../services/p2p_audio_service.dart';
 import '../services/user_identity_service.dart';
@@ -52,7 +51,6 @@ class _SessionScreenState extends State<SessionScreen>
   GeminiLiveService? _gemini;
   OpenAiRealtimeService? _openAi;
   OpenAiRealtimeService? _guestFallbackOpenAi;
-  FishAudioRealtimeService? _fish;
   final _fishAsr = FishAudioAsrService();
   final _translator = TranslationService();
   SpeechTurnBuffer? _fishTurns;
@@ -63,7 +61,6 @@ class _SessionScreenState extends State<SessionScreen>
   /// translation outage cannot be mistaken for a working session.
   String? _fishTranslationError;
   int _fishCaptureChunks = 0;
-  VoidCallback? _fishListener;
   String _fishSourceLanguage = 'en';
   String _fishTargetLanguage = 'de';
   String _sessionTargetLanguage = 'en';
@@ -124,9 +121,14 @@ class _SessionScreenState extends State<SessionScreen>
       translationEndpoint: current.translationEndpoint,
       translationModel: current.translationModel,
     ));
-    if (_fish != null &&
-        service.config.provider == TranslationProvider.fishAudio) {
-      await _fish!.changeVoice(voiceId);
+    if (service.config.provider == TranslationProvider.fishAudio) {
+      _audioService.configureFishTts(
+        voiceId: voiceId,
+        model: service.config.model,
+        temperature: service.config.temperature,
+        topP: service.config.topP,
+        speed: service.config.speed,
+      );
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -214,6 +216,11 @@ class _SessionScreenState extends State<SessionScreen>
       relayAudio.onPcmAudioEnd = () {
         _playbackBuffer.resetTiming();
         if (!_p2p.isConnected) _flushSessionPlayback();
+      };
+      relayAudio.onFishTtsAudio = _enqueueSessionPlayback;
+      relayAudio.onFishTtsAudioEnd = () {
+        _playbackBuffer.resetTiming();
+        _flushSessionPlayback();
       };
       var p2pStarted = false;
       Future<void> startP2pAfterAuth() async {
@@ -370,18 +377,15 @@ class _SessionScreenState extends State<SessionScreen>
               }
             });
           } else {
-            _fish = FishAudioRealtimeService();
-            await _fish!.connect(
-              apiKey: provider.apiKey,
+            // Keep Fish TTS warm in the room Durable Object. Only translated
+            // text crosses this control channel; PCM returns as binary frames.
+            relayAudio.configureFishTts(
               voiceId: provider.voiceId,
-              latency: provider.latencyMode,
               model: provider.model,
               temperature: provider.temperature,
               topP: provider.topP,
               speed: provider.speed,
             );
-            _fishListener = _drainFishAudio;
-            _fish!.addListener(_fishListener!);
             _fishTurns = SpeechTurnBuffer(
               gateThreshold: _audioPolicy.noiseGateThreshold,
               // Fish ASR is request based rather than truly streaming. Split
@@ -490,9 +494,6 @@ class _SessionScreenState extends State<SessionScreen>
     unawaited(_snailAudio.stopSessionKeepAlive());
     _audioSubscription?.cancel();
     _fishProcessTimer?.cancel();
-    if (_fish != null && _fishListener != null) {
-      _fish!.removeListener(_fishListener!);
-    }
     if (_gemini != null && _geminiListener != null) {
       _gemini!.removeListener(_geminiListener!);
     }
@@ -504,10 +505,11 @@ class _SessionScreenState extends State<SessionScreen>
     }
     _gemini?.disconnect();
     _openAi?.disconnect();
-    _fish?.disconnect();
     _guestFallbackOpenAi?.disconnect();
     _audioService.onPcmAudio = null;
     _audioService.onPcmAudioEnd = null;
+    _audioService.onFishTtsAudio = null;
+    _audioService.onFishTtsAudioEnd = null;
     _audioService.onFallbackPcmAudio = null;
     _audioService.onSignal = null;
     _audioService.onAuthenticated = null;
@@ -552,7 +554,7 @@ class _SessionScreenState extends State<SessionScreen>
               : source);
       debugPrint(
           '[Snail][Fish] ASR text="${transcript.substring(0, transcript.length.clamp(0, 80))}" language=${asrResult.language}');
-      if (transcript.isNotEmpty && _fish != null) {
+      if (transcript.isNotEmpty) {
         final result = await _translator.translate(
             text: transcript,
             sourceLang: detectedSource,
@@ -572,8 +574,8 @@ class _SessionScreenState extends State<SessionScreen>
         if (mounted && _fishTranslationError != null) {
           setState(() => _fishTranslationError = null);
         }
-        _fish!.sendText(result.text);
-        _fish!.flush();
+        _audioService.sendFishTtsText(result.text);
+        _audioService.flushFishTts();
         debugPrint(
             '[Snail][Fish] TTS submitted $detectedSource->$target chars=${result.text.length}');
       }
@@ -583,29 +585,6 @@ class _SessionScreenState extends State<SessionScreen>
           .log(provider: 'fish_audio', context: 'session.audio', error: error);
     } finally {
       _fishBusy = false;
-    }
-  }
-
-  void _drainFishAudio() {
-    if (_audioService.isMuted || _fish == null) {
-      _fish?.takeAudioChunks();
-      return;
-    }
-    for (final chunk in _fish!.takeAudioChunks()) {
-      // WebRTC sends PCM as a binary frame. The JSON relay remains a fallback
-      // only while ICE is not connected; sending both causes duplicates.
-      if (_p2p.isConnected) {
-        _p2p.sendPcm16(chunk, sampleRate: 24000);
-      } else {
-        _audioService.sendPcmAudio(chunk, sampleRate: 24000);
-      }
-    }
-    if (_fish!.takeStreamFinished()) {
-      if (_p2p.isConnected) {
-        _p2p.sendPcmEnd();
-      } else {
-        _audioService.sendPcmAudioEnd();
-      }
     }
   }
 
