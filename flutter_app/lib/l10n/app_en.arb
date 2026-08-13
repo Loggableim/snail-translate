@@ -39,6 +39,7 @@
   "homeContacts": "Contacts",
   "homeShareApp": "Share app directly",
   "homeShareAppSubtitle": "Offer the APK via QR code on the local network",
+  "homeShareAppShort": "Share app",
   "homeHistoryTitle": "Translation history",
   "homeHistorySubtitle": "View past conversations",
   "homeLiveBadge": "LIVE",

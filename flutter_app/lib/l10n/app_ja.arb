@@ -39,6 +39,7 @@
   "homeContacts": "連絡先",
   "homeShareApp": "アプリを直接共有",
   "homeShareAppSubtitle": "ローカルネットワーク上でQRコード経由でAPKを提供",
+  "homeShareAppShort": "アプリを共有",
   "homeHistoryTitle": "翻訳履歴",
   "homeHistorySubtitle": "過去の会話を表示",
   "homeLiveBadge": "LIVE",
