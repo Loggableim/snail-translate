@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:snail/l10n/app_localizations.dart';
 import 'package:snail/screens/welcome_screen.dart';
+import 'package:snail/services/app_locale_service.dart';
 import 'package:snail/services/provider_config_service.dart';
 import 'package:snail/services/session_service.dart';
 
@@ -13,6 +14,7 @@ Widget _wrapWithProviders(Widget child) {
     providers: [
       ChangeNotifierProvider(create: (_) => SessionService()),
       ChangeNotifierProvider(create: (_) => ProviderConfigService()),
+      ChangeNotifierProvider(create: (_) => AppLocaleService()),
     ],
     // Pinned to German: these tests assert on the ARB template strings, not
     // on localization behavior itself.

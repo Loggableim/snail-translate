@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:snail/l10n/app_localizations.dart';
-import 'package:snail/main.dart' hide main;
+import 'package:snail/l10n/locale_resolution.dart';
+import 'package:snail/services/app_locale_service.dart';
 
 void main() {
   group('resolveAppLocale', () {
@@ -87,6 +89,57 @@ void main() {
       expect(de.sessionRoomCode('snail-ABCD'), contains('snail-ABCD'));
       expect(en.sessionRoomCode('snail-ABCD'), contains('snail-ABCD'));
       expect(uk.sessionRoomCode('snail-ABCD'), contains('snail-ABCD'));
+    });
+  });
+
+  group('AppLocaleService', () {
+    test('has no explicit locale before the user ever picks a flag', () {
+      SharedPreferences.setMockInitialValues({});
+      expect(AppLocaleService().locale, isNull);
+    });
+
+    test('setLocale applies a supported language immediately', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = AppLocaleService();
+      var notified = false;
+      service.addListener(() => notified = true);
+
+      await service.setLocale('uk');
+
+      expect(notified, isTrue,
+          reason: 'MaterialApp must rebuild on this frame, not after the '
+              'SharedPreferences write completes');
+      expect(service.locale, const Locale('uk'));
+    });
+
+    test('setLocale falls back to English for an unsupported language',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = AppLocaleService();
+
+      await service.setLocale('ja');
+
+      expect(service.locale, const Locale('en'));
+    });
+
+    test('the picked locale persists across a restart', () async {
+      SharedPreferences.setMockInitialValues({});
+      final first = AppLocaleService();
+      await first.setLocale('uk');
+
+      // Simulate the next app launch: a fresh service loading from the same
+      // (mocked) persisted storage.
+      final second = AppLocaleService();
+      await second.load();
+
+      expect(second.locale, const Locale('uk'));
+    });
+
+    test('load leaves locale null when nothing was ever picked', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = AppLocaleService();
+      await service.load();
+      expect(service.locale, isNull);
     });
   });
 }

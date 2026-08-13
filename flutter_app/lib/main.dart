@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'l10n/app_localizations.dart';
+import 'l10n/locale_resolution.dart';
+import 'services/app_locale_service.dart';
 import 'services/session_service.dart';
 import 'services/audio_service.dart';
 import 'services/user_identity_service.dart';
@@ -31,25 +33,6 @@ import 'screens/standalone_screen.dart';
 import 'screens/app_share_screen.dart';
 import 'screens/profile_screen.dart';
 
-/// Picks the app locale for a given device locale.
-///
-/// Matches by language code only (ignoring region/script), so e.g. `de_AT`
-/// still resolves to the `de` translation. Falls back to English, not German
-/// (the ARB template language), for any language Snail does not ship a
-/// translation for — an unsupported locale should not silently look like a
-/// German-only app to everyone else. Runs on every app start, so a language
-/// change in system settings is picked up immediately, not just at install.
-Locale resolveAppLocale(Locale? deviceLocale, Iterable<Locale> supportedLocales) {
-  if (deviceLocale != null) {
-    for (final supported in supportedLocales) {
-      if (supported.languageCode == deviceLocale.languageCode) {
-        return supported;
-      }
-    }
-  }
-  return const Locale('en');
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final sessionService = SessionService();
@@ -68,13 +51,16 @@ void main() async {
   await history.load();
   final audioPolicy = AudioPolicy();
   await audioPolicy.load();
+  final appLocale = AppLocaleService();
+  await appLocale.load();
   runApp(SnailApp(
       sessionService: sessionService,
       identityService: identityService,
       contactService: contactService,
       providerConfigService: providerConfigService,
       history: history,
-      audioPolicy: audioPolicy));
+      audioPolicy: audioPolicy,
+      appLocale: appLocale));
 }
 
 class SnailApp extends StatelessWidget {
@@ -84,6 +70,7 @@ class SnailApp extends StatelessWidget {
   final ProviderConfigService providerConfigService;
   final TranscriptHistory history;
   final AudioPolicy audioPolicy;
+  final AppLocaleService appLocale;
 
   const SnailApp(
       {super.key,
@@ -92,7 +79,8 @@ class SnailApp extends StatelessWidget {
       required this.contactService,
       required this.providerConfigService,
       required this.history,
-      required this.audioPolicy});
+      required this.audioPolicy,
+      required this.appLocale});
 
   @override
   Widget build(BuildContext context) {
@@ -111,9 +99,10 @@ class SnailApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: audioPolicy),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AppShareService()),
+        ChangeNotifierProvider.value(value: appLocale),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, theme, _) {
+      child: Consumer2<ThemeProvider, AppLocaleService>(
+        builder: (context, theme, locale, _) {
           return MaterialApp(
             title: 'Snail',
             debugShowCheckedModeBanner: false,
@@ -127,6 +116,14 @@ class SnailApp extends StatelessWidget {
               GlobalCupertinoLocalizations.delegate,
             ],
             supportedLocales: AppLocalizations.supportedLocales,
+            // Before the user has ever picked a flag, locale.locale is null
+            // and MaterialApp falls back to resolving the device locale via
+            // localeResolutionCallback. Once AppLocaleService holds a value
+            // (set the moment a flag is tapped on the welcome screen), it
+            // takes over directly and MaterialApp no longer consults device
+            // locale at all — the explicit choice sticks across every
+            // screen and app restart.
+            locale: locale.locale,
             localeResolutionCallback: resolveAppLocale,
             initialRoute: '/welcome',
             routes: {

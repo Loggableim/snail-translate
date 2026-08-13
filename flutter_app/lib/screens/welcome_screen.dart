@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../services/app_locale_service.dart';
 import '../services/snail_audio.dart';
 import '../services/fish_audio_asr_service.dart';
 import '../services/session_service.dart';
@@ -317,6 +318,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       greetings: _greetings,
                       greetingIndex: _greetingIndex,
                       onLanguageSelected: (code) async {
+                        // Switch the app's own UI language immediately, not
+                        // just the live-translation target. setLocale
+                        // notifies before it persists, so the whole screen
+                        // re-renders in the new language on this tap.
+                        await context.read<AppLocaleService>().setLocale(code);
+                        if (!mounted) return;
                         await context
                             .read<SessionService>()
                             .setMyLanguage(code);
