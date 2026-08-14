@@ -205,9 +205,23 @@ class ChatService extends ChangeNotifier {
   /// Flush queued messages. Called by AudioService when connection is ready.
   void flushOutbox() {
     if (onSend == null || canSend?.call() == false) return;
-    for (final message in List<Map<String, dynamic>>.from(_outbox)) {
-      final id = message['messageId'];
+    unawaited(_flushOutbox());
+  }
+
+  Future<void> _flushOutbox() async {
+    for (final original in List<Map<String, dynamic>>.from(_outbox)) {
+      final id = original['messageId'];
       if (id is String && !_inFlight.add(id)) continue;
+      if (_crypto == null) {
+        onSend?.call(jsonEncode(original));
+        continue;
+      }
+      final message = await _prepareWireMessage(original);
+      final index = _outbox.indexWhere((item) => item['messageId'] == id);
+      if (index != -1 && !identical(message, original)) {
+        _outbox[index] = message;
+        await _persistOutbox();
+      }
       onSend?.call(jsonEncode(message));
     }
   }
@@ -305,18 +319,30 @@ class ChatService extends ChangeNotifier {
           : MessageStatus.queued,
     ));
     notifyListeners();
-    unawaited(_dispatchOutgoing(message,
-        relayAvailable: relayAvailable, p2pAvailable: p2pAvailable));
+    if (_crypto == null) {
+      _dispatchPlain(message,
+          relayAvailable: relayAvailable, p2pAvailable: p2pAvailable);
+    } else {
+      await _dispatchOutgoing(message,
+          relayAvailable: relayAvailable, p2pAvailable: p2pAvailable);
+    }
+  }
+
+  void _dispatchPlain(Map<String, dynamic> message,
+      {required bool relayAvailable, required bool p2pAvailable}) {
+    if (p2pAvailable) onP2pSend?.call(message);
+    if (!relayAvailable && !p2pAvailable) {
+      unawaited(_queue(message));
+    } else if (relayAvailable) {
+      onSend?.call(jsonEncode(message));
+      final id = message['messageId'];
+      if (id is String) _inFlight.add(id);
+    }
   }
 
   Future<void> _dispatchOutgoing(Map<String, dynamic> message,
       {required bool relayAvailable, required bool p2pAvailable}) async {
-    final wireMessage = _crypto == null
-        ? message
-        : {
-            ...message,
-            'text': await _crypto!.encrypt(message['text'] as String),
-          };
+    final wireMessage = await _prepareWireMessage(message);
     if (p2pAvailable) onP2pSend?.call(wireMessage);
     if (!relayAvailable && !p2pAvailable) {
       await _queue(wireMessage);
@@ -324,6 +350,23 @@ class ChatService extends ChangeNotifier {
       onSend?.call(jsonEncode(wireMessage));
       final id = wireMessage['messageId'];
       if (id is String) _inFlight.add(id);
+    }
+  }
+
+  Future<Map<String, dynamic>> _prepareWireMessage(
+      Map<String, dynamic> message) async {
+    if (_crypto == null || message['type'] != 'chat') return message;
+    final text = message['text'];
+    if (text is! String || _isCiphertextEnvelope(text)) return message;
+    return {...message, 'text': await _crypto!.encrypt(text)};
+  }
+
+  bool _isCiphertextEnvelope(String text) {
+    try {
+      final value = jsonDecode(text);
+      return value is Map<String, dynamic> && value['v'] == 'snail-chat-v1';
+    } catch (_) {
+      return false;
     }
   }
 

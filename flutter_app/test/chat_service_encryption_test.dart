@@ -47,4 +47,23 @@ void main() {
     expect(service.messages.map((message) => message.text),
         containsAll(<String>['incoming secret', 'old plaintext']));
   });
+
+  test('encrypts a plaintext chat that was queued before key exchange',
+      () async {
+    final service = ChatService();
+    final wireMessages = <String>[];
+    service.onSend = wireMessages.add;
+    service.canSend = () => false;
+    service.sendChat('queued secret');
+    service.setConversationCrypto(
+        ChatCryptoService.fromSharedSecret(List<int>.filled(32, 9)));
+    service.canSend = () => true;
+
+    await Future<void>.delayed(Duration.zero);
+    service.flushOutbox();
+    await Future<void>.delayed(Duration.zero);
+
+    final wire = jsonDecode(wireMessages.single) as Map<String, dynamic>;
+    expect(wire['text'], isNot('queued secret'));
+  });
 }
