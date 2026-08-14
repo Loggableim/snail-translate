@@ -159,4 +159,13 @@ describe("SnailRelay lifecycle and limits", () => {
     await relay.alarm();
     expect(storage.values.size).toBe(0);
   });
+
+  it("reschedules an alarm while a session remains active", async () => {
+    const { relay, storage } = await initializedRelay();
+    await connect(relay, "host", "host");
+    const before = storage.alarmCalls;
+    await relay.alarm();
+    expect(storage.alarmCalls).toBeGreaterThan(before);
+    expect(storage.values.size).toBeGreaterThan(0);
+  });
 });

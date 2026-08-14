@@ -150,6 +150,8 @@ export class SnailRelay implements DurableObject {
       );
       this.broadcast({ type: "session_end", reason: "Session timed out due to inactivity" });
       await this.cleanup();
+    } else if (this.session.hostSocket || this.session.guestSocket) {
+      await this.scheduleInactivityAlarm();
     }
   }
 
@@ -599,7 +601,7 @@ export class SnailRelay implements DurableObject {
       await this.scheduleInactivityAlarm();
 
       if (!this.session.hostSocket && !this.session.guestSocket) {
-        setTimeout(() => { void this.cleanup(); }, 60_000);
+        void this.scheduleInactivityAlarm();
       }
     });
 
