@@ -100,6 +100,11 @@ const ALLOWED_FISH_MODELS = new Set(["s2-pro", "s1"]);
 const SESSION_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1_000; // 30 minutes
 const PROTOCOL_VERSION = 1;
 
+function relayLog(event: string, fields: Record<string, string | number | boolean>): void {
+  // Never include tokens, provider keys, or message text in operational logs.
+  console.log(JSON.stringify({ service: "snail-relay", event, ...fields }));
+}
+
 // ── Durable Object ────────────────────────────────────────────────────
 
 export class SnailRelay implements DurableObject {
@@ -423,6 +428,7 @@ export class SnailRelay implements DurableObject {
               speed: msg.speed,
             });
           } catch (err) {
+            relayLog("provider_request_failed", { provider: "fish_tts", operation: "configure" });
             this.send(ws, { type: "error", error: `Fish TTS connect failed: ${(err as Error).message}` });
           }
           break;
@@ -435,6 +441,7 @@ export class SnailRelay implements DurableObject {
           }
           if (msg.text.length > MAX_FISH_TTS_TEXT_LENGTH ||
               this.session.fishTtsChars + msg.text.length > MAX_FISH_TTS_CHARS) {
+            relayLog("provider_quota_rejected", { provider: "fish_tts", limit: MAX_FISH_TTS_CHARS });
             this.send(ws, { type: "error", error: "Fish TTS quota exceeded" });
             return;
           }
@@ -443,6 +450,7 @@ export class SnailRelay implements DurableObject {
           try {
             await this.fishConnection(peerRole).sendText(msg.text);
           } catch (err) {
+            relayLog("provider_request_failed", { provider: "fish_tts", operation: "send_text" });
             this.send(ws, { type: "error", error: `Fish TTS send failed: ${(err as Error).message}` });
           }
           break;
@@ -456,6 +464,7 @@ export class SnailRelay implements DurableObject {
           try {
             await this.fishConnection(peerRole).flush();
           } catch (err) {
+            relayLog("provider_request_failed", { provider: "fish_tts", operation: "flush" });
             this.send(ws, { type: "error", error: `Fish TTS flush failed: ${(err as Error).message}` });
           }
           break;

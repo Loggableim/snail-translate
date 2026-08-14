@@ -65,6 +65,12 @@ const REALTIME_SECRET_WINDOW_SECONDS = 60;
 const ROOM_RATE_WINDOW_SECONDS = 60;
 const ROOM_RATE_LIMITS = { create: 10, join: 20, websocket: 40, failedJoin: 5 } as const;
 
+function observabilityLog(event: string, fields: Record<string, string | number | boolean>): void {
+  // Operational telemetry must never contain tokens, keys, message bodies, or
+  // raw user identifiers.
+  console.log(JSON.stringify({ service: "snail-worker", event, ...fields }));
+}
+
 function iceServers(env: Env): Array<Record<string, unknown>> {
   const servers: Array<Record<string, unknown>> = [{ urls: "stun:stun.l.google.com:19302" }];
   if (env.TURN_URL && env.TURN_USERNAME && env.TURN_CREDENTIAL) {
@@ -198,7 +204,9 @@ async function checkQuota(userId: string, env: Env): Promise<{ allowed: boolean;
   if (isDevMode(env)) return { allowed: true, remaining: Infinity };
   const used = await getQuotaUsed(userId, env);
   const remaining = FREE_QUOTA_SECONDS - used;
-  return { allowed: remaining > 0, remaining };
+  const allowed = remaining > 0;
+  if (!allowed) observabilityLog("quota_exhausted", { tier: "free" });
+  return { allowed, remaining };
 }
 
 async function checkRoomRateLimit(
@@ -213,6 +221,7 @@ async function checkRoomRateLimit(
   const key = `room-rate:${action}:${subject}:${window}`;
   const used = Number(await env.SNAIL_KV.get(key) || "0");
   if (used >= ROOM_RATE_LIMITS[action]) {
+    observabilityLog("rate_limit_hit", { action, limit: ROOM_RATE_LIMITS[action] });
     return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
       status: 429,
       headers: {
@@ -265,6 +274,7 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get("Origin") || "";
   const userId = await getUserId(request, env);
   if (!userId) {
+    observabilityLog("auth_failure", { route: "rooms_create", reason: "missing_or_invalid_token" });
     return json({ error: "Unauthorized" }, 401, origin, env.CORS_ORIGINS);
   }
 
@@ -274,6 +284,7 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
   const tier = isDevMode(env) ? "paid" : "free";
   const quota = await checkQuota(userId, env);
   if (!quota.allowed) {
+    observabilityLog("quota_rejected", { route: "rooms_create" });
     return json({ error: "Quota exceeded", remaining: quota.remaining }, 403, origin, env.CORS_ORIGINS);
   }
 
@@ -329,12 +340,14 @@ async function handleJoinRoom(request: Request, env: Env, roomId: string): Promi
   const origin = request.headers.get("Origin") || "";
   const userId = await getUserId(request, env);
   if (!userId) {
+    observabilityLog("auth_failure", { route: "rooms_join", reason: "missing_or_invalid_token" });
     return json({ error: "Unauthorized" }, 401, origin, env.CORS_ORIGINS);
   }
 
   const tier = isDevMode(env) ? "paid" : "free";
   const quota = await checkQuota(userId, env);
   if (!quota.allowed) {
+    observabilityLog("quota_rejected", { route: "rooms_join" });
     return json({ error: "Quota exceeded" }, 403, origin, env.CORS_ORIGINS);
   }
 
@@ -342,6 +355,7 @@ async function handleJoinRoom(request: Request, env: Env, roomId: string): Promi
   const doStub = env.SNAIL_RELAY.get(doId);
   const roomCheck = await doStub.fetch(new Request("https://internal/status"));
   if (roomCheck.status !== 200) {
+    observabilityLog("room_lookup_failed", { route: "rooms_join", status: roomCheck.status });
     await checkRoomRateLimit(request, env, "failedJoin");
     return json({ error: "Room not found" }, 404, origin, env.CORS_ORIGINS);
   }
@@ -379,7 +393,10 @@ async function handleJoinRoom(request: Request, env: Env, roomId: string): Promi
 async function handleQuota(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get("Origin") || "";
   const userId = await getUserId(request, env);
-  if (!userId) return json({ error: "Unauthorized" }, 401, origin, env.CORS_ORIGINS);
+  if (!userId) {
+    observabilityLog("auth_failure", { route: "quota", reason: "missing_or_invalid_token" });
+    return json({ error: "Unauthorized" }, 401, origin, env.CORS_ORIGINS);
+  }
 
   const tier = isDevMode(env) ? "paid" : "free";
   const used = await getQuotaUsed(userId, env);
@@ -402,12 +419,19 @@ async function handleQuota(request: Request, env: Env): Promise<Response> {
 async function handleRealtimeClientSecret(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get("Origin") || "";
   const userId = await getUserId(request, env);
-  if (!userId) return json({ error: "Unauthorized" }, 401, origin, env.CORS_ORIGINS);
-  if (!env.OPENAI_API_KEY) return json({ error: "Realtime client secrets are not configured" }, 503, origin, env.CORS_ORIGINS);
+  if (!userId) {
+    observabilityLog("auth_failure", { route: "realtime_client_secret", reason: "missing_or_invalid_token" });
+    return json({ error: "Unauthorized" }, 401, origin, env.CORS_ORIGINS);
+  }
+  if (!env.OPENAI_API_KEY) {
+    observabilityLog("provider_unavailable", { provider: "openai_realtime", reason: "missing_server_key" });
+    return json({ error: "Realtime client secrets are not configured" }, 503, origin, env.CORS_ORIGINS);
+  }
   const window = Math.floor(Date.now() / (REALTIME_SECRET_WINDOW_SECONDS * 1_000));
   const rateKey = `realtime-secret:${userId}:${window}`;
   const issued = Number(await env.SNAIL_KV.get(rateKey) || "0");
   if (issued >= REALTIME_SECRET_LIMIT) {
+    observabilityLog("rate_limit_hit", { action: "realtime_client_secret", limit: REALTIME_SECRET_LIMIT });
     return json({ error: "Realtime secret rate limit exceeded" }, 429, origin, env.CORS_ORIGINS);
   }
   await env.SNAIL_KV.put(rateKey, String(issued + 1), { expirationTtl: REALTIME_SECRET_WINDOW_SECONDS + 5 });
@@ -435,6 +459,10 @@ async function handleRealtimeClientSecret(request: Request, env: Env): Promise<R
   });
 
   const responseBody = await upstream.text();
+  observabilityLog(
+    upstream.ok ? "provider_request_ok" : "provider_request_failed",
+    { provider: "openai_realtime", status: upstream.status },
+  );
   return new Response(responseBody, {
     status: upstream.status,
     headers: { ...corsHeaders(origin, env.CORS_ORIGINS), "Content-Type": upstream.headers.get("Content-Type") || "application/json" },
