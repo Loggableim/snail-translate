@@ -322,6 +322,9 @@
   "@settingsErrorLogEntryCount": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsDiagnosticsTitle": "Diagnose",
+  "settingsDiagnosticsBody": "Nur redigierte Provider-Fehlercodes senden, um die Zuverlässigkeit zu verbessern. Keine Gesprächsinhalte oder Schlüssel.",
+  "settingsDiagnosticsOptIn": "Anonyme Diagnosen teilen",
   "settingsAppSection": "App",
   "settingsAppSubtitle": "Echtzeit-Konversationsübersetzer",
   "settingsChangeUsernameTitle": "Username ändern",

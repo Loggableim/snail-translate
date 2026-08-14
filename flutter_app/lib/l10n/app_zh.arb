@@ -322,6 +322,9 @@
   "@settingsErrorLogEntryCount": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsDiagnosticsTitle": "诊断",
+  "settingsDiagnosticsBody": "仅发送经过清理的服务商错误代码以帮助提高可靠性。不发送对话内容或密钥。",
+  "settingsDiagnosticsOptIn": "分享匿名诊断信息",
   "settingsAppSection": "应用",
   "settingsAppSubtitle": "实时对话翻译器",
   "settingsChangeUsernameTitle": "更改用户名",

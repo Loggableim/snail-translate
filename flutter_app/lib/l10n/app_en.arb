@@ -322,6 +322,9 @@
   "@settingsErrorLogEntryCount": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsDiagnosticsTitle": "Diagnostics",
+  "settingsDiagnosticsBody": "Send only redacted provider error codes to help improve reliability. No conversation content or keys are sent.",
+  "settingsDiagnosticsOptIn": "Share anonymous diagnostics",
   "settingsAppSection": "App",
   "settingsAppSubtitle": "Real-time conversation translator",
   "settingsChangeUsernameTitle": "Change username",

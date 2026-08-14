@@ -54,6 +54,7 @@ void main() async {
   await audioPolicy.load();
   final appLocale = AppLocaleService();
   await appLocale.load();
+  await ErrorLogger.I.loadPreferences();
   runApp(SnailApp(
       sessionService: sessionService,
       identityService: identityService,

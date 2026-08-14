@@ -322,6 +322,9 @@
   "@settingsErrorLogEntryCount": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsDiagnosticsTitle": "Diagnóstico",
+  "settingsDiagnosticsBody": "Envía solo códigos de error redactados del proveedor para mejorar la fiabilidad. No se envían conversaciones ni claves.",
+  "settingsDiagnosticsOptIn": "Compartir diagnósticos anónimos",
   "settingsAppSection": "Aplicación",
   "settingsAppSubtitle": "Traductor de conversación en tiempo real",
   "settingsChangeUsernameTitle": "Cambiar nombre de usuario",

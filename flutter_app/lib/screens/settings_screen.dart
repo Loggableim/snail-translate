@@ -99,6 +99,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 10),
             _errorLogGroup(l10n, colors),
             const SizedBox(height: 10),
+            _diagnosticsGroup(l10n, colors),
+            const SizedBox(height: 10),
             _SettingsRow(
               icon: Icons.info_outline_rounded,
               color: colors.secondary,
@@ -282,6 +284,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         );
       },
+    );
+  }
+
+  Widget _diagnosticsGroup(AppLocalizations l10n, ColorScheme colors) {
+    return Consumer<ErrorLogger>(
+      builder: (_, logger, __) => _SettingsGroup(
+        icon: Icons.insights_rounded,
+        color: colors.secondary,
+        title: l10n.settingsDiagnosticsTitle,
+        summary: l10n.settingsDiagnosticsBody,
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(l10n.settingsDiagnosticsOptIn),
+            subtitle: Text(l10n.settingsDiagnosticsBody),
+            value: logger.telemetryEnabled,
+            onChanged: logger.setTelemetryEnabled,
+          ),
+        ],
+      ),
     );
   }
 

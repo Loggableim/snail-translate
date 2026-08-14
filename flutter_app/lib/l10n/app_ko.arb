@@ -322,6 +322,9 @@
   "@settingsErrorLogEntryCount": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsDiagnosticsTitle": "진단",
+  "settingsDiagnosticsBody": "안정성 향상을 위해 삭제된 제공자 오류 코드만 보냅니다. 대화 내용이나 키는 보내지 않습니다.",
+  "settingsDiagnosticsOptIn": "익명 진단 공유",
   "settingsAppSection": "앱",
   "settingsAppSubtitle": "실시간 대화 번역기",
   "settingsChangeUsernameTitle": "사용자 이름 변경",

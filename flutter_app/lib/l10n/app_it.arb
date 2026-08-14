@@ -322,6 +322,9 @@
   "@settingsErrorLogEntryCount": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsDiagnosticsTitle": "Diagnostica",
+  "settingsDiagnosticsBody": "Invia solo codici di errore del provider redatti per migliorare l’affidabilità. Nessun contenuto o chiave viene inviato.",
+  "settingsDiagnosticsOptIn": "Condividi diagnostica anonima",
   "settingsAppSection": "App",
   "settingsAppSubtitle": "Traduttore di conversazione in tempo reale",
   "settingsChangeUsernameTitle": "Cambia nome utente",

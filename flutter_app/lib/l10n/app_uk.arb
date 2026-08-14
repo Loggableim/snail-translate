@@ -322,6 +322,9 @@
   "@settingsErrorLogEntryCount": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsDiagnosticsTitle": "Діагностика",
+  "settingsDiagnosticsBody": "Надсилати лише очищені коди помилок провайдера для покращення надійності. Вміст розмов і ключі не надсилаються.",
+  "settingsDiagnosticsOptIn": "Ділитися анонімною діагностикою",
   "settingsAppSection": "Застосунок",
   "settingsAppSubtitle": "Перекладач розмов у реальному часі",
   "settingsChangeUsernameTitle": "Змінити ім'я користувача",

@@ -1,5 +1,9 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'api_keys.dart';
 
 /// Structured error logging for Snail.
 ///
@@ -12,6 +16,23 @@ class ErrorLogger extends ChangeNotifier {
 
   final List<ErrorEntry> _logs = [];
   static const int _maxEntries = 200;
+  static const _telemetryKey = 'snail_diagnostics_opt_in';
+  bool _telemetryEnabled = false;
+
+  bool get telemetryEnabled => _telemetryEnabled;
+
+  Future<void> loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    _telemetryEnabled = prefs.getBool(_telemetryKey) ?? false;
+    notifyListeners();
+  }
+
+  Future<void> setTelemetryEnabled(bool enabled) async {
+    _telemetryEnabled = enabled;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_telemetryKey, enabled);
+  }
 
   /// Log an error with provider, context, and optional stack trace.
   void log({
@@ -37,6 +58,36 @@ class ErrorLogger extends ChangeNotifier {
     }
     notifyListeners();
     debugPrint("[Snail:Error] $provider/$context: $safeMessage");
+    if (_telemetryEnabled) {
+      unawaited(_sendTelemetry(provider: provider, context: context, error: error));
+    }
+  }
+
+  Future<void> _sendTelemetry({
+    required String provider,
+    required String context,
+    required Object error,
+  }) async {
+    try {
+      await http.post(
+        Uri.parse('${ApiKeys.workerUrl}/api/telemetry'),
+        headers: const {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'provider': provider,
+          'context': context,
+          'code': _errorCode(error),
+        }),
+      ).timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Diagnostics must never affect the provider or session path.
+    }
+  }
+
+  static String _errorCode(Object error) {
+    final value = error.toString().split(':').first.trim();
+    final sanitized = value.replaceAll(RegExp(r'[^A-Za-z0-9_.-]'), '_');
+    if (sanitized.isEmpty) return 'unknown';
+    return sanitized.substring(0, sanitized.length.clamp(1, 96));
   }
 
   static String _redact(String value) => value

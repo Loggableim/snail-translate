@@ -322,6 +322,9 @@
   "@settingsErrorLogEntryCount": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsDiagnosticsTitle": "診断",
+  "settingsDiagnosticsBody": "信頼性向上のため、編集済みのプロバイダーエラーコードのみを送信します。会話内容やキーは送信しません。",
+  "settingsDiagnosticsOptIn": "匿名の診断情報を共有",
   "settingsAppSection": "アプリ",
   "settingsAppSubtitle": "リアルタイム会話翻訳者",
   "settingsChangeUsernameTitle": "ユーザー名を変更",
