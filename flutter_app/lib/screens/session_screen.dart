@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -72,9 +72,18 @@ class _SessionScreenState extends State<SessionScreen>
   bool _fallbackPlaybackRunning = false;
   final _playbackBuffer = SessionPlaybackBuffer();
   bool _playbackDraining = false;
+  DateTime _lastPlaybackDiagnostic = DateTime.fromMillisecondsSinceEpoch(0);
   Future<void>? _guestFallbackConnecting;
   int _lastOpenAiSpeechStarts = 0;
   int _connectionGeneration = 0;
+
+  void _debugPlaybackDiagnostic(String message) {
+    if (!kDebugMode) return;
+    final now = DateTime.now();
+    if (now.difference(_lastPlaybackDiagnostic) < const Duration(seconds: 1)) return;
+    _lastPlaybackDiagnostic = now;
+    debugPrint(message);
+  }
 
   static const _languageLabels = <String, String>{
     'de': 'Deutsch',
@@ -682,9 +691,8 @@ class _SessionScreenState extends State<SessionScreen>
 
   void _enqueueSessionPlayback(Uint8List bytes, int sampleRate) {
     _playbackBuffer.add(bytes, sampleRate, DateTime.now());
-    debugPrint(
-        '[Snail][Playback] received bytes=${bytes.length} rate=$sampleRate');
-    debugPrint('[Snail][Playback] queued=${_playbackBuffer.bufferedMs}ms '
+    _debugPlaybackDiagnostic('[Snail][Playback] received bytes=${bytes.length} rate=$sampleRate '
+        'queued=${_playbackBuffer.bufferedMs}ms '
         'target=${_playbackBuffer.targetMs}ms jitter='
         '${_playbackBuffer.largestArrivalJitterMs}ms drops='
         '${_playbackBuffer.droppedChunks}');
@@ -710,7 +718,7 @@ class _SessionScreenState extends State<SessionScreen>
         final started = DateTime.now();
         await _snailAudio.playPcm16(chunk.bytes,
             sampleRate: chunk.sampleRate, output: _audioPolicy.output);
-        debugPrint('[Snail][Playback] played bytes=${chunk.bytes.length} '
+        _debugPlaybackDiagnostic('[Snail][Playback] played bytes=${chunk.bytes.length} '
             'duration=${chunk.durationMs}ms elapsed=${DateTime.now().difference(started).inMilliseconds}ms');
       }
     } finally {
