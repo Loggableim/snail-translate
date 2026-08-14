@@ -65,7 +65,7 @@ export class AppShareRelay implements DurableObject {
         this.send(sender, { type: 'transfer_error', error: 'Transfer exceeds announced size' });
         return;
       }
-      this.guest.send(data);
+      this.sendBinary(this.guest, data);
       this.transferred += data.byteLength;
       if (this.transferred === data.byteLength || this.transferred >= this.meta.bytes || this.transferred % (512 * 1024) < data.byteLength) {
         this.broadcast({ type: 'progress', transferred: this.transferred, bytes: this.meta.bytes });
@@ -87,6 +87,11 @@ export class AppShareRelay implements DurableObject {
 
   private send(socket: WebSocket | null, data: unknown) {
     if (this.isOpen(socket)) socket.send(JSON.stringify(data));
+  }
+
+  private sendBinary(socket: WebSocket | null, data: ArrayBuffer) {
+    if (!this.isOpen(socket)) return;
+    try { socket.send(data); } catch {}
   }
   private broadcast(data: unknown) { this.send(this.host, data); this.send(this.guest, data); }
   async alarm() {
