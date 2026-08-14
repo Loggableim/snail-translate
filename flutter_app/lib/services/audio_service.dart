@@ -191,9 +191,12 @@ class AudioService extends ChangeNotifier {
           _isPeerConnected = true;
           final peerKey = msg['peerAgreementPublicKey'] as String?;
           if (peerKey != null && peerKey.isNotEmpty) {
-            unawaited(_configureConversationCrypto(peerKey));
+            unawaited(_configureConversationCrypto(peerKey).then((_) {
+              chat.flushOutbox();
+            }));
+          } else {
+            chat.flushOutbox();
           }
-          chat.flushOutbox();
           notifyListeners();
           break;
         case 'peer_left':
