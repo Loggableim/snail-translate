@@ -56,6 +56,7 @@ const FREE_QUOTA_SECONDS = 30 * 60;
 const SESSION_TOKEN_TTL = 3600;
 const ROOM_ID_LENGTH = 8;
 const ROOM_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const MAX_ROOM_ID_ATTEMPTS = 5;
 const APP_SHARE_TTL = 15 * 60;
 
 function iceServers(env: Env): Array<Record<string, unknown>> {
@@ -243,18 +244,30 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
     return json({ error: "Quota exceeded", remaining: quota.remaining }, 403, origin);
   }
 
-  const roomId = generateRoomId();
   const inviteeId = typeof body.inviteeId === "string" && /^[a-f0-9-]{16,80}$/i.test(body.inviteeId.trim())
     ? body.inviteeId.trim()
     : null;
+  let roomId = "";
+  let doStub: DurableObjectStub | null = null;
+  for (let attempt = 0; attempt < MAX_ROOM_ID_ATTEMPTS; attempt++) {
+    const candidate = generateRoomId();
+    const candidateStub = env.SNAIL_RELAY.get(env.SNAIL_RELAY.idFromName(candidate));
+    const status = await candidateStub.fetch(new Request("https://internal/status"));
+    if (status.status === 404) {
+      roomId = candidate;
+      doStub = candidateStub;
+      break;
+    }
+  }
+  if (!roomId || !doStub) {
+    return json({ error: "Could not allocate a unique room code" }, 503, origin);
+  }
   const sessionToken = await createSessionToken(
     { sub: userId, room: roomId, role: "host", tier: tier as "free" | "paid" },
     env
   );
 
   // Init DO
-  const doId = env.SNAIL_RELAY.idFromName(roomId);
-  const doStub = env.SNAIL_RELAY.get(doId);
   await doStub.fetch(new Request("https://internal/init", {
     method: "POST",
     body: JSON.stringify({

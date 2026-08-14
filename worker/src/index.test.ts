@@ -78,7 +78,7 @@ describe("Worker fetch handler", () => {
     const response = await call("/api/rooms", {
       method: "OPTIONS",
       headers: { Origin: "https://snail.app" },
-    });
+    }, { SNAIL_RELAY: namespace(new Response("Not found", { status: 404 })) });
     expect(response.status).toBe(204);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://snail.app");
     expect(response.headers.get("Access-Control-Allow-Headers")).toContain("X-Snail-Identity");
@@ -103,7 +103,7 @@ describe("Worker fetch handler", () => {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-API-Key": "test-api-key" },
       body: JSON.stringify({ sourceLang: "de", targetLang: "en", inviteeId: "not-an-identity" }),
-    });
+    }, { SNAIL_RELAY: namespace(new Response("Not found", { status: 404 })) });
     expect(response.status).toBe(201);
     const body = await response.json() as { roomId: string };
     expect(body).toMatchObject({
@@ -121,6 +121,16 @@ describe("Worker fetch handler", () => {
     });
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Room not found" });
+  });
+
+  it("fails safely when every generated room code is already initialized", async () => {
+    const response = await call("/api/rooms", {
+      method: "POST",
+      headers: { "X-API-Key": "test-api-key" },
+      body: "{}",
+    }, { SNAIL_RELAY: namespace(new Response("{}", { status: 200 })) });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "Could not allocate a unique room code" });
   });
 
   it("reports an unavailable realtime secret through the real route", async () => {
