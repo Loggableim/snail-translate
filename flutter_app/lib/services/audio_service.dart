@@ -20,6 +20,7 @@ class AudioService extends ChangeNotifier {
   bool _isAuthenticated = false;
   final ChatService chat = ChatService();
   final List<Map<String, dynamic>> _signals = [];
+  static const _maxSignals = 256;
   void Function(Uint8List bytes, int sampleRate)? onPcmAudio;
   VoidCallback? onPcmAudioEnd;
   void Function(Uint8List bytes, int sampleRate)? onFishTtsAudio;
@@ -197,6 +198,7 @@ class AudioService extends ChangeNotifier {
           notifyListeners();
           break;
         case 'signal':
+          if (_signals.length >= _maxSignals) _signals.removeAt(0);
           _signals
               .add({'signalType': msg['signalType'], 'signal': msg['signal']});
           onSignal?.call(msg['signalType'] as String, msg['signal']);

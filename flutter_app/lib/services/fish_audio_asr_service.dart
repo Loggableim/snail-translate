@@ -122,7 +122,8 @@ class FishAudioAsrService {
   Uint8List _wav(Uint8List pcm, int sampleRate) {
     final rate = sampleRate > 0 ? sampleRate : 16000;
     final bytesPerSecond = rate * 2;
-    final out = ByteData(44 + pcm.length);
+    final bytes = Uint8List(44 + pcm.length);
+    final out = ByteData.sublistView(bytes);
     void ascii(int offset, String value) {
       for (var i = 0; i < value.length; i++) {
         out.setUint8(offset + i, value.codeUnitAt(i));
@@ -142,10 +143,8 @@ class FishAudioAsrService {
     out.setUint16(34, 16, Endian.little);
     ascii(36, 'data');
     out.setUint32(40, pcm.length, Endian.little);
-    for (var i = 0; i < pcm.length; i++) {
-      out.setUint8(44 + i, pcm[i]);
-    }
-    return out.buffer.asUint8List();
+    bytes.setRange(44, bytes.length, pcm);
+    return bytes;
   }
 }
 
