@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 /// A single transcript entry (original + translation).
 class TranscriptEntry {
@@ -94,7 +95,7 @@ class TranscriptHistory extends ChangeNotifier {
     String provider = 'unbekannt',
   }) async {
     final entry = TranscriptEntry(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       sessionId: sessionId,
       timestamp: DateTime.now(),
       sourceLang: sourceLang,

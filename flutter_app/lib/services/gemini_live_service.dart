@@ -10,6 +10,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 /// layer. Ephemeral Google tokens can replace the key in the future without
 /// changing the wire protocol.
 class GeminiLiveService extends ChangeNotifier {
+  static const _maxAudioChunks = 96;
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   bool _connected = false;
@@ -87,6 +88,7 @@ class GeminiLiveService extends ChangeNotifier {
             as Map<String, dynamic>?;
         final data = inline?['data'];
         if (data is String) {
+          if (_audioChunks.length >= _maxAudioChunks) _audioChunks.removeAt(0);
           _audioChunks.add(Uint8List.fromList(base64Decode(data)));
         }
       }
