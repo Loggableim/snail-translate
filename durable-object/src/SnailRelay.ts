@@ -165,9 +165,11 @@ export class SnailRelay implements DurableObject {
     const now = Date.now();
     const inactiveMs = now - this.session.lastActivity;
     if (inactiveMs >= SESSION_INACTIVITY_TIMEOUT_MS) {
-      console.log(
-        `Session ${this.session.roomId} inactive for ${Math.round(inactiveMs / 1000)}s — cleaning up`
-      );
+      relayLog("room_inactive_cleanup", {
+        inactiveSeconds: Math.round(inactiveMs / 1000),
+        connectedSockets: Number(Boolean(this.session.hostSocket)) +
+          Number(Boolean(this.session.guestSocket)),
+      });
       this.broadcast({ type: "session_end", reason: "Session timed out due to inactivity" });
       await this.cleanup();
     } else if (this.session.hostSocket || this.session.guestSocket) {
@@ -725,6 +727,11 @@ export class SnailRelay implements DurableObject {
   }
 
   private async cleanup(): Promise<void> {
+    relayLog("room_cleanup", {
+      reason: "session_end",
+      connectedSockets: Number(Boolean(this.session.hostSocket)) +
+        Number(Boolean(this.session.guestSocket)),
+    });
     for (const connection of this.fishTts.values()) connection.close();
     this.fishTts.clear();
     if (this.session.hostSocket) {
