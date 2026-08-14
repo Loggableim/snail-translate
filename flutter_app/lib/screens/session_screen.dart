@@ -90,6 +90,8 @@ class _SessionScreenState extends State<SessionScreen>
   final _translator = TranslationService();
   SpeechTurnBuffer? _fishTurns;
   Timer? _fishProcessTimer;
+  Timer? _sessionUiRefreshTimer;
+  bool _sessionUiRefreshPending = false;
   bool _fishBusy = false;
 
   /// Why the last turn produced no translation. Shown in the UI so a silent
@@ -120,6 +122,18 @@ class _SessionScreenState extends State<SessionScreen>
       return;
     _lastPlaybackDiagnostic = now;
     debugPrint(message);
+  }
+
+  /// Provider deltas can arrive at audio cadence. Coalesce presentation-only
+  /// updates so the widget tree is not rebuilt once per audio/transcript delta.
+  void _scheduleSessionUiRefresh() {
+    if (!mounted || _sessionUiRefreshPending) return;
+    _sessionUiRefreshPending = true;
+    _sessionUiRefreshTimer ??= Timer(const Duration(milliseconds: 100), () {
+      _sessionUiRefreshTimer = null;
+      _sessionUiRefreshPending = false;
+      if (mounted) setState(() {});
+    });
   }
 
   static const _languageLabels = <String, String>{
@@ -393,7 +407,7 @@ class _SessionScreenState extends State<SessionScreen>
                 }
               }
               _persistCompletedTurns(session);
-              setState(() {});
+              _scheduleSessionUiRefresh();
               _drainOpenAiAudio(relayAudio);
             };
             _openAi!.addListener(_openAiListener!);
@@ -584,6 +598,7 @@ class _SessionScreenState extends State<SessionScreen>
     _audioSubscription?.cancel();
     _sessionEventSubscription?.cancel();
     _fishProcessTimer?.cancel();
+    _sessionUiRefreshTimer?.cancel();
     if (_gemini != null && _geminiListener != null) {
       _gemini!.removeListener(_geminiListener!);
     }
@@ -716,7 +731,7 @@ class _SessionScreenState extends State<SessionScreen>
     );
     _guestFallbackOpenAiListener = () {
       if (!mounted) return;
-      setState(() {});
+      _scheduleSessionUiRefresh();
       _drainGuestFallbackAudio();
     };
     service.addListener(_guestFallbackOpenAiListener!);
