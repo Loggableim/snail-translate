@@ -50,6 +50,7 @@ class SnailSessionService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_END_SESSION) {
+            sendBroadcast(Intent("com.snail.snail.SESSION_ENDED").setPackage(packageName))
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY

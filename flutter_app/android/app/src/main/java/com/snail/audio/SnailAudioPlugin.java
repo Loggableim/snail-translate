@@ -13,6 +13,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.BroadcastReceiver;
 import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
@@ -64,12 +66,16 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     private static final String DEVICE_KEY_ALIAS = "snail.device.identity";
     private static final String METHOD_CHANNEL = "com.snail.audio/method";
     private static final String EVENT_CHANNEL = "com.snail.audio/stream";
+    private static final String SESSION_EVENT_CHANNEL = "com.snail.audio/session_events";
+    private static final String SESSION_ENDED_ACTION = "com.snail.snail.SESSION_ENDED";
 
     private MethodChannel methodChannel;
     private EventChannel eventChannel;
     private EventChannel standaloneEventChannel;
+    private EventChannel sessionEventChannel;
     private EventChannel.EventSink eventSink;
     private EventChannel.EventSink standaloneEventSink;
+    private EventChannel.EventSink sessionEventSink;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private Context applicationContext;
     private Activity activity;
@@ -115,6 +121,14 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     private AudioManager audioManager;
     private int previousAudioMode = AudioManager.MODE_NORMAL;
     private boolean communicationModeActive = false;
+    private final BroadcastReceiver sessionEndedReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            stopCapture();
+            stopPlayback();
+            stopSessionKeepAlive();
+            if (sessionEventSink != null) sessionEventSink.success("ended");
+        }
+    };
     private AudioFocusRequest playbackFocusRequest;
     private boolean headsetRouteActive = false;
     private volatile long suppressCaptureUntilMs = 0L;
@@ -174,6 +188,18 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             @Override public void onListen(Object arguments, EventChannel.EventSink events) { standaloneEventSink = events; }
             @Override public void onCancel(Object arguments) { standaloneEventSink = null; }
         });
+        sessionEventChannel = new EventChannel(binding.getBinaryMessenger(), SESSION_EVENT_CHANNEL);
+        sessionEventChannel.setStreamHandler(new EventChannel.StreamHandler() {
+            @Override public void onListen(Object arguments, EventChannel.EventSink events) { sessionEventSink = events; }
+            @Override public void onCancel(Object arguments) { sessionEventSink = null; }
+        });
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            applicationContext.registerReceiver(sessionEndedReceiver,
+                    new IntentFilter(SESSION_ENDED_ACTION), Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            applicationContext.registerReceiver(sessionEndedReceiver,
+                    new IntentFilter(SESSION_ENDED_ACTION));
+        }
 
         Log.i(TAG, "SnailAudioPlugin attached");
     }
@@ -188,6 +214,8 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         applicationContext = null;
         methodChannel.setMethodCallHandler(null);
         eventChannel.setStreamHandler(null);
+        sessionEventChannel.setStreamHandler(null);
+        try { applicationContext.unregisterReceiver(sessionEndedReceiver); } catch (IllegalArgumentException ignored) { }
         Log.i(TAG, "SnailAudioPlugin detached");
     }
 

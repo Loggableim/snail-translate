@@ -26,6 +26,8 @@ class SnailAudio {
   static const _eventChannel = EventChannel('com.snail.audio/stream');
   static const _standaloneEventChannel =
       EventChannel('com.snail.audio/standalone_stream');
+  static const _sessionEventChannel =
+      EventChannel('com.snail.audio/session_events');
 
   Stream<Uint8List>? _audioStream;
   Stream<Map<String, dynamic>>? _standaloneStream;
@@ -45,6 +47,10 @@ class SnailAudio {
   bool get echoGuardEnabled => _echoGuardEnabled;
   Stream<Uint8List>? get audioStream => _audioStream;
   Stream<Map<String, dynamic>>? get standaloneStream => _standaloneStream;
+  Stream<String> get sessionEvents => _sessionEventChannel
+      .receiveBroadcastStream()
+      .where((event) => event == 'ended')
+      .cast<String>();
 
   Future<bool> startStandaloneCapture(
       {int sampleRate = 16000,

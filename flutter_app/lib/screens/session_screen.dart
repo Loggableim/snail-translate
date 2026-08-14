@@ -80,6 +80,7 @@ class _SessionScreenState extends State<SessionScreen>
   late final AudioPolicy _audioPolicy;
   final _snailAudio = SnailAudio();
   StreamSubscription? _audioSubscription;
+  StreamSubscription<String>? _sessionEventSubscription;
   final _micLevel = ValueNotifier<double>(0.0);
   bool _clippingDetected = false;
   GeminiLiveService? _gemini;
@@ -224,6 +225,12 @@ class _SessionScreenState extends State<SessionScreen>
     _sessionTargetLanguage = _sessionService.sessionTargetLanguage;
     _transcriptHistory = context.read<TranscriptHistory>();
     _audioPolicy = context.read<AudioPolicy>();
+    _sessionEventSubscription = _snailAudio.sessionEvents.listen((event) {
+      if (event != 'ended' || !mounted) return;
+      _audioService.disconnect();
+      _sessionService.endSession();
+      Navigator.popUntil(context, (route) => route.isFirst);
+    });
     // Keep the session alive while the user is actively translating. This is
     // intentionally scoped to the session route and released on exit.
     WakelockPlus.enable();
@@ -575,6 +582,7 @@ class _SessionScreenState extends State<SessionScreen>
     WakelockPlus.disable();
     unawaited(_snailAudio.stopSessionKeepAlive());
     _audioSubscription?.cancel();
+    _sessionEventSubscription?.cancel();
     _fishProcessTimer?.cancel();
     if (_gemini != null && _geminiListener != null) {
       _gemini!.removeListener(_geminiListener!);
