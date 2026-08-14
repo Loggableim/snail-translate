@@ -81,4 +81,14 @@ describe("AppShareRelay", () => {
       headers: { Upgrade: "websocket" },
     }))).status).toBe(410);
   });
+
+  it("rejects invalid share metadata", async () => {
+    const { relay, storage } = createRelay();
+    const response = await relay.fetch(new Request("https://internal/init", {
+      method: "POST",
+      body: JSON.stringify({ version: "", bytes: -1, expiresAt: 0 }),
+    }));
+    expect(response.status).toBe(400);
+    expect(storage.values.size).toBe(0);
+  });
 });
