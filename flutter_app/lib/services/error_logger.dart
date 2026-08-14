@@ -43,7 +43,15 @@ class ErrorLogger extends ChangeNotifier {
       .replaceAll(RegExp(r'Bearer\s+[A-Za-z0-9._-]+', caseSensitive: false),
           'Bearer [REDACTED]')
       .replaceAll(RegExp(r'(sk-fish-|sk-proj-|gsk_)[A-Za-z0-9._-]+'),
-          '[REDACTED_KEY]');
+          '[REDACTED_KEY]')
+      .replaceAll(RegExp(r'AIza[0-9A-Za-z_-]{35}'), '[REDACTED_KEY]')
+      .replaceAll(RegExp(r'bot[0-9]+:[A-Za-z0-9_-]{20,}'), '[REDACTED_TOKEN]')
+      .replaceAll(
+          RegExp(r'([?&](?:key|token)=)[^&#\s]+', caseSensitive: false),
+          '[REDACTED_QUERY]')
+      .replaceAll(
+          RegExp(r'((?:https?|wss)://)([^/@\s:]+):([^/@\s]+)@', caseSensitive: false),
+          '[REDACTED_URL]');
 
   /// Get all logged errors (newest first).
   List<ErrorEntry> getLogs() => List.unmodifiable(_logs);
