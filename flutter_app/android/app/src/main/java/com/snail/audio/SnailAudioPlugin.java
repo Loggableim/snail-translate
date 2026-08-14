@@ -1045,7 +1045,8 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             phoneRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, rate, channelConfig, audioFormat, Math.max(min * 2, 2048));
             if (phoneRecord.getState() != AudioRecord.STATE_INITIALIZED) {
                 stopStandaloneCapture();
-                result.error("PHONE_AUDIO_UNAVAILABLE", "Android konnte das Handy-Mikrofon nicht öffnen", null);
+                // The Dart layer maps this stable code to the active locale.
+                result.error("PHONE_AUDIO_UNAVAILABLE", null, null);
                 return;
             }
             // Do not open a second recorder against the phone microphone when

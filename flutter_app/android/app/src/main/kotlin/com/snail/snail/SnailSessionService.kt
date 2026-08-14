@@ -23,14 +23,14 @@ class SnailSessionService : Service() {
         createNotificationChannel()
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Snail-Übersetzung aktiv")
-            .setContentText("Audioverbindung bleibt bei deaktiviertem Display aktiv")
+            .setContentTitle(getString(R.string.notification_session_title))
+            .setContentText(getString(R.string.notification_session_text))
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .addAction(
                 0,
-                "Sitzung beenden",
+                getString(R.string.notification_end_session),
                 PendingIntent.getService(
                     this,
                     4202,
@@ -65,7 +65,7 @@ class SnailSessionService : Service() {
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(
             CHANNEL_ID,
-            "Snail Übersetzung",
+            getString(R.string.notification_channel_name),
             NotificationManager.IMPORTANCE_LOW,
         ))
     }
