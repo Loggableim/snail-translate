@@ -46,7 +46,9 @@ async function connect(relay: SnailRelay, role: "host" | "guest", sub: string) {
   const socket = response.webSocket!;
   socket.accept();
   const messages: unknown[] = [];
-  socket.addEventListener("message", (event) => messages.push(JSON.parse(String(event.data))));
+  socket.addEventListener("message", (event) => {
+    messages.push(JSON.parse(String(event.data)));
+  });
   socket.send(JSON.stringify({ type: "auth", protocolVersion: 1, token: await token(role, sub) }));
   await new Promise((resolve) => setTimeout(resolve, 0));
   return { socket, messages };
@@ -63,7 +65,9 @@ describe("SnailRelay lifecycle and limits", () => {
     const socket = response.webSocket!;
     socket.accept();
     const messages: unknown[] = [];
-    socket.addEventListener("message", (event) => messages.push(JSON.parse(String(event.data))));
+    socket.addEventListener("message", (event) => {
+      messages.push(JSON.parse(String(event.data)));
+    });
     socket.send(JSON.stringify({ type: "auth", protocolVersion: 99, token: await token("host", "host") }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(messagesOf({ messages }, "auth_error")[0].error).toContain("Protocol version mismatch");
