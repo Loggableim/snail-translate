@@ -90,4 +90,19 @@ jobs:
         working-directory: flutter_app
         run: |
           flutter pub get
+          keytool -genkeypair \
+            -keystore "$RUNNER_TEMP/snail-ci.jks" \
+            -storepass ci-store-password \
+            -keypass ci-key-password \
+            -alias snail-ci \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 1 \
+            -dname "CN=Snail CI, OU=CI, O=Snail, L=CI, ST=CI, C=AT"
+          cat > android/key.properties <<EOF
+          storeFile=$RUNNER_TEMP/snail-ci.jks
+          storePassword=ci-store-password
+          keyAlias=snail-ci
+          keyPassword=ci-key-password
+          EOF
           flutter build apk --release --split-per-abi
