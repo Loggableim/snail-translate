@@ -105,9 +105,11 @@ describe("Worker fetch handler", () => {
       body: JSON.stringify({ sourceLang: "de", targetLang: "en", inviteeId: "not-an-identity" }),
     });
     expect(response.status).toBe(201);
-    expect(await response.json()).toMatchObject({
+    const body = await response.json() as { roomId: string };
+    expect(body).toMatchObject({
       sourceLang: "de", targetLang: "en", inviteeId: null,
     });
+    expect(body.roomId).toMatch(/^snail-[A-HJ-NP-Z2-9]{8}$/);
   });
 
   it("rejects an unknown room through the real join route", async () => {

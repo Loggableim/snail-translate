@@ -30,7 +30,7 @@
 
   "homeCodeDialogTitle": "Введіть код сесії",
   "homeCodeDialogBody": "Введіть код сесії вашого співрозмовника.",
-  "homeCodeDialogHint": "snail-XXXX",
+  "homeCodeDialogHint": "snail-XXXXXXXX",
   "homeJoinFailed": "Не вдалося приєднатися",
   "homeQuickAccess": "Швидкий доступ",
   "homeStartSession": "Почати сесію",

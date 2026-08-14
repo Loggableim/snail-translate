@@ -80,7 +80,7 @@ class _JoinScreenState extends State<JoinScreen> {
     }
   }
 
-  /// Accept the compact current QR (`snail-AAYV`) and the former URI forms,
+  /// Accept the compact current QR (`snail-AAYV2B7C`) and the former URI forms,
   /// but never stop scanning for a value that is not an exact room code.
   String? _roomIdFromQr(String value) {
     final trimmed = value.trim();
@@ -91,7 +91,7 @@ class _JoinScreenState extends State<JoinScreen> {
       candidate = Uri.tryParse(trimmed)?.queryParameters['room'] ?? '';
     }
     candidate = candidate.trim().toUpperCase();
-    return RegExp(r'^snail-[A-Z2-9]{4}$', caseSensitive: false)
+    return RegExp(r'^snail-[A-HJ-NP-Z2-9]{8}$', caseSensitive: false)
             .hasMatch(candidate)
         ? candidate
         : null;
@@ -253,7 +253,7 @@ class _JoinScreenState extends State<JoinScreen> {
                                       fontSize: 24,
                                       letterSpacing: 4),
                                   decoration: InputDecoration(
-                                    hintText: 'snail-XXXX',
+                                    hintText: 'snail-XXXXXXXX',
                                     border: OutlineInputBorder(
                                         borderRadius:
                                             BorderRadius.circular(12)),
@@ -321,7 +321,7 @@ class _JoinScreenState extends State<JoinScreen> {
               style: const TextStyle(
                   fontFamily: 'monospace', fontSize: 24, letterSpacing: 4),
               decoration: InputDecoration(
-                hintText: 'snail-XXXX',
+                hintText: 'snail-XXXXXXXX',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),

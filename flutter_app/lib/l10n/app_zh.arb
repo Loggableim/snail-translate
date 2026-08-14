@@ -30,7 +30,7 @@
 
   "homeCodeDialogTitle": "输入会话代码",
   "homeCodeDialogBody": "输入您对话伙伴的会话代码。",
-  "homeCodeDialogHint": "snail-XXXX",
+  "homeCodeDialogHint": "snail-XXXXXXXX",
   "homeJoinFailed": "加入失败",
   "homeQuickAccess": "快速访问",
   "homeStartSession": "启动会话",

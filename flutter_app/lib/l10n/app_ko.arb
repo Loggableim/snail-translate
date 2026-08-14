@@ -30,7 +30,7 @@
 
   "homeCodeDialogTitle": "세션 코드 입력",
   "homeCodeDialogBody": "대화 상대의 세션 코드를 입력하세요.",
-  "homeCodeDialogHint": "snail-XXXX",
+  "homeCodeDialogHint": "snail-XXXXXXXX",
   "homeJoinFailed": "참가할 수 없음",
   "homeQuickAccess": "빠른 액세스",
   "homeStartSession": "세션 시작",

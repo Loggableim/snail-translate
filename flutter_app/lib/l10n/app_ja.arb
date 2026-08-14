@@ -30,7 +30,7 @@
 
   "homeCodeDialogTitle": "セッションコードを入力",
   "homeCodeDialogBody": "相手のセッションコードを入力してください。",
-  "homeCodeDialogHint": "snail-XXXX",
+  "homeCodeDialogHint": "snail-XXXXXXXX",
   "homeJoinFailed": "参加できませんでした",
   "homeQuickAccess": "クイックアクセス",
   "homeStartSession": "セッションを開始",

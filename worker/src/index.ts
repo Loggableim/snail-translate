@@ -54,7 +54,8 @@ interface SessionTokenPayload {
 
 const FREE_QUOTA_SECONDS = 30 * 60;
 const SESSION_TOKEN_TTL = 3600;
-const ROOM_ID_LENGTH = 4;
+const ROOM_ID_LENGTH = 8;
+const ROOM_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const APP_SHARE_TTL = 15 * 60;
 
 function iceServers(env: Env): Array<Record<string, unknown>> {
@@ -194,10 +195,11 @@ async function checkQuota(userId: string, env: Env): Promise<{ allowed: boolean;
 // ── Room Management ───────────────────────────────────────────────────
 
 function generateRoomId(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const random = new Uint8Array(ROOM_ID_LENGTH);
+  crypto.getRandomValues(random);
   let id = "";
   for (let i = 0; i < ROOM_ID_LENGTH; i++) {
-    id += chars[Math.floor(Math.random() * chars.length)];
+    id += ROOM_ID_ALPHABET[random[i] % ROOM_ID_ALPHABET.length];
   }
   return `snail-${id}`;
 }

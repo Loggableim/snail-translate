@@ -30,7 +30,7 @@
 
   "homeCodeDialogTitle": "Enter session code",
   "homeCodeDialogBody": "Enter your conversation partner's session code.",
-  "homeCodeDialogHint": "snail-XXXX",
+  "homeCodeDialogHint": "snail-XXXXXXXX",
   "homeJoinFailed": "Failed to join",
   "homeQuickAccess": "Quick access",
   "homeStartSession": "Start session",

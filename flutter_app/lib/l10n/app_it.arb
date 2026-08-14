@@ -30,7 +30,7 @@
 
   "homeCodeDialogTitle": "Inserisci codice sessione",
   "homeCodeDialogBody": "Inserisci il codice sessione del tuo interlocutore.",
-  "homeCodeDialogHint": "snail-XXXX",
+  "homeCodeDialogHint": "snail-XXXXXXXX",
   "homeJoinFailed": "Impossibile unirsi",
   "homeQuickAccess": "Accesso rapido",
   "homeStartSession": "Avvia sessione",

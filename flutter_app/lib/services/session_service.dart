@@ -243,7 +243,7 @@ class SessionService extends ChangeNotifier {
     try {
       // Room IDs are created in uppercase. Accept a manually entered code in
       // any case so the fallback is as reliable as scanning the QR code.
-      final match = RegExp(r'^snail-([A-Z2-9]{4})$', caseSensitive: false)
+      final match = RegExp(r'^snail-([A-HJ-NP-Z2-9]{8})$', caseSensitive: false)
           .firstMatch(roomId.trim());
       if (match == null) {
         _error = 'Ungültiger Raumcode';
