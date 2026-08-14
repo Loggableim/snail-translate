@@ -41,9 +41,16 @@ class SessionService extends ChangeNotifier {
   String? _identityId;
   UserIdentityService? _identityService;
   final Future<String?> Function()? _sessionTokenProvider;
+  final http.Client _httpClient;
+  final Duration _requestTimeout;
 
-  SessionService({Future<String?> Function()? sessionTokenProvider})
-      : _sessionTokenProvider = sessionTokenProvider;
+  SessionService({
+    Future<String?> Function()? sessionTokenProvider,
+    http.Client? httpClient,
+    Duration requestTimeout = const Duration(seconds: 15),
+  })  : _sessionTokenProvider = sessionTokenProvider,
+        _httpClient = httpClient ?? http.Client(),
+        _requestTimeout = requestTimeout;
 
   Session? get currentSession => _currentSession;
   bool get isLoading => _isLoading;
@@ -63,6 +70,12 @@ class SessionService extends ChangeNotifier {
   /// produce no translation at all.
   String get sessionTargetLanguage =>
       _currentSession?.targetLang ?? _targetLanguage;
+
+  @override
+  void dispose() {
+    _httpClient.close();
+    super.dispose();
+  }
 
   /// Installs a session without performing the network handshake, so the
   /// per-endpoint language direction can be tested without a live worker.
@@ -114,11 +127,11 @@ class SessionService extends ChangeNotifier {
     try {
       final response = await retry(
         () async => withTimeout(
-          http.get(
+          _httpClient.get(
             Uri.parse('${ApiKeys.workerUrl}/api/quota'),
             headers: await _authHeaders(method: 'GET', path: '/api/quota'),
           ),
-          const Duration(seconds: 10),
+          _requestTimeout,
         ),
         maxAttempts: 3,
       );
@@ -199,7 +212,7 @@ class SessionService extends ChangeNotifier {
       // Room creation is not idempotent: a timeout may occur after the
       // Worker has already allocated the room. Do not repeat this POST.
       final response = await withTimeout(
-        http.post(
+        _httpClient.post(
           Uri.parse('${ApiKeys.workerUrl}/api/rooms'),
           headers: await _authHeaders(
               json: true,
@@ -208,7 +221,7 @@ class SessionService extends ChangeNotifier {
               body: requestBody),
           body: requestBody,
         ),
-        const Duration(seconds: 15),
+        _requestTimeout,
       );
 
       if (response.statusCode == 201) {
@@ -256,7 +269,7 @@ class SessionService extends ChangeNotifier {
       // Joining also creates a short-lived session token. A timeout can occur
       // after the Worker has issued it, so repeating this POST is unsafe.
       final response = await withTimeout(
-        http.post(
+        _httpClient.post(
           Uri.parse('${ApiKeys.workerUrl}/api/rooms/$normalizedRoomId/join'),
           headers: await _authHeaders(
               json: true,
@@ -265,7 +278,7 @@ class SessionService extends ChangeNotifier {
               body: requestBody),
           body: requestBody,
         ),
-        const Duration(seconds: 15),
+        _requestTimeout,
       );
 
       if (response.statusCode == 200) {
@@ -295,7 +308,7 @@ class SessionService extends ChangeNotifier {
     try {
       final response = await retry(
         () async => withTimeout(
-          http.post(
+          _httpClient.post(
             Uri.parse('${ApiKeys.workerUrl}/api/realtime/client-secret'),
             headers: await _authHeaders(
                 json: true,
@@ -304,7 +317,7 @@ class SessionService extends ChangeNotifier {
                 body: jsonEncode({'targetLanguage': targetLanguage})),
             body: jsonEncode({'targetLanguage': targetLanguage}),
           ),
-          const Duration(seconds: 15),
+          _requestTimeout,
         ),
         maxAttempts: 3,
       );
