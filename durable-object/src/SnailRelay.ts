@@ -339,7 +339,7 @@ export class SnailRelay implements DurableObject {
           return;
         }
         const peer = this.getPeer(ws);
-        if (peer) peer.send(frame);
+        if (peer) this.sendBinary(peer, frame);
         return;
       }
       try {
@@ -738,6 +738,10 @@ export class SnailRelay implements DurableObject {
 
   private send(ws: WebSocket, msg: ServerMessage): void {
     try { ws.send(JSON.stringify(msg)); } catch {}
+  }
+
+  private sendBinary(ws: WebSocket, frame: Uint8Array): void {
+    try { ws.send(frame); } catch {}
   }
 
   private fishConnection(role: "host" | "guest"): FishTtsConnection {
