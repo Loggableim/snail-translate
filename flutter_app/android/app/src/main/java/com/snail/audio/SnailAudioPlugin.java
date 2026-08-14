@@ -33,6 +33,8 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.plugin.common.EventChannel;
+import io.flutter.plugin.common.BinaryMessenger;
+import io.flutter.plugin.common.StandardMethodCodec;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
@@ -136,9 +138,14 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         methodChannel = new MethodChannel(binding.getBinaryMessenger(), METHOD_CHANNEL);
         methodChannel.setMethodCallHandler(this);
 
-        eventChannel = new EventChannel(binding.getBinaryMessenger(), EVENT_CHANNEL);
+        BinaryMessenger.TaskQueue audioTaskQueue =
+                binding.getBinaryMessenger().makeBackgroundTaskQueue();
+        eventChannel = new EventChannel(binding.getBinaryMessenger(), EVENT_CHANNEL,
+                StandardMethodCodec.INSTANCE, audioTaskQueue);
         eventChannel.setStreamHandler(this);
-        standaloneEventChannel = new EventChannel(binding.getBinaryMessenger(), "com.snail.audio/standalone_stream");
+        standaloneEventChannel = new EventChannel(
+                binding.getBinaryMessenger(), "com.snail.audio/standalone_stream",
+                StandardMethodCodec.INSTANCE, audioTaskQueue);
         standaloneEventChannel.setStreamHandler(new EventChannel.StreamHandler() {
             @Override public void onListen(Object arguments, EventChannel.EventSink events) { standaloneEventSink = events; }
             @Override public void onCancel(Object arguments) { standaloneEventSink = null; }
@@ -1020,15 +1027,13 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             // reuses this buffer on the next iteration.
             final byte[] frameSnapshot = java.util.Arrays.copyOf(frame, bytesRead);
             final String source = phoneSource ? "phone" : "headset";
-            mainHandler.post(() -> {
-                EventChannel.EventSink sink = standaloneEventSink;
-                if (sink == null) return;
-                sink.success(new java.util.HashMap<String, Object>() {{
-                    put("source", source);
-                    put("bytes", frameSnapshot);
-                    put("sampleRate", rate);
-                }});
-            });
+            EventChannel.EventSink sink = standaloneEventSink;
+            if (sink == null) continue;
+            java.util.Map<String, Object> event = new java.util.HashMap<>();
+            event.put("source", source);
+            event.put("bytes", frameSnapshot);
+            event.put("sampleRate", rate);
+            sink.success(event);
         }
     }
 
@@ -1098,10 +1103,8 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 if (eventSink != null) {
                     byte[] data = new byte[read];
                     System.arraycopy(bytes, 0, data, 0, read);
-                    mainHandler.post(() -> {
-                        EventChannel.EventSink sink = eventSink;
-                        if (sink != null) sink.success(data);
-                    });
+                    EventChannel.EventSink sink = eventSink;
+                    if (sink != null) sink.success(data);
                 }
             } else if (read == AudioRecord.ERROR_INVALID_OPERATION) {
                 Log.e(TAG, "AudioRecord ERROR_INVALID_OPERATION");
