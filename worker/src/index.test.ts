@@ -242,7 +242,10 @@ describe("Worker fetch handler", () => {
       }),
     });
     expect(response.status).toBe(202);
-    const payload = JSON.stringify(log.mock.calls);
+    const payload = log.mock.calls
+      .map((call) => String(call[0]))
+      .find((value) => value.includes('"event":"client_provider_error"'));
+    expect(payload).toBeDefined();
     expect(payload).toContain("client_provider_error");
     expect(payload).toContain("provider_unavailable");
     expect(payload).not.toContain("must never reach logs");
@@ -260,5 +263,29 @@ describe("Worker fetch handler", () => {
       expect((await call("/api/telemetry", init, bindings)).status).toBe(202);
     }
     expect((await call("/api/telemetry", init, bindings)).status).toBe(429);
+  });
+
+  it("discards free-form telemetry labels", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const response = await call("/api/telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "CF-Connecting-IP": "198.51.100.6" },
+      body: JSON.stringify({
+        provider: "fish audio secret text",
+        context: "provider.error\nconversation body",
+        code: "AIzaSyA12345678901234567890123456789012",
+      }),
+    });
+    expect(response.status).toBe(202);
+    const payload = log.mock.calls
+      .map((call) => String(call[0]))
+      .find((value) => value.includes('"event":"client_provider_error"'));
+    expect(payload).toBeDefined();
+    expect(payload).not.toContain("secret text");
+    expect(payload).not.toContain("conversation body");
+    expect(payload).not.toContain("AIzaSyA12345678901234567890123456789012");
+    expect(payload).toContain('"provider":"unknown"');
+    expect(payload).toContain('"context":"unknown"');
+    expect(payload).toContain('"code":"unknown"');
   });
 });

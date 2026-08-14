@@ -73,6 +73,14 @@ function observabilityLog(event: string, fields: Record<string, string | number 
   console.log(JSON.stringify({ service: "snail-worker", event, ...fields }));
 }
 
+function telemetryLabel(value: unknown, maxLength: number): string {
+  if (typeof value !== "string") return "unknown";
+  const trimmed = value.trim();
+  if (!trimmed || !/^[A-Za-z0-9_.:/-]+$/.test(trimmed) ||
+      /(?:AIza|sk-|gsk_|bot[0-9]+:)/i.test(trimmed)) return "unknown";
+  return trimmed.slice(0, maxLength);
+}
+
 async function handleTelemetry(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get("Origin") || "";
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
@@ -95,9 +103,9 @@ async function handleTelemetry(request: Request, env: Env): Promise<Response> {
     return json({ error: "Invalid telemetry payload" }, 400, origin, env.CORS_ORIGINS);
   }
   const input = body as Record<string, unknown>;
-  const provider = typeof input.provider === "string" ? input.provider.slice(0, 32) : "unknown";
-  const context = typeof input.context === "string" ? input.context.slice(0, 64) : "unknown";
-  const code = typeof input.code === "string" ? input.code.slice(0, 96) : "unknown";
+  const provider = telemetryLabel(input.provider, 32);
+  const context = telemetryLabel(input.context, 64);
+  const code = telemetryLabel(input.code, 96);
   const status = typeof input.status === "number" && Number.isInteger(input.status)
     ? Math.max(0, Math.min(999, input.status))
     : undefined;
