@@ -38,6 +38,7 @@ interface SessionState {
 interface ClientMessage {
   type: "auth" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
   token?: string;
+  protocolVersion?: number;
   audio?: number[];
   sampleRate?: number;
   messageId?: string;
@@ -73,6 +74,7 @@ interface ServerMessage {
   signal?: unknown;
   history?: ServerMessage[];
   error?: string;
+  protocolVersion?: number;
   peerId?: string;
   reason?: string;
   // Voice message fields
@@ -88,6 +90,7 @@ const MAX_QUOTA_SECONDS = 30 * 60;
 const MAX_PCM_SAMPLES_PER_MESSAGE = 16_000; // max 1 s mono PCM at 16 kHz
 const MAX_CHAT_TEXT_LENGTH = 10_000;         // max chars per chat message
 const SESSION_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1_000; // 30 minutes
+const PROTOCOL_VERSION = 1;
 
 // ── Durable Object ────────────────────────────────────────────────────
 
@@ -249,6 +252,15 @@ export class SnailRelay implements DurableObject {
 
       switch (msg.type) {
         case "auth": {
+          if (msg.protocolVersion !== PROTOCOL_VERSION) {
+            this.send(ws, {
+              type: "auth_error",
+              error: `Protocol version mismatch: expected ${PROTOCOL_VERSION}`,
+              protocolVersion: PROTOCOL_VERSION,
+            });
+            ws.close(4003, "Protocol version mismatch");
+            return;
+          }
           if (!msg.token) {
             this.send(ws, { type: "auth_error", error: "Missing token" });
             ws.close(4001, "Missing token");
@@ -559,6 +571,12 @@ export class SnailRelay implements DurableObject {
         case "end": {
           this.broadcast({ type: "session_end", reason: "Session ended" });
           await this.cleanup();
+          break;
+        }
+
+        default: {
+          console.warn("Unknown relay message type", msg.type);
+          this.send(ws, { type: "error", error: `Unknown message type: ${String(msg.type)}` });
           break;
         }
       }

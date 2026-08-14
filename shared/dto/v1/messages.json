@@ -4,6 +4,7 @@
   "title": "Snail Message DTOs",
   "description": "Versioned message types shared between Flutter client and Cloudflare Worker.",
   "version": "1.0.0",
+  "protocolVersion": 1,
   "definitions": {
     "MessageType": {
       "type": "string",

@@ -7,6 +7,8 @@ import '../models/chat_message.dart';
 import 'chat_service.dart';
 import 'error_logger.dart';
 
+const protocolVersion = 1;
+
 /// Manages WebSocket connection to relay and audio streaming.
 /// Chat/messaging concerns are delegated to [ChatService].
 class AudioService extends ChangeNotifier {
@@ -99,6 +101,7 @@ class AudioService extends ChangeNotifier {
       _channel!.sink.add(jsonEncode({
         'type': 'auth',
         'token': _session!.sessionToken,
+        'protocolVersion': protocolVersion,
       }));
 
       _subscription = _channel!.stream.listen(
@@ -214,6 +217,13 @@ class AudioService extends ChangeNotifier {
             provider: 'websocket',
             context: 'ws.message',
             error: msg['error'] ?? 'Unknown error',
+          );
+          break;
+        default:
+          ErrorLogger.I.log(
+            provider: 'websocket',
+            context: 'ws.unknown_message',
+            error: 'Unknown message type: ${msg['type']}',
           );
           break;
       }

@@ -45,7 +45,7 @@ async function connect(relay: SnailRelay, role: "host" | "guest", sub: string) {
   socket.accept();
   const messages: unknown[] = [];
   socket.addEventListener("message", (event) => messages.push(JSON.parse(String(event.data))));
-  socket.send(JSON.stringify({ type: "auth", token: await token(role, sub) }));
+  socket.send(JSON.stringify({ type: "auth", protocolVersion: 1, token: await token(role, sub) }));
   await new Promise((resolve) => setTimeout(resolve, 0));
   return { socket, messages };
 }
@@ -55,6 +55,18 @@ function messagesOf(connection: { messages: unknown[] }, type: string) {
 }
 
 describe("SnailRelay lifecycle and limits", () => {
+  it("rejects an incompatible protocol version explicitly", async () => {
+    const { relay } = await initializedRelay();
+    const response = await relay.fetch(new Request("https://internal/ws", { headers: { Upgrade: "websocket" } }));
+    const socket = response.webSocket!;
+    socket.accept();
+    const messages: unknown[] = [];
+    socket.addEventListener("message", (event) => messages.push(JSON.parse(String(event.data))));
+    socket.send(JSON.stringify({ type: "auth", protocolVersion: 99, token: await token("host", "host") }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(messagesOf({ messages }, "auth_error")[0].error).toContain("Protocol version mismatch");
+  });
+
   it("rejects a second host and a second guest", async () => {
     const { relay } = await initializedRelay();
     const host = await connect(relay, "host", "host");
