@@ -398,7 +398,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             try {
                 ensureCommunicationMode();
                 applyPlaybackRoute(output);
-                if ("speaker".equals(output)) amplifyPcm16InPlace(bytes, 1.3);
+                if ("speaker".equals(output)) amplifyPcm16InPlace(bytes, 1.3, bytes.length);
                 synchronized (this) {
                     ensurePlaybackTrack(outputRate, output);
                     writePcmFully(bytes);
@@ -628,8 +628,9 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     }
 
     /** Applies a conservative soft-limited gain without hard-clipping speech. */
-    private static void amplifyPcm16InPlace(byte[] pcm, double gain) {
-        for (int i = 0; i + 1 < pcm.length; i += 2) {
+    private static void amplifyPcm16InPlace(byte[] pcm, double gain, int length) {
+        int limit = Math.min(Math.max(length, 0), pcm.length);
+        for (int i = 0; i + 1 < limit; i += 2) {
             int sample = (short) ((pcm[i] & 0xff) | (pcm[i + 1] << 8));
             double normalized = sample / 32768.0;
             int amplified = (int) Math.round(
@@ -1076,7 +1077,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 // capture-only preamp so normal speech at conversation
                 // distance is measurable; clipping is still saturated.
                 if (!isHeadsetConnected()) {
-                    amplifyPcm16InPlace(bytes, 3.0);
+                    amplifyPcm16InPlace(bytes, 3.0, read);
                 }
                 if ((diagnosticReads++ % 50) == 0) {
                     long energy = 0;
