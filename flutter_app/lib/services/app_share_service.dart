@@ -199,9 +199,12 @@ class AppShareService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> share() async {
+  Future<void> share({required String title, required String text}) async {
     final currentUrl = _url; if (currentUrl == null) return;
-    await _channel.invokeMethod<void>('shareText', {'title': 'Snail direkt installieren', 'text': 'Snail direkt von meinem Gerät herunterladen: $currentUrl'});
+    await _channel.invokeMethod<void>('shareText', {
+      'title': title,
+      'text': '$text $currentUrl',
+    });
   }
 
   String _newToken() => List<String>.generate(24, (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0')).join();

@@ -133,7 +133,9 @@ class _ActiveShare extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         FilledButton.icon(
-            onPressed: share.share,
+            onPressed: () => share.share(
+                title: l10n.appShareTitle,
+                text: l10n.appShareDirectTitle),
             icon: const Icon(Icons.share_rounded),
             label: Text(l10n.commonShare)),
         TextButton.icon(
