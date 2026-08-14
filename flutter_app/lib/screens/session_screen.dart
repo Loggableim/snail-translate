@@ -514,7 +514,7 @@ class _SessionScreenState extends State<SessionScreen>
                   (!echoGuardEnabled || !_snailAudio.isPlaybackActive)) {
                 turns.add(chunk, DateTime.now());
               }
-              if (_fishCaptureChunks % 50 == 0) {
+              if (kDebugMode && _fishCaptureChunks % 50 == 0) {
                 debugPrint(
                     '[Snail][Fish] capture chunks=$_fishCaptureChunks bytes=${chunk.length} level=${measuredLevel.toStringAsFixed(4)} dbfs=${AudioProcessor.levelToDbfs(measuredLevel).toStringAsFixed(1)} peak=${peak.toStringAsFixed(4)} gate=${AudioProcessor.levelToDbfs(_audioPolicy.noiseGateThreshold).toStringAsFixed(1)}dBFS silent=${AudioProcessor.detectSilence(chunk, threshold: _audioPolicy.noiseGateThreshold)} buffer=${turns.bufferedBytes} speech=${turns.hasSpeech} muted=${_audioService.isMuted} playback=${_snailAudio.isPlaybackActive}');
               }
