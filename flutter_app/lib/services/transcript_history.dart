@@ -23,7 +23,7 @@ class TranscriptEntry {
     required this.targetLang,
     required this.originalText,
     required this.translatedText,
-    this.provider = 'unbekannt',
+    this.provider = 'unknown',
   });
 
   Map<String, dynamic> toJson() => {
@@ -46,7 +46,7 @@ class TranscriptEntry {
         targetLang: json['targetLang'] as String,
         originalText: json['originalText'] as String,
         translatedText: json['translatedText'] as String,
-        provider: json['provider'] as String? ?? 'unbekannt',
+        provider: json['provider'] as String? ?? 'unknown',
       );
 }
 
@@ -92,7 +92,7 @@ class TranscriptHistory extends ChangeNotifier {
     required String targetLang,
     required String originalText,
     required String translatedText,
-    String provider = 'unbekannt',
+    String provider = 'unknown',
   }) async {
     final entry = TranscriptEntry(
       id: const Uuid().v4(),

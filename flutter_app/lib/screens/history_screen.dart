@@ -85,7 +85,7 @@ class HistoryScreen extends StatelessWidget {
                             const SizedBox(width: 4),
                             _langChip(entry.targetLang),
                             const SizedBox(width: 6),
-                            _providerChip(entry.provider),
+                            _providerChip(l10n, entry.provider),
                             const Spacer(),
                             Text(
                               _formatTime(entry.timestamp),
@@ -118,14 +118,17 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _providerChip(String provider) {
+  Widget _providerChip(AppLocalizations l10n, String provider) {
+    final label = provider == 'unknown' || provider == 'unbekannt'
+        ? l10n.commonUnknown
+        : provider;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.blueGrey.shade100,
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(provider,
+      child: Text(label,
           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
