@@ -1,3 +1,5 @@
+import '../l10n/app_localizations.dart';
+
 /// Session data model.
 class Session {
   final String roomId;
@@ -75,9 +77,14 @@ class Quota {
   }
 
   String get formattedRemaining {
-    if (tier == 'paid') return 'Unbegrenzt';
+    if (tier == 'paid') return 'unlimited';
     final mins = remainingSeconds ~/ 60;
     final secs = remainingSeconds % 60;
     return '${mins}m ${secs}s';
+  }
+
+  String formattedRemainingLocalized(AppLocalizations l10n) {
+    if (tier == 'paid') return l10n.paywallUnlimited;
+    return formattedRemaining;
   }
 }

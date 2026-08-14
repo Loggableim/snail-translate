@@ -86,7 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               title: Text(
                   _quota?.tier == 'paid' ? l10n.profileTierPro : l10n.profileTierFree),
-              subtitle: Text('${_quota?.formattedRemaining ?? l10n.commonLoading} · '
+              subtitle: Text('${_quota?.formattedRemainingLocalized(l10n) ?? l10n.commonLoading} · '
                   '${context.watch<ProviderConfigService>().config.provider.displayName}'),
               trailing: _quota?.tier != 'paid'
                   ? TextButton(
