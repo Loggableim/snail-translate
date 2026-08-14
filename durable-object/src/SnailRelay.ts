@@ -145,19 +145,36 @@ export class SnailRelay implements DurableObject {
 
     this.state.blockConcurrencyWhile(async () => {
       const saved = await this.state.storage.get<SessionState>("session");
-      if (saved) {
-        this.session = saved;
+      const savedMeta = await this.state.storage.get<Partial<SessionState>>(
+        "session_meta",
+      );
+      const savedHistory = await this.state.storage.get<ServerMessage[]>(
+        "chat_history",
+      );
+      if (saved || savedMeta) {
+        this.session = {
+          ...this.session,
+          ...(saved ?? savedMeta),
+          chatHistory: saved?.chatHistory ?? savedHistory ?? [],
+          hostSocket: null,
+          guestSocket: null,
+        };
         // Sessions created before chat history was introduced may not have
         // this field yet.
         this.session.chatHistory ??= [];
+        const storedDeliveredMessageIds =
+          saved?.deliveredMessageIds ?? savedMeta?.deliveredMessageIds;
         this.session.deliveredMessageIds = new Set(
-          Array.isArray(saved.deliveredMessageIds)
-            ? saved.deliveredMessageIds
-            : [...(saved.deliveredMessageIds ?? new Set())],
+          Array.isArray(storedDeliveredMessageIds)
+            ? storedDeliveredMessageIds
+            : [...(storedDeliveredMessageIds ?? new Set())],
         );
         this.session.fishTtsChars ??= 0;
         this.session.hostAgreementPublicKey ??= null;
         this.session.guestAgreementPublicKey ??= null;
+        if (saved) {
+          await this.saveState();
+        }
       }
       // Restore secret from storage
       const savedSecret = await this.state.storage.get<string>("secret");
@@ -731,14 +748,18 @@ export class SnailRelay implements DurableObject {
 
   private async saveState(): Promise<void> {
     // WebSocket instances are live runtime objects and cannot be persisted.
-    // Store only the durable session metadata; sockets are restored on connect.
+    // Keep metadata and bounded message history separate so voice payloads
+    // cannot make the metadata record exceed Durable Object limits.
+    const { chatHistory, hostSocket, guestSocket, ...metadata } = this.session;
     const persisted = {
-      ...this.session,
+      ...metadata,
       hostSocket: null,
       guestSocket: null,
       deliveredMessageIds: [...this.session.deliveredMessageIds],
     };
-    await this.state.storage.put("session", persisted);
+    await this.state.storage.put("session_meta", persisted);
+    await this.state.storage.put("chat_history", chatHistory);
+    await this.state.storage.delete("session");
   }
 
   private trimDeliveredMessageIds(): void {

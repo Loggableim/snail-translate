@@ -11,6 +11,7 @@ class Storage {
   alarmCalls = 0;
   async get<T>(key: string) { return this.values.get(key) as T | undefined; }
   async put(key: string, value: unknown) { this.values.set(key, value); }
+  async delete(key: string) { this.values.delete(key); }
   async deleteAll() { this.values.clear(); }
   async setAlarm(at: number) { this.alarmAt = at; this.alarmCalls++; }
 }
@@ -74,7 +75,7 @@ describe("SnailRelay lifecycle and limits", () => {
       messages.push(JSON.parse(String(event.data)));
     });
     socket.send(JSON.stringify({ type: "auth", protocolVersion: 99, token: await token("host", "host") }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 20));
     expect(messagesOf({ messages }, "auth_error")[0].error).toContain("Protocol version mismatch");
   });
 
@@ -193,6 +194,36 @@ describe("SnailRelay lifecycle and limits", () => {
     (relay as unknown as { session: { lastActivity: number } }).session.lastActivity = Date.now() - 31 * 60 * 1000;
     await relay.alarm();
     expect(storage.values.size).toBe(0);
+  });
+
+  it("migrates legacy session storage into separate metadata and history keys", async () => {
+    const context = state();
+    await context.storage.put("session", {
+      roomId: "snail-TEST",
+      hostId: "host",
+      guestId: null,
+      inviteeId: null,
+      sourceLang: "de",
+      targetLang: "en",
+      tier: "free",
+      createdAt: Date.now(),
+      lastActivity: Date.now(),
+      hostSocket: null,
+      guestSocket: null,
+      quotaUsed: 0,
+      fishTtsChars: 0,
+      sessionSecret: "",
+      chatHistory: [{ type: "chat", messageId: "legacy", text: "opaque", timestamp: 1 }],
+      deliveredMessageIds: ["legacy"],
+    });
+    const relay = new SnailRelay(context.durableState, { FISHAUDIO_API_KEY: "test-fish-key" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(context.storage.values.has("session")).toBe(false);
+    expect(context.storage.values.has("session_meta")).toBe(true);
+    expect(context.storage.values.has("chat_history")).toBe(true);
+    expect((relay as unknown as { session: { chatHistory: unknown[] } }).session.chatHistory)
+      .toHaveLength(1);
   });
 
   it("reschedules an alarm while a session remains active", async () => {
