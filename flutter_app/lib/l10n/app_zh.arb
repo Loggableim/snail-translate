@@ -1,6 +1,9 @@
 {
   "@@locale": "zh",
 
+  "sessionNoiseGateLevel": "é™å™ªé˜ˆå€¼ï¼š{level} dBFS",
+  "sessionMicrophoneLevel": "éº¦å…‹é£Žï¼š{level} dBFS",
+
   "commonCancel": "取消",
   "commonJoin": "加入",
   "commonSave": "保存",

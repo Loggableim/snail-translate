@@ -1,6 +1,9 @@
 {
   "@@locale": "ja",
 
+  "sessionNoiseGateLevel": "ãƒŽã‚¤ã‚ºã‚²ãƒ¼ãƒˆ: {level} dBFS",
+  "sessionMicrophoneLevel": "ãƒžã‚¤ã‚¯: {level} dBFS",
+
   "commonCancel": "キャンセル",
   "commonJoin": "参加",
   "commonSave": "保存",

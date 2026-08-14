@@ -1,6 +1,9 @@
 {
   "@@locale": "es",
 
+  "sessionNoiseGateLevel": "Puerta de ruido: {level} dBFS",
+  "sessionMicrophoneLevel": "MicrÃ³fono: {level} dBFS",
+
   "commonCancel": "Cancelar",
   "commonJoin": "Unirse",
   "commonSave": "Guardar",

@@ -1,6 +1,9 @@
 {
   "@@locale": "it",
 
+  "sessionNoiseGateLevel": "Noise gate: {level} dBFS",
+  "sessionMicrophoneLevel": "Microfono: {level} dBFS",
+
   "commonCancel": "Annulla",
   "commonJoin": "Unisciti",
   "commonSave": "Salva",

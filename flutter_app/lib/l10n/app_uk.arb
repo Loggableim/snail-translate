@@ -1,6 +1,9 @@
 {
   "@@locale": "uk",
 
+  "sessionNoiseGateLevel": "Ð¨ÑƒÐ¼Ð¾Ð²Ð¸Ð¹ Ð¿Ð¾Ñ€Ñ–Ð³: {level} dBFS",
+  "sessionMicrophoneLevel": "ÐœÑ–ÐºÑ€Ð¾Ñ„Ð¾Ð½: {level} dBFS",
+
   "commonCancel": "Скасувати",
   "commonJoin": "Приєднатися",
   "commonSave": "Зберегти",

@@ -1,6 +1,9 @@
 {
   "@@locale": "ko",
 
+  "sessionNoiseGateLevel": "ë…¸ì´ì¦ˆ ê²Œì´íŠ¸: {level} dBFS",
+  "sessionMicrophoneLevel": "ë§ˆì´í¬: {level} dBFS",
+
   "commonCancel": "취소",
   "commonJoin": "참가",
   "commonSave": "저장",

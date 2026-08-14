@@ -934,13 +934,14 @@ class _SessionScreenState extends State<SessionScreen>
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Noise-Gate: ${_levelDb(_audioPolicy.noiseGateThreshold)} dBFS',
+                                l10n.sessionNoiseGateLevel(
+                                    _levelDb(_audioPolicy.noiseGateThreshold)),
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                               ValueListenableBuilder<double>(
                                 valueListenable: _micLevel,
                                 builder: (context, level, _) => Text(
-                                  'Mikrofon: ${_levelDb(level)} dBFS',
+                                  l10n.sessionMicrophoneLevel(_levelDb(level)),
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ),
