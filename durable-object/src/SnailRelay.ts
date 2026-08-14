@@ -88,9 +88,14 @@ interface ServerMessage {
   [key: string]: unknown;
 }
 
+interface SocketAttachment {
+  authenticated: boolean;
+  peerRole: "host" | "guest" | null;
+  userId: string | null;
+}
+
 // ── Constants ────────────────────────────────────────────────────────
 
-const PING_INTERVAL_MS = 30_000;
 const MAX_QUOTA_SECONDS = 30 * 60;
 const MAX_PCM_SAMPLES_PER_MESSAGE = 16_000; // max 1 s mono PCM at 16 kHz
 const MAX_CHAT_TEXT_LENGTH = 10_000;         // max chars per chat message
@@ -116,9 +121,9 @@ export class SnailRelay implements DurableObject {
   private state: DurableObjectState;
   private session: SessionState;
   private secret: string = "";
-  private pingIntervals = new Map<WebSocket, ReturnType<typeof setInterval>>();
   private fishApiKey: string;
   private fishTts = new Map<"host" | "guest", FishTtsConnection>();
+  private localAttachments = new WeakMap<WebSocket, SocketAttachment>();
 
   constructor(state: DurableObjectState, env: any) {
     this.state = state;
@@ -193,7 +198,12 @@ export class SnailRelay implements DurableObject {
       if (savedSecret) {
         this.secret = savedSecret;
       }
+      this.restoreSockets();
     });
+    // Older local Miniflare versions expose the hibernation API but not the
+    // automatic response helper. Cloudflare handles protocol ping frames in
+    // production; keep local tests compatible with that runtime gap.
+    this.state.setWebSocketAutoResponse?.({ request: "ping", response: "pong" });
   }
 
   // ── Alarm Handler ──────────────────────────────────────────────────
@@ -279,7 +289,24 @@ export class SnailRelay implements DurableObject {
     if (request.headers.get("Upgrade") === "websocket") {
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
-      this.handleWebSocket(server);
+      const attachment = { authenticated: false, peerRole: null, userId: null } satisfies SocketAttachment;
+      if (this.state.acceptWebSocket) {
+        this.state.acceptWebSocket(server);
+        server.serializeAttachment?.(attachment);
+      } else {
+        // The repository's older local Miniflare runtime does not implement
+        // the hibernation hooks. Keep its event delivery usable while the
+        // production path uses the hibernatable API above.
+        server.accept();
+        this.localAttachments.set(server, attachment);
+        server.addEventListener("message", (event) => {
+          void this.webSocketMessage(server, event.data as string | ArrayBuffer);
+        });
+        server.addEventListener("close", () => {
+          void this.webSocketClose(server, 1000, "", true);
+        });
+        server.addEventListener("error", (error) => this.webSocketError(server, error));
+      }
       return new Response(null, { status: 101, webSocket: client });
     }
 
@@ -288,20 +315,20 @@ export class SnailRelay implements DurableObject {
 
   // ── WebSocket Handler ──────────────────────────────────────────────
 
-  private async handleWebSocket(ws: WebSocket): Promise<void> {
-    let authenticated = false;
-    let peerRole: "host" | "guest" | null = null;
-    let userId: string | null = null;
-
-    ws.accept();
-    this.startPingInterval(ws);
-
-    ws.addEventListener("message", (event) => { void (async () => {
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer | Uint8Array): Promise<void> {
+    const attachment = (ws.deserializeAttachment?.() as SocketAttachment | null) ?? this.localAttachments.get(ws) ?? {
+      authenticated: false,
+      peerRole: null,
+      userId: null,
+    };
+    let authenticated = attachment.authenticated;
+    let peerRole = attachment.peerRole;
+    let userId = attachment.userId;
       this.session.lastActivity = Date.now();
 
       let msg: ClientMessage;
-      if (event.data instanceof ArrayBuffer || event.data instanceof Uint8Array) {
-        const frame = event.data instanceof Uint8Array ? event.data : new Uint8Array(event.data);
+      if (message instanceof ArrayBuffer || message instanceof Uint8Array) {
+        const frame = message instanceof Uint8Array ? message : new Uint8Array(message);
         if (frame.length < 5 || frame[0] < 2 || frame[0] > 3) {
           this.send(ws, { type: "error", error: "Invalid binary PCM frame" });
           return;
@@ -316,7 +343,7 @@ export class SnailRelay implements DurableObject {
         return;
       }
       try {
-        msg = JSON.parse(event.data as string);
+        msg = JSON.parse(message as string);
       } catch {
         this.send(ws, { type: "error", error: "Invalid JSON" });
         return;
@@ -381,6 +408,9 @@ export class SnailRelay implements DurableObject {
             }
 
             authenticated = true;
+            const updatedAttachment = { authenticated, peerRole, userId } satisfies SocketAttachment;
+            this.localAttachments.set(ws, updatedAttachment);
+            ws.serializeAttachment?.(updatedAttachment);
             await this.scheduleInactivityAlarm();
             this.send(ws, { type: "auth_ok", peerId: payload.role });
 
@@ -657,10 +687,11 @@ export class SnailRelay implements DurableObject {
           break;
         }
       }
-    })(); });
+  }
 
-    ws.addEventListener("close", () => { void (async () => {
-      this.stopPingInterval(ws);
+  async webSocketClose(ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): Promise<void> {
+    const attachment = (ws.deserializeAttachment?.() as SocketAttachment | null) ?? this.localAttachments.get(ws);
+    const peerRole = attachment?.peerRole ?? null;
       // Resolve the counterpart before clearing the closing socket. Looking it
       // up afterwards always returns null, which leaves the other device
       // visually stuck on "Verbunden" after a peer disconnects.
@@ -691,11 +722,10 @@ export class SnailRelay implements DurableObject {
       if (!this.session.hostSocket && !this.session.guestSocket) {
         void this.scheduleInactivityAlarm();
       }
-    })(); });
+  }
 
-    ws.addEventListener("error", (err) => {
-      console.error("WebSocket error:", err);
-    });
+  webSocketError(ws: WebSocket, error: unknown): void {
+    console.error("WebSocket error:", error);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────
@@ -737,21 +767,13 @@ export class SnailRelay implements DurableObject {
     if (this.session.guestSocket) this.send(this.session.guestSocket, msg);
   }
 
-  private startPingInterval(ws: WebSocket): void {
-    const interval = setInterval(() => {
-      try {
-        ws.send(JSON.stringify({ type: "ping" }));
-      } catch {
-        this.stopPingInterval(ws);
-      }
-    }, PING_INTERVAL_MS);
-    this.pingIntervals.set(ws, interval);
-  }
-
-  private stopPingInterval(ws: WebSocket): void {
-    const interval = this.pingIntervals.get(ws);
-    if (interval) clearInterval(interval);
-    this.pingIntervals.delete(ws);
+  private restoreSockets(): void {
+    for (const ws of this.state.getWebSockets()) {
+      const attachment = (ws.deserializeAttachment?.() as SocketAttachment | null) ?? this.localAttachments.get(ws);
+      if (!attachment?.authenticated || !attachment.peerRole) continue;
+      if (attachment.peerRole === "host") this.session.hostSocket = ws;
+      if (attachment.peerRole === "guest") this.session.guestSocket = ws;
+    }
   }
 
   private async scheduleInactivityAlarm(): Promise<void> {
