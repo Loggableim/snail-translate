@@ -4,10 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/session.dart';
+import '../l10n/app_localizations.dart';
 import 'api_keys.dart';
 import 'error_logger.dart';
 import 'retry.dart';
 import 'user_identity_service.dart';
+
+enum SessionFailureCode { invalidRoomCode, network, requestFailed }
 
 /// Manages session lifecycle: create room, join room.
 /// Also handles first-run language detection.
@@ -36,6 +39,7 @@ class SessionService extends ChangeNotifier {
   Session? _currentSession;
   bool _isLoading = false;
   String? _error;
+  SessionFailureCode? _errorCode;
   String _myLanguage = 'de';
   String _targetLanguage = 'en';
   String? _identityId;
@@ -55,6 +59,14 @@ class SessionService extends ChangeNotifier {
   Session? get currentSession => _currentSession;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  SessionFailureCode? get errorCode => _errorCode;
+
+  String localizedError(AppLocalizations l10n) => switch (_errorCode) {
+        SessionFailureCode.invalidRoomCode => l10n.commonError,
+        SessionFailureCode.network => l10n.homeJoinFailed,
+        SessionFailureCode.requestFailed => l10n.homeJoinFailed,
+        null => l10n.homeJoinFailed,
+      };
   bool get isInSession => _currentSession != null;
   String get myLanguage => _myLanguage;
   String get targetLanguage => _targetLanguage;
@@ -201,6 +213,7 @@ class SessionService extends ChangeNotifier {
   Future<Session?> createRoom({String? inviteeId}) async {
     _isLoading = true;
     _error = null;
+    _errorCode = null;
     notifyListeners();
 
     try {
@@ -231,11 +244,12 @@ class SessionService extends ChangeNotifier {
         notifyListeners();
         return _currentSession;
       } else {
-        final data = jsonDecode(response.body);
-        _error = data['error'] ?? 'Failed to create room';
+        _errorCode = SessionFailureCode.requestFailed;
+        _error = 'session_request_failed';
       }
     } catch (e, st) {
-      _error = 'Network error: $e';
+      _errorCode = SessionFailureCode.network;
+      _error = 'session_network';
       ErrorLogger.I.log(
           provider: 'api', context: 'session.create', error: e, stackTrace: st);
     }
@@ -248,6 +262,7 @@ class SessionService extends ChangeNotifier {
   Future<Session?> joinRoom(String roomId) async {
     _isLoading = true;
     _error = null;
+    _errorCode = null;
     notifyListeners();
 
     try {
@@ -256,7 +271,8 @@ class SessionService extends ChangeNotifier {
       final match = RegExp(r'^snail-([A-HJ-NP-Z2-9]{8})$', caseSensitive: false)
           .firstMatch(roomId.trim());
       if (match == null) {
-        _error = 'Ungültiger Raumcode';
+        _errorCode = SessionFailureCode.invalidRoomCode;
+        _error = 'session_invalid_room_code';
         _isLoading = false;
         notifyListeners();
         return null;
@@ -288,11 +304,12 @@ class SessionService extends ChangeNotifier {
         notifyListeners();
         return _currentSession;
       } else {
-        final data = jsonDecode(response.body);
-        _error = data['error'] ?? 'Failed to join room';
+        _errorCode = SessionFailureCode.requestFailed;
+        _error = 'session_request_failed';
       }
     } catch (e, st) {
-      _error = 'Network error: $e';
+      _errorCode = SessionFailureCode.network;
+      _error = 'session_network';
       ErrorLogger.I.log(
           provider: 'api', context: 'session.join', error: e, stackTrace: st);
     }

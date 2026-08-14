@@ -88,8 +88,10 @@ class _QrHostScreenState extends State<QrHostScreen> {
     } else {
       setState(() {
         _isCreating = false;
-        _error = context.read<SessionService>().error ??
-            AppLocalizations.of(context).qrHostCreateFailed;
+        final service = context.read<SessionService>();
+        _error = service.errorCode == null
+            ? AppLocalizations.of(context).qrHostCreateFailed
+            : service.localizedError(AppLocalizations.of(context));
       });
     }
   }

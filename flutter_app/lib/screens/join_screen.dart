@@ -48,8 +48,8 @@ class _JoinScreenState extends State<JoinScreen> {
     } else if (mounted) {
       setState(() {
         _step = _JoinStep.error;
-        _error = context.read<SessionService>().error ??
-            AppLocalizations.of(context).homeJoinFailed;
+        final service = context.read<SessionService>();
+        _error = service.localizedError(AppLocalizations.of(context));
       });
     }
   }

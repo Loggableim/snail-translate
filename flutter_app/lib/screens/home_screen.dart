@@ -62,7 +62,7 @@ Future<void> _showCodeDialog(BuildContext context) async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          context.read<SessionService>().error ?? l10n.homeJoinFailed,
+          context.read<SessionService>().localizedError(l10n),
         ),
       ),
     );
