@@ -60,6 +60,8 @@ const ROOM_ID_LENGTH = 8;
 const ROOM_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const MAX_ROOM_ID_ATTEMPTS = 5;
 const APP_SHARE_TTL = 15 * 60;
+const REALTIME_SECRET_LIMIT = 10;
+const REALTIME_SECRET_WINDOW_SECONDS = 60;
 
 function iceServers(env: Env): Array<Record<string, unknown>> {
   const servers: Array<Record<string, unknown>> = [{ urls: "stun:stun.l.google.com:19302" }];
@@ -373,6 +375,13 @@ async function handleRealtimeClientSecret(request: Request, env: Env): Promise<R
   const userId = await getUserId(request, env);
   if (!userId) return json({ error: "Unauthorized" }, 401, origin, env.CORS_ORIGINS);
   if (!env.OPENAI_API_KEY) return json({ error: "Realtime client secrets are not configured" }, 503, origin, env.CORS_ORIGINS);
+  const window = Math.floor(Date.now() / (REALTIME_SECRET_WINDOW_SECONDS * 1_000));
+  const rateKey = `realtime-secret:${userId}:${window}`;
+  const issued = Number(await env.SNAIL_KV.get(rateKey) || "0");
+  if (issued >= REALTIME_SECRET_LIMIT) {
+    return json({ error: "Realtime secret rate limit exceeded" }, 429, origin, env.CORS_ORIGINS);
+  }
+  await env.SNAIL_KV.put(rateKey, String(issued + 1), { expirationTtl: REALTIME_SECRET_WINDOW_SECONDS + 5 });
 
   let body: any = {};
   try { body = await request.json(); } catch {}

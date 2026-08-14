@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import worker, { type Env } from "./index";
 
 type Fetcher = { fetch(request: Request): Promise<Response> };
@@ -63,6 +63,8 @@ async function call(path: string, init: RequestInit = {}, bindings: Partial<Env>
 }
 
 describe("Worker fetch handler", () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
   it("reports a configured development health state", async () => {
     const response = await call("/api/health");
     expect(response.status).toBe(200);
@@ -150,6 +152,29 @@ describe("Worker fetch handler", () => {
     });
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: "Realtime client secrets are not configured" });
+  });
+
+  it("rate-limits realtime secret issuance per authenticated user", async () => {
+    vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ value: "short-lived" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+    const bindings = { OPENAI_API_KEY: "configured", SNAIL_KV: kv() };
+    for (let i = 0; i < 10; i++) {
+      const response = await call("/api/realtime/client-secret", {
+        method: "POST",
+        headers: { "X-API-Key": "test-api-key", "Content-Type": "application/json" },
+        body: JSON.stringify({ targetLanguage: "en" }),
+      }, bindings);
+      expect(response.status).toBe(200);
+    }
+    const response = await call("/api/realtime/client-secret", {
+      method: "POST",
+      headers: { "X-API-Key": "test-api-key", "Content-Type": "application/json" },
+      body: JSON.stringify({ targetLanguage: "en" }),
+    }, bindings);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Realtime secret rate limit exceeded" });
   });
 
   it("rejects a WebSocket upgrade without a room through the real handler", async () => {
