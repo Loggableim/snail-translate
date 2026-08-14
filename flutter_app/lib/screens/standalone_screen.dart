@@ -281,7 +281,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
                     : _StandaloneStatus.active(singleMic: !_hasHeadset);
         setState(() => _status = next);
       });
-    } catch (error) {
+    } catch (_) {
       await Future.wait([
         _phoneOpenAi.disconnect(),
         _headsetOpenAi.disconnect(),
@@ -296,7 +296,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$error')));
+            .showSnackBar(SnackBar(content: Text(l10n.commonError)));
       }
     }
   }
