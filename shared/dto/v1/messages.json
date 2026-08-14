@@ -19,13 +19,42 @@
         "error"
       ]
     },
+    "AuthMessage": {
+      "type": "object",
+      "required": ["type", "token", "protocolVersion"],
+      "properties": {
+        "type": { "const": "auth" },
+        "token": { "type": "string", "minLength": 1 },
+        "protocolVersion": { "type": "integer", "minimum": 1 },
+        "agreementPublicKey": {
+          "type": "string",
+          "description": "base64-encoded X.509 P-256 public key for ECDH"
+        }
+      }
+    },
+    "PeerJoinedMessage": {
+      "type": "object",
+      "required": ["type", "peerId"],
+      "properties": {
+        "type": { "const": "peer_joined" },
+        "peerId": { "type": "string", "minLength": 1 },
+        "peerAgreementPublicKey": {
+          "type": "string",
+          "description": "base64-encoded X.509 P-256 public key for ECDH"
+        }
+      }
+    },
     "ChatMessage": {
       "type": "object",
       "required": ["type", "messageId", "text", "timestamp"],
       "properties": {
         "type": { "const": "chat" },
         "messageId": { "type": "string", "format": "uuid" },
-        "text": { "type": "string", "maxLength": 10000 },
+        "text": {
+          "type": "string",
+          "maxLength": 10000,
+          "description": "plaintext for legacy entries or snail-chat-v1 AES-GCM envelope"
+        },
         "senderId": { "type": "string" },
         "sourceLang": { "type": "string", "minLength": 2, "maxLength": 5 },
         "targetLang": { "type": "string", "minLength": 2, "maxLength": 5 },
