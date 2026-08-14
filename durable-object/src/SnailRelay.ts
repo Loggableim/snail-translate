@@ -13,7 +13,6 @@ import {
   verifySessionToken,
   type SessionTokenPayload,
 } from "./auth";
-import { processAudioPipeline } from "./pipeline";
 import { FishTtsConnection, framePcm, framePcmEnd } from "./fish-tts";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -37,7 +36,7 @@ interface SessionState {
 }
 
 interface ClientMessage {
-  type: "auth" | "audio" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
+  type: "auth" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
   token?: string;
   audio?: number[];
   sampleRate?: number;
@@ -60,7 +59,7 @@ interface ClientMessage {
 }
 
 interface ServerMessage {
-  type: "auth_ok" | "auth_error" | "audio" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
+  type: "auth_ok" | "auth_error" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
   audio?: number[];
   sampleRate?: number;
   messageId?: string;
@@ -317,38 +316,6 @@ export class SnailRelay implements DurableObject {
             console.error("Auth error:", reason);
             this.send(ws, { type: "auth_error", error: `Invalid token: ${reason}` });
             ws.close(4001, "Invalid token");
-          }
-          break;
-        }
-
-        case "audio": {
-          if (!authenticated || !msg.audio) {
-            this.send(ws, { type: "error", error: "Not authenticated or no audio" });
-            return;
-          }
-
-          if (this.session.tier === "free" && this.session.quotaUsed >= MAX_QUOTA_SECONDS) {
-            this.send(ws, { type: "error", error: "Quota exceeded" });
-            return;
-          }
-
-          try {
-            const audioOutput = await processAudioPipeline(
-              msg.audio,
-              this.session.sourceLang,
-              this.session.targetLang,
-              this.session.tier
-            );
-
-            const peer = this.getPeer(ws);
-            if (peer) {
-              this.send(peer, { type: "audio", audio: Array.from(audioOutput) });
-            }
-
-            this.session.quotaUsed += 0.02;
-            await this.saveState();
-          } catch (err) {
-            this.send(ws, { type: "error", error: `Pipeline error: ${(err as Error).message}` });
           }
           break;
         }

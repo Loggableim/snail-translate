@@ -271,15 +271,6 @@ class AudioService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void sendAudio(Uint8List pcm16) {
-    if (!_isConnected || _isMuted || pcm16.isEmpty) return;
-    _channel?.sink.add(jsonEncode({
-      'type': 'audio',
-      'audio': pcm16.toList(growable: false),
-      'timestamp': DateTime.now().millisecondsSinceEpoch
-    }));
-  }
-
   void sendPcmAudio(Uint8List pcm16, {int sampleRate = 24000}) {
     if (!_isConnected || _isMuted || pcm16.isEmpty) return;
     _channel?.sink.add(jsonEncode({

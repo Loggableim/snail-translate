@@ -9,7 +9,7 @@
       "type": "string",
       "enum": [
         "auth", "auth_ok", "auth_error",
-        "audio", "pcm_audio", "fallback_pcm_audio",
+        "pcm_audio", "fallback_pcm_audio",
         "chat", "voice",
         "edit", "delete",
         "signal",

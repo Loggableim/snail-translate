@@ -98,11 +98,10 @@ mit Code-Referenzen:
    Overhead und schlage einen effizienteren Transport vor (binärer
    WebSocket-Frame, Opus-Codec).
 
-4. **Chunk-Pipeline im DO falsch:** `processAudioPipeline()` verarbeitet
-   **jeden 0.5s-Chunk einzeln** als komplette STT→MT→TTS-Kette. Das erzeugt
-   pro Chunk einen STT-Aufruf ohne Kontext (bricht Sätze), hohe API-Kosten
-   und Latenz. Wie müsste echtes Streaming (Kontext-Puffer, Satzgrenzen)
-   aussehen?
+4. **Legacy-Chunk-Pipeline entfernt:** Die frühere STT→MT→TTS-Chunk-Kette
+   wurde aus dem Durable Object entfernt. Realtime-Audio läuft über die
+   dedizierten PCM-/Providerpfade; eine neue Streaming-Pipeline braucht daher
+   eine eigene Architekturentscheidung.
 
 5. **Quota-Tracking ist fake:** `SnailRelay.ts` macht `quotaUsed += 0.02`
    ("1 chunk ≈ 20ms"). Das ist willkürlich und nicht an echte Audiodauer
