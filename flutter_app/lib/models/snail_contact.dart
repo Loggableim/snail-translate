@@ -16,11 +16,13 @@ enum ContactStatus {
 class SnailContact {
   final String userId;
   final String username;
+  final String? agreementPublicKey;
   final ContactStatus status;
 
   const SnailContact({
     required this.userId,
     required this.username,
+    this.agreementPublicKey,
     this.status = ContactStatus.accepted,
   });
 
@@ -32,18 +34,22 @@ class SnailContact {
   SnailContact copyWith({ContactStatus? status}) => SnailContact(
         userId: userId,
         username: username,
+        agreementPublicKey: agreementPublicKey,
         status: status ?? this.status,
       );
 
   Map<String, dynamic> toJson() => {
         'userId': userId,
         'username': username,
+        if (agreementPublicKey != null && agreementPublicKey!.isNotEmpty)
+          'agreementPublicKey': agreementPublicKey,
         'status': status.name,
       };
 
   factory SnailContact.fromJson(Map<String, dynamic> json) => SnailContact(
         userId: json['userId'] as String,
         username: json['username'] as String? ?? 'Snail User',
+        agreementPublicKey: json['agreementPublicKey'] as String?,
         status: _parseStatus(json['status'] as String?),
       );
 

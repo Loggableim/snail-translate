@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:snail/models/user_identity.dart';
 import 'package:snail/services/user_identity_service.dart';
 
 void main() {
@@ -35,5 +36,19 @@ void main() {
     expect(
         await UserIdentityService().getDeviceAgreementPublicKey(), 'peer-key');
     expect(calls.single.method, 'getDeviceAgreementPublicKey');
+  });
+
+  test('includes the agreement key in the contact QR payload', () {
+    const identity = UserIdentity(
+      userId: 'user-1',
+      username: 'Alice',
+      publicKey: 'signing-key',
+      agreementPublicKey: 'agreement-key',
+    );
+
+    final restored = UserIdentity.fromJson(identity.toJson());
+    expect(restored.agreementPublicKey, 'agreement-key');
+    expect(Uri.parse(identity.qrPayload).queryParameters['agree'],
+        'agreement-key');
   });
 }

@@ -35,13 +35,24 @@ class UserIdentityService extends ChangeNotifier {
       await prefs.remove(_legacyStorageKey);
     }
     final publicKey = await _loadDevicePublicKey();
+    final agreementPublicKey = await getDeviceAgreementPublicKey();
     if (publicKey != null &&
         publicKey.isNotEmpty &&
         _identity!.publicKey != publicKey) {
       _identity = UserIdentity(
           userId: _identity!.userId,
           username: _identity!.username,
-          publicKey: publicKey);
+          publicKey: publicKey,
+          agreementPublicKey: agreementPublicKey);
+    } else if (agreementPublicKey != null &&
+        agreementPublicKey.isNotEmpty &&
+        _identity!.agreementPublicKey != agreementPublicKey) {
+      _identity = UserIdentity(
+        userId: _identity!.userId,
+        username: _identity!.username,
+        publicKey: _identity!.publicKey,
+        agreementPublicKey: agreementPublicKey,
+      );
     }
     await _persist();
     notifyListeners();
@@ -53,7 +64,8 @@ class UserIdentityService extends ChangeNotifier {
     _identity = UserIdentity(
         userId: _identity!.userId,
         username: value,
-        publicKey: _identity!.publicKey);
+        publicKey: _identity!.publicKey,
+        agreementPublicKey: _identity!.agreementPublicKey);
     await _persist();
     notifyListeners();
   }

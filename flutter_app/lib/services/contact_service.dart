@@ -36,10 +36,13 @@ class ContactService extends ChangeNotifier {
     final userId = uri.pathSegments.isEmpty ? '' : uri.pathSegments.first;
     if (userId.isEmpty) return false;
     final username = uri.queryParameters['name']?.trim();
+    final agreementPublicKey = uri.queryParameters['agree']?.trim();
     if (_contacts.any((contact) => contact.userId == userId)) return true;
     _contacts.add(SnailContact(
       userId: userId,
       username: username?.isNotEmpty == true ? username! : 'Snail User',
+      agreementPublicKey:
+          agreementPublicKey?.isNotEmpty == true ? agreementPublicKey : null,
       status: ContactStatus.pending,
     ));
     await _persist();
@@ -51,7 +54,8 @@ class ContactService extends ChangeNotifier {
   Future<void> accept(SnailContact contact) async {
     final index = _contacts.indexWhere((c) => c.userId == contact.userId);
     if (index == -1) return;
-    _contacts[index] = _contacts[index].copyWith(status: ContactStatus.accepted);
+    _contacts[index] =
+        _contacts[index].copyWith(status: ContactStatus.accepted);
     await _persist();
     notifyListeners();
   }
@@ -60,7 +64,8 @@ class ContactService extends ChangeNotifier {
   Future<void> reject(SnailContact contact) async {
     final index = _contacts.indexWhere((c) => c.userId == contact.userId);
     if (index == -1) return;
-    _contacts[index] = _contacts[index].copyWith(status: ContactStatus.rejected);
+    _contacts[index] =
+        _contacts[index].copyWith(status: ContactStatus.rejected);
     await _persist();
     notifyListeners();
   }
@@ -78,7 +83,8 @@ class ContactService extends ChangeNotifier {
   Future<void> unblock(SnailContact contact) async {
     final index = _contacts.indexWhere((c) => c.userId == contact.userId);
     if (index == -1) return;
-    _contacts[index] = _contacts[index].copyWith(status: ContactStatus.accepted);
+    _contacts[index] =
+        _contacts[index].copyWith(status: ContactStatus.accepted);
     await _persist();
     notifyListeners();
   }
