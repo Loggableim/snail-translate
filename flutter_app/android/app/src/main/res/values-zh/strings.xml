@@ -1,0 +1,6 @@
+<resources>
+    <string name="notification_session_title">Snail 翻译已启用</string>
+    <string name="notification_session_text">屏幕关闭时音频连接仍保持活动</string>
+    <string name="notification_end_session">结束会话</string>
+    <string name="notification_channel_name">Snail 翻译</string>
+</resources>

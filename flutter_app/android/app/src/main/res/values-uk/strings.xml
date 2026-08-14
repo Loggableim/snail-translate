@@ -1,0 +1,6 @@
+<resources>
+    <string name="notification_session_title">Переклад Snail активний</string>
+    <string name="notification_session_text">Аудіоз’єднання залишається активним, коли екран вимкнено</string>
+    <string name="notification_end_session">Завершити сеанс</string>
+    <string name="notification_channel_name">Переклад Snail</string>
+</resources>

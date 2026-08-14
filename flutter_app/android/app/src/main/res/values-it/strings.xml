@@ -1,0 +1,6 @@
+<resources>
+    <string name="notification_session_title">Traduzione Snail attiva</string>
+    <string name="notification_session_text">La connessione audio resta attiva con lo schermo spento</string>
+    <string name="notification_end_session">Termina sessione</string>
+    <string name="notification_channel_name">Traduzione Snail</string>
+</resources>
