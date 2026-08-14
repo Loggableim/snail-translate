@@ -8,10 +8,11 @@ const secret = "relay-test-secret";
 class Storage {
   values = new Map<string, unknown>();
   alarmAt: number | undefined;
+  alarmCalls = 0;
   async get<T>(key: string) { return this.values.get(key) as T | undefined; }
   async put(key: string, value: unknown) { this.values.set(key, value); }
   async deleteAll() { this.values.clear(); }
-  async setAlarm(at: number) { this.alarmAt = at; }
+  async setAlarm(at: number) { this.alarmAt = at; this.alarmCalls++; }
 }
 
 async function token(role: "host" | "guest", sub: string) {
@@ -127,6 +128,17 @@ describe("SnailRelay lifecycle and limits", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(messagesOf(host, "error").map((message) => message.error).join(" ")).toContain("too long");
     expect(messagesOf(host, "error").map((message) => message.error).join(" ")).toContain("Invalid binary PCM frame");
+  });
+
+  it("does not reschedule the alarm for every PCM frame", async () => {
+    const { relay, storage } = await initializedRelay();
+    const host = await connect(relay, "host", "host");
+    const before = storage.alarmCalls;
+    for (let i = 0; i < 20; i++) {
+      host.socket.send(framePcm(new Uint8Array(960), 24_000, "peer_pcm"));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(storage.alarmCalls - before).toBe(0);
   });
 
   it("alarm cleanup removes persisted session data", async () => {

@@ -174,6 +174,7 @@ export class SnailRelay implements DurableObject {
       this.session.createdAt = Date.now();
       this.session.lastActivity = Date.now();
       await this.saveState();
+      await this.scheduleInactivityAlarm();
       return new Response(JSON.stringify({ status: "ok" }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -235,10 +236,6 @@ export class SnailRelay implements DurableObject {
 
     ws.addEventListener("message", async (event) => {
       this.session.lastActivity = Date.now();
-      // Reset the inactivity alarm on every message
-      await this.state.storage.setAlarm(
-        Date.now() + SESSION_INACTIVITY_TIMEOUT_MS
-      );
 
       let msg: ClientMessage;
       if (event.data instanceof ArrayBuffer || event.data instanceof Uint8Array) {
@@ -319,6 +316,7 @@ export class SnailRelay implements DurableObject {
             }
 
             authenticated = true;
+            await this.scheduleInactivityAlarm();
             this.send(ws, { type: "auth_ok", peerId: payload.role });
 
             if (this.session.chatHistory.length > 0) {
@@ -590,6 +588,7 @@ export class SnailRelay implements DurableObject {
       }
 
       await this.saveState();
+      await this.scheduleInactivityAlarm();
 
       if (!this.session.hostSocket && !this.session.guestSocket) {
         setTimeout(() => { void this.cleanup(); }, 60_000);
@@ -655,6 +654,10 @@ export class SnailRelay implements DurableObject {
     const interval = this.pingIntervals.get(ws);
     if (interval) clearInterval(interval);
     this.pingIntervals.delete(ws);
+  }
+
+  private async scheduleInactivityAlarm(): Promise<void> {
+    await this.state.storage.setAlarm(Date.now() + SESSION_INACTIVITY_TIMEOUT_MS);
   }
 
   private async saveState(): Promise<void> {
