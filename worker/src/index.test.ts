@@ -93,6 +93,33 @@ describe("Worker fetch handler", () => {
     });
   });
 
+  it("rejects an unknown room through the real join route", async () => {
+    const response = await call("/api/rooms/snail-ABCD/join", {
+      method: "POST",
+      headers: { "X-API-Key": "test-api-key" },
+    }, {
+      SNAIL_RELAY: namespace(new Response("Not found", { status: 404 })),
+    });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Room not found" });
+  });
+
+  it("reports an unavailable realtime secret through the real route", async () => {
+    const response = await call("/api/realtime/client-secret", {
+      method: "POST",
+      headers: { "X-API-Key": "test-api-key", "Content-Type": "application/json" },
+      body: JSON.stringify({ targetLanguage: "en" }),
+    });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "Realtime client secrets are not configured" });
+  });
+
+  it("rejects a WebSocket upgrade without a room through the real handler", async () => {
+    const response = await call("/ws", { headers: { Upgrade: "websocket" } });
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe("Missing room");
+  });
+
   it("returns the handler's 404 fallback", async () => {
     const response = await call("/api/does-not-exist");
     expect(response.status).toBe(404);
