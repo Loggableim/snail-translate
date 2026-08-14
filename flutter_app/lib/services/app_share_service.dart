@@ -167,12 +167,12 @@ class AppShareService extends ChangeNotifier {
     tunnel.sink.add(jsonEncode({'type': 'transfer_start'}));
     notifyListeners();
     try {
-      await for (final bytes in apk.openRead()) {
-        if (_tunnel != tunnel) return;
-        tunnel.sink.add(bytes);
-      }
+      // StreamSink.addStream applies the sink's flow-control contract. A
+      // manual `await for` plus `sink.add` can read a full APK into the
+      // WebSocket buffer before the network has accepted it.
+      await tunnel.sink.addStream(apk.openRead());
+      if (_tunnel != tunnel) return;
       tunnel.sink.add(jsonEncode({'type': 'transfer_complete'}));
-      _transferredBytes = _apkBytes ?? _transferredBytes;
       _status = 'Fertig';
       _isTransferring = false;
       _downloads++;
