@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'live_translation_provider.dart';
+import 'error_logger.dart';
 
 /// Low-level Gemini Live Translation transport.
 ///
@@ -18,6 +19,17 @@ class GeminiLiveService extends ChangeNotifier
   bool _connected = false;
   String _state = 'idle';
   String? _lastError;
+  String? _apiKey;
+  String? _targetLanguage;
+  String _model = 'gemini-3.5-live-translate-preview';
+  int _reconnectAttempt = 0;
+  Timer? _reconnectTimer;
+  bool _closing = false;
+  static const _reconnectDelays = <Duration>[
+    Duration(milliseconds: 500),
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+  ];
   String _inputTranscript = '';
   String _outputTranscript = '';
   final List<Uint8List> _audioChunks = [];
@@ -40,32 +52,65 @@ class GeminiLiveService extends ChangeNotifier
       required String targetLanguage,
       String model = 'gemini-3.5-live-translate-preview'}) async {
     if (apiKey.trim().isEmpty) throw ArgumentError('Gemini BYOK-Key fehlt');
+    _closing = false;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _reconnectAttempt = 0;
+    _apiKey = apiKey.trim();
+    _targetLanguage = targetLanguage;
+    _model = model;
+    await _connectInternal();
+  }
+
+  Future<void> _connectInternal() async {
+    final apiKey = _apiKey;
+    final targetLanguage = _targetLanguage;
+    if (apiKey == null || targetLanguage == null || _closing) return;
     _state = 'connecting';
     _lastError = null;
     notifyListeners();
     final uri = Uri.parse(
         'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${Uri.encodeQueryComponent(apiKey)}');
-    _channel = WebSocketChannel.connect(uri);
-    await _channel!.ready;
-    _connected = true;
-    _state = 'ready';
-    _subscription =
-        _channel!.stream.listen(_onMessage, onError: _onError, onDone: _onDone);
-    _channel!.sink.add(jsonEncode({
-      'setup': {
-        'model': 'models/$model',
-        'generationConfig': {
-          'responseModalities': ['AUDIO'],
-          'inputAudioTranscription': {},
-          'outputAudioTranscription': {},
-          'translationConfig': {
-            'targetLanguageCode': targetLanguage,
-            'echoTargetLanguage': true
+    try {
+      _channel = WebSocketChannel.connect(uri);
+      await _channel!.ready;
+      if (_closing) return;
+      _connected = true;
+      _state = 'ready';
+      _reconnectAttempt = 0;
+      _subscription = _channel!.stream.listen(
+        _onMessage,
+        onError: _onError,
+        onDone: _onDone,
+      );
+      _channel!.sink.add(jsonEncode({
+        'setup': {
+          'model': 'models/$_model',
+          'generationConfig': {
+            'responseModalities': ['AUDIO'],
+            'inputAudioTranscription': {},
+            'outputAudioTranscription': {},
+            'translationConfig': {
+              'targetLanguageCode': targetLanguage,
+              'echoTargetLanguage': true
+            },
           },
         },
-      },
-    }));
-    notifyListeners();
+      }));
+      notifyListeners();
+    } catch (error, stackTrace) {
+      _connected = false;
+      _state = 'degraded';
+      _lastError = error.toString();
+      ErrorLogger.I.log(
+        provider: 'gemini',
+        context: 'realtime.connect',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      notifyListeners();
+      _scheduleReconnect();
+    }
   }
 
   void sendPcm16(Uint8List pcm16At16kHz) {
@@ -114,17 +159,43 @@ class GeminiLiveService extends ChangeNotifier
     _connected = false;
     _state = 'degraded';
     _lastError = error.toString();
+    ErrorLogger.I
+        .log(provider: 'gemini', context: 'realtime.socket', error: error);
     notifyListeners();
+    _scheduleReconnect();
   }
 
   void _onDone() {
     _connected = false;
     _state = 'closed';
     notifyListeners();
+    _scheduleReconnect();
+  }
+
+  void _scheduleReconnect() {
+    if (_closing ||
+        _reconnectTimer != null ||
+        _reconnectAttempt >= _reconnectDelays.length) {
+      if (!_closing && _reconnectAttempt >= _reconnectDelays.length) {
+        _state = 'error';
+        notifyListeners();
+      }
+      return;
+    }
+    final delay = _reconnectDelays[_reconnectAttempt++];
+    _state = 'reconnecting';
+    notifyListeners();
+    _reconnectTimer = Timer(delay, () async {
+      _reconnectTimer = null;
+      await _connectInternal();
+    });
   }
 
   @override
   Future<void> disconnect() async {
+    _closing = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     await _subscription?.cancel();
     await _channel?.sink.close();
     _channel = null;
