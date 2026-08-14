@@ -31,6 +31,18 @@ sollten kurzlebig und rotierbar sein.
 
 ## Deployment und Prüfung
 
+Vor jedem Deployment den Guard ausführen:
+
+```powershell
+node tools/check-deploy-config.mjs
+```
+
+Der aktuelle Stand wird absichtlich blockiert, weil `snail.dominik.in` als
+Produktionsroute eingetragen ist, während `DEV_MODE=true` und
+`DEV_ALLOW_IDENTITY_AUTH=true` gesetzt sind. Betreiber müssen entweder Clerk
+aktivieren und beide Entwicklungsflags deaktivieren oder `DEV_MODE` deaktivieren
+und `DEVICE_ID_AUTH=true` mit verpflichtender Signaturprüfung verwenden.
+
 ```powershell
 wrangler deploy
 Invoke-RestMethod https://<worker-host>/api/health
