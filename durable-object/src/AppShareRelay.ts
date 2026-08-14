@@ -23,7 +23,12 @@ export class AppShareRelay implements DurableObject {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === '/init' && request.method === 'POST') {
-      const candidate = await request.json<Partial<ShareMeta>>();
+      let candidate: Partial<ShareMeta>;
+      try {
+        candidate = await request.json<Partial<ShareMeta>>();
+      } catch {
+        return new Response('Invalid share metadata', { status: 400 });
+      }
       const version = candidate?.version;
       const bytes = candidate?.bytes;
       const expiresAt = candidate?.expiresAt;

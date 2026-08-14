@@ -90,5 +90,10 @@ describe("AppShareRelay", () => {
     }));
     expect(response.status).toBe(400);
     expect(storage.values.size).toBe(0);
+    const malformed = await relay.fetch(new Request("https://internal/init", {
+      method: "POST",
+      body: "not-json",
+    }));
+    expect(malformed.status).toBe(400);
   });
 });
