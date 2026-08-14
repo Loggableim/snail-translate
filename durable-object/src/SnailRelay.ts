@@ -257,7 +257,7 @@ export class SnailRelay implements DurableObject {
     ws.accept();
     this.startPingInterval(ws);
 
-    ws.addEventListener("message", async (event) => {
+    ws.addEventListener("message", (event) => { void (async () => {
       this.session.lastActivity = Date.now();
 
       let msg: ClientMessage;
@@ -603,9 +603,9 @@ export class SnailRelay implements DurableObject {
           break;
         }
       }
-    });
+    })(); });
 
-    ws.addEventListener("close", async () => {
+    ws.addEventListener("close", () => { void (async () => {
       this.stopPingInterval(ws);
       // Resolve the counterpart before clearing the closing socket. Looking it
       // up afterwards always returns null, which leaves the other device
@@ -637,7 +637,7 @@ export class SnailRelay implements DurableObject {
       if (!this.session.hostSocket && !this.session.guestSocket) {
         void this.scheduleInactivityAlarm();
       }
-    });
+    })(); });
 
     ws.addEventListener("error", (err) => {
       console.error("WebSocket error:", err);
