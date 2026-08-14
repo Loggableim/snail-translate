@@ -25,6 +25,21 @@ import '../services/error_logger.dart';
 import '../l10n/app_localizations.dart';
 import 'chat_screen.dart';
 
+double _sharedLevelFraction(double level) {
+  const minDb = -60.0;
+  const maxDb = 0.0;
+  final db = AudioProcessor.levelToDbfs(level);
+  return ((db - minDb) / (maxDb - minDb)).clamp(0.0, 1.0);
+}
+
+Color _sharedLevelColor(BuildContext context, double level, double gate) {
+  final db = AudioProcessor.levelToDbfs(level);
+  final gateDb = AudioProcessor.levelToDbfs(gate);
+  if (db < gateDb) return Colors.orange;
+  if (db < -12) return Colors.green;
+  return Theme.of(context).colorScheme.error;
+}
+
 class SessionScreen extends StatefulWidget {
   const SessionScreen({super.key});
 
@@ -36,6 +51,7 @@ class _SessionScreenState extends State<SessionScreen>
     with WidgetsBindingObserver {
   String _levelDb(double level) =>
       AudioProcessor.levelToDbfs(level).toStringAsFixed(0);
+
 
   // Cache provider-owned services before the route starts unmounting. Reading
   // an inherited provider from dispose() can race with Provider's own teardown
@@ -891,23 +907,10 @@ class _SessionScreenState extends State<SessionScreen>
                           ValueListenableBuilder<double>(
                             valueListenable: _micLevel,
                             builder: (context, level, _) {
-                              // Full scale sits well above conversational
-                              // speech (~0.08 RMS / -22 dBFS) so the bar has
-                              // visible headroom before clipping.
-                              const max = 0.25;
-                              return ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: LinearProgressIndicator(
-                                  minHeight: 8,
-                                  value: (level / max).clamp(0.0, 1.0),
-                                  backgroundColor: Theme.of(context)
-                                      .colorScheme
-                                      .surfaceContainerHighest,
-                                  color:
-                                      level >= _audioPolicy.noiseGateThreshold
-                                          ? Colors.green
-                                          : Colors.orange,
-                                ),
+                              return _LevelBar(
+                                level: level,
+                                gateThreshold:
+                                    _audioPolicy.noiseGateThreshold,
                               );
                             },
                           ),
@@ -1168,7 +1171,10 @@ class _SessionScreenState extends State<SessionScreen>
                     // ── Audio level meter ──
                     ValueListenableBuilder<double>(
                       valueListenable: _micLevel,
-                      builder: (context, level, _) => _LevelMeter(level: level),
+                      builder: (context, level, _) => _LevelBar(
+                        level: level,
+                        gateThreshold: _audioPolicy.noiseGateThreshold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -1305,24 +1311,22 @@ class _LatencyChip extends StatelessWidget {
 }
 
 /// Compact audio level meter showing microphone input level.
-class _LevelMeter extends StatelessWidget {
-  const _LevelMeter({required this.level});
+class _LevelBar extends StatelessWidget {
+  const _LevelBar({required this.level, required this.gateThreshold});
 
   final double level;
+  final double gateThreshold;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final fraction = _sharedLevelFraction(level);
+    final gateFraction = _sharedLevelFraction(gateThreshold);
+    final color = _sharedLevelColor(context, level, gateThreshold);
     // Map RMS level to a color: green → yellow → red
-    final color = level < 0.3
-        ? Colors.green
-        : level < 0.7
-            ? Colors.orange
-            : colors.error;
-
     return SizedBox(
-      width: 120,
-      height: 6,
+      width: double.infinity,
+      height: 8,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(3),
         child: Stack(
@@ -1334,12 +1338,21 @@ class _LevelMeter extends StatelessWidget {
             // Active level
             FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: level.clamp(0.0, 1.0),
+              widthFactor: fraction,
               child: Container(
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.circular(3),
                 ),
+              ),
+            ),
+            Positioned(
+              left: gateFraction * 120 - 1,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 2,
+                color: colors.onSurface.withValues(alpha: 0.65),
               ),
             ),
           ],
