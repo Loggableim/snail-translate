@@ -12,6 +12,7 @@ void main() {
       'lib/services/app_share_service.dart',
       'lib/services/session_service.dart',
       'lib/services/translation_service.dart',
+      'lib/screens/welcome_screen.dart',
     ];
     const forbidden = [
       'Noise-Gate:',
@@ -22,6 +23,7 @@ void main() {
       'Tunnel getrennt',
       'Unbegrenzt',
       'Unbekannt',
+      'provider connection',
     ];
 
     for (final path in sourceFiles) {
