@@ -19,6 +19,8 @@ class AudioService extends ChangeNotifier {
   bool _isMuted = false;
   bool _isReconnecting = false;
   bool _isAuthenticated = false;
+  bool _terminalAuthError = false;
+  String? _connectionError;
   final ChatService chat = ChatService();
   final List<Map<String, dynamic>> _signals = [];
   static const _maxSignals = 256;
@@ -43,6 +45,8 @@ class AudioService extends ChangeNotifier {
   bool get isMuted => _isMuted;
   bool get isReconnecting => _isReconnecting;
   bool get isAuthenticated => _isAuthenticated;
+  bool get hasTerminalAuthError => _terminalAuthError;
+  String? get connectionError => _connectionError;
   List<ChatMessage> get messages => chat.messages;
   int get pendingCount => chat.pendingCount;
   List<Map<String, dynamic>> get signals => List.unmodifiable(_signals);
@@ -68,6 +72,9 @@ class AudioService extends ChangeNotifier {
 
   Future<bool> connect(Session session) async {
     _session = session;
+    _terminalAuthError = false;
+    _connectionError = null;
+    _reconnectAttempt = 0;
     await chat.init(session.inviteeId ?? session.roomId, session.roomId);
     _wireChatService();
     return _doConnect();
@@ -156,11 +163,17 @@ class AudioService extends ChangeNotifier {
           notifyListeners();
           break;
         case 'auth_error':
+          _terminalAuthError = true;
+          _connectionError = msg['error'] as String? ?? 'Authentication failed';
+          _isReconnecting = false;
+          _reconnectTimer?.cancel();
+          _reconnectTimer = null;
           ErrorLogger.I.log(
             provider: 'websocket',
             context: 'ws.auth',
             error: msg['error'] ?? 'Unknown auth error',
           );
+          notifyListeners();
           break;
         case 'peer_joined':
           _isPeerConnected = true;
@@ -244,7 +257,7 @@ class AudioService extends ChangeNotifier {
   }
 
   void _tryReconnect() {
-    if (_isConnected || _reconnectTimer != null) return;
+    if (_isConnected || _reconnectTimer != null || _terminalAuthError) return;
     if (_reconnectAttempt >= _reconnectDelays.length) {
       _isReconnecting = false;
       notifyListeners();
