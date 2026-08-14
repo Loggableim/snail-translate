@@ -60,6 +60,7 @@ class _SessionScreenState extends State<SessionScreen>
   /// Why the last turn produced no translation. Shown in the UI so a silent
   /// translation outage cannot be mistaken for a working session.
   String? _fishTranslationError;
+  String? _microphoneError;
   int _fishCaptureChunks = 0;
   String _fishSourceLanguage = 'en';
   String _fishTargetLanguage = 'de';
@@ -224,6 +225,16 @@ class _SessionScreenState extends State<SessionScreen>
     final safetyIdentifier =
         context.read<UserIdentityService>().identity?.userId;
     if (session != null) {
+      final microphoneGranted = await _snailAudio.requestMicrophonePermission();
+      if (!microphoneGranted) {
+        if (_isConnectionActive(generation)) {
+          setState(() => _microphoneError = 'permission');
+        }
+        return;
+      }
+      if (_isConnectionActive(generation)) {
+        setState(() => _microphoneError = null);
+      }
       await audioService.connect(session);
       if (!_isConnectionActive(generation)) return;
       final relayAudio = audioService;
@@ -461,6 +472,10 @@ class _SessionScreenState extends State<SessionScreen>
         if (!captureStarted || !_isConnectionActive(generation)) {
           await _snailAudio.stopCapture();
           await _snailAudio.stopSessionKeepAlive();
+          _audioService.disconnect();
+          if (_isConnectionActive(generation)) {
+            setState(() => _microphoneError = 'start');
+          }
           return;
         }
         // Android microphone foreground services may only start after the
@@ -767,6 +782,7 @@ class _SessionScreenState extends State<SessionScreen>
     final audio = context.watch<AudioService>();
     final session = context.watch<SessionService>().currentSession;
     final isHost = session?.role == 'host';
+    final microphoneReady = _microphoneError == null && audio.isPeerConnected;
 
     return Scaffold(
       appBar: AppBar(
@@ -788,8 +804,8 @@ class _SessionScreenState extends State<SessionScreen>
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: Icon(
-              audio.isPeerConnected ? Icons.people : Icons.person,
-              color: audio.isPeerConnected ? Colors.green : Colors.grey,
+              microphoneReady ? Icons.people : Icons.mic_off,
+              color: microphoneReady ? Colors.green : Colors.grey,
             ),
           ),
         ],
@@ -811,9 +827,9 @@ class _SessionScreenState extends State<SessionScreen>
                   children: [
                     // Status icon
                     Icon(
-                      audio.isPeerConnected ? Icons.mic : Icons.mic_off,
+                      microphoneReady ? Icons.mic : Icons.mic_off,
                       size: compact ? 56 : 80,
-                      color: audio.isPeerConnected
+                      color: microphoneReady
                           ? Theme.of(context).colorScheme.primary
                           : Colors.grey,
                     ),
@@ -821,9 +837,13 @@ class _SessionScreenState extends State<SessionScreen>
 
                     // Status text
                     Text(
-                      audio.isPeerConnected
-                          ? l10n.sessionConnectedSpeakNow
-                          : l10n.sessionWaitingForConnection,
+                      _microphoneError == 'permission'
+                          ? l10n.welcomeMicPermissionDenied
+                          : _microphoneError == 'start'
+                              ? l10n.welcomeMicStartFailed
+                              : microphoneReady
+                                  ? l10n.sessionConnectedSpeakNow
+                                  : l10n.sessionWaitingForConnection,
                       style: Theme.of(context).textTheme.headlineSmall,
                       textAlign: TextAlign.center,
                     ),
