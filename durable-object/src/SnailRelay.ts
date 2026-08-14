@@ -14,7 +14,6 @@ import {
   type SessionTokenPayload,
 } from "./auth";
 import { processAudioPipeline } from "./pipeline";
-import { D1MessageStore } from "./d1-store";
 import { FishTtsConnection, framePcm, framePcmEnd } from "./fish-tts";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -115,7 +114,6 @@ export class SnailRelay implements DurableObject {
   private session: SessionState;
   private secret: string = "";
   private pingIntervals = new Map<WebSocket, ReturnType<typeof setInterval>>();
-  private messageStore: D1MessageStore | null = null;
   private fishApiKey: string;
   private fishTts = new Map<"host" | "guest", FishTtsConnection>();
 
@@ -139,11 +137,6 @@ export class SnailRelay implements DurableObject {
       chatHistory: [],
       deliveredMessageIds: [],
     };
-
-    // Initialize D1 message store if binding is available
-    if (env.SNAIL_DB) {
-      this.messageStore = new D1MessageStore(env.SNAIL_DB);
-    }
 
     this.state.blockConcurrencyWhile(async () => {
       const saved = await this.state.storage.get<SessionState>("session");
@@ -321,18 +314,7 @@ export class SnailRelay implements DurableObject {
             authenticated = true;
             this.send(ws, { type: "auth_ok", peerId: payload.role });
 
-            // Load chat history from D1 (preferred) or in-memory fallback
-            if (this.messageStore && this.session.roomId) {
-              const d1History = await this.messageStore.getHistory(
-                this.session.roomId
-              );
-              if (d1History.length > 0) {
-                this.send(ws, {
-                  type: "chat_history",
-                  history: d1History as ServerMessage[],
-                });
-              }
-            } else if (this.session.chatHistory.length > 0) {
+            if (this.session.chatHistory.length > 0) {
               this.send(ws, { type: "chat_history", history: this.session.chatHistory });
             }
 
@@ -401,19 +383,10 @@ export class SnailRelay implements DurableObject {
 
           const messageId = msg.messageId || crypto.randomUUID();
 
-          // D1 idempotency check (preferred) or in-memory fallback
-          if (this.messageStore) {
-            const exists = await this.messageStore.exists(messageId);
-            if (exists) {
-              this.send(ws, { type: "delivery_ack", messageId });
-              break;
-            }
-          } else {
-            this.session.deliveredMessageIds ??= [];
-            if (this.session.deliveredMessageIds.includes(messageId)) {
-              this.send(ws, { type: "delivery_ack", messageId });
-              break;
-            }
+          this.session.deliveredMessageIds ??= [];
+          if (this.session.deliveredMessageIds.includes(messageId)) {
+            this.send(ws, { type: "delivery_ack", messageId });
+            break;
           }
 
           const chatMessage: ServerMessage = {
@@ -426,18 +399,10 @@ export class SnailRelay implements DurableObject {
             timestamp: msg.timestamp || Date.now(),
           };
 
-          // Persist to D1 (preferred) and in-memory (fallback)
-          if (this.messageStore && this.session.roomId) {
-            await this.messageStore.insert(chatMessage, this.session.roomId);
-          }
-          // Always keep in-memory for backward compat and fast access
           this.session.chatHistory.push(chatMessage);
           this.session.chatHistory = this.session.chatHistory.slice(-500);
-          if (!this.messageStore) {
-            this.session.deliveredMessageIds ??= [];
-            this.session.deliveredMessageIds.push(messageId);
-            this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
-          }
+          this.session.deliveredMessageIds.push(messageId);
+          this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
           await this.saveState();
           const peer = this.getPeer(ws);
           if (peer) this.send(peer, chatMessage);
@@ -546,19 +511,10 @@ export class SnailRelay implements DurableObject {
           }
           const messageId = msg.messageId || crypto.randomUUID();
 
-          // D1 idempotency check (preferred) or in-memory fallback
-          if (this.messageStore) {
-            const exists = await this.messageStore.exists(messageId);
-            if (exists) {
-              this.send(ws, { type: "delivery_ack", messageId });
-              break;
-            }
-          } else {
-            this.session.deliveredMessageIds ??= [];
-            if (this.session.deliveredMessageIds.includes(messageId)) {
-              this.send(ws, { type: "delivery_ack", messageId });
-              break;
-            }
+          this.session.deliveredMessageIds ??= [];
+          if (this.session.deliveredMessageIds.includes(messageId)) {
+            this.send(ws, { type: "delivery_ack", messageId });
+            break;
           }
 
           const stickerMessage = {
@@ -576,17 +532,10 @@ export class SnailRelay implements DurableObject {
             timestamp: msg.timestamp || Date.now(),
           } as ServerMessage;
 
-          // Persist to D1 (preferred) and in-memory (fallback)
-          if (this.messageStore && this.session.roomId) {
-            await this.messageStore.insert(stickerMessage, this.session.roomId);
-          }
           this.session.chatHistory.push(stickerMessage);
           this.session.chatHistory = this.session.chatHistory.slice(-500);
-          if (!this.messageStore) {
-            this.session.deliveredMessageIds ??= [];
-            this.session.deliveredMessageIds.push(messageId);
-            this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
-          }
+          this.session.deliveredMessageIds.push(messageId);
+          this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
           await this.saveState();
           const peer = this.getPeer(ws);
           if (peer) this.send(peer, stickerMessage);
@@ -602,19 +551,10 @@ export class SnailRelay implements DurableObject {
 
           const messageId = msg.messageId || crypto.randomUUID();
 
-          // D1 idempotency check (preferred) or in-memory fallback
-          if (this.messageStore) {
-            const exists = await this.messageStore.exists(messageId);
-            if (exists) {
-              this.send(ws, { type: "delivery_ack", messageId });
-              break;
-            }
-          } else {
-            this.session.deliveredMessageIds ??= [];
-            if (this.session.deliveredMessageIds.includes(messageId)) {
-              this.send(ws, { type: "delivery_ack", messageId });
-              break;
-            }
+          this.session.deliveredMessageIds ??= [];
+          if (this.session.deliveredMessageIds.includes(messageId)) {
+            this.send(ws, { type: "delivery_ack", messageId });
+            break;
           }
 
           const voiceMessage: ServerMessage = {
@@ -628,17 +568,10 @@ export class SnailRelay implements DurableObject {
             timestamp: msg.timestamp || Date.now(),
           };
 
-          // Persist to D1 (preferred) and in-memory (fallback)
-          if (this.messageStore && this.session.roomId) {
-            await this.messageStore.insert(voiceMessage, this.session.roomId);
-          }
           this.session.chatHistory.push(voiceMessage);
           this.session.chatHistory = this.session.chatHistory.slice(-500);
-          if (!this.messageStore) {
-            this.session.deliveredMessageIds ??= [];
-            this.session.deliveredMessageIds.push(messageId);
-            this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
-          }
+          this.session.deliveredMessageIds.push(messageId);
+          this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
           await this.saveState();
           const peer = this.getPeer(ws);
           if (peer) this.send(peer, voiceMessage);

@@ -90,11 +90,12 @@ Zielverhalten:
 
 Für die Zielarchitektur übernimmt der Worker Authentifizierung, Conversation-
 und Berechtigungsprüfung sowie kurzlebige Realtime-Client-Secrets. Ein
-Durable Object übernimmt die Live-Verbindung und Online-Zustellung. Ein
-persistent ausgelegter Message Store, bevorzugt D1 für Nachrichten und
-Zustellstatus, hält den Verlauf unabhängig davon, ob ein Gerät gerade online
-ist. Push-Benachrichtigungen werden als nachgelagerte Messenger-Funktion
-vorgesehen.
+Durable Object übernimmt die Live-Verbindung, Online-Zustellung und den
+kurzlebigen, im DO-State gespeicherten Sitzungsverlauf. Eine D1-Bindung ist
+bewusst nicht vorgesehen: Der Worker bleibt ein Relay-/Signalling-Dienst,
+und serverseitige Speicherung widerspricht der geplanten Ende-zu-Ende-
+Verschlüsselung. Push-Benachrichtigungen bleiben eine nachgelagerte
+Messenger-Funktion.
 
 ### Dezentrale User-Identität und QR-Onboarding
 

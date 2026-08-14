@@ -80,7 +80,7 @@ nächsten offenen Punkt.
 - [x] 25. Nachrichten mit eindeutigen IDs versehen.
 - [x] 26. Nachrichtenstatus `queued`, `sent`, `delivered`, `read` einführen.
 - [x] 27. Offline-Nachrichten persistent speichern.
-- [x] 28. D1 als Message Store implementieren.
+- [ ] 28. D1 als Message Store implementieren (bewusst verworfen: Relay-only-Zielarchitektur).
 - [x] 29. Doppelte Nachrichten idempotent behandeln.
 - [x] 30. Anhänge mit einem verbindlichen Größenlimit versehen.
 - [x] 31. Sprachnachrichten ergänzen.
