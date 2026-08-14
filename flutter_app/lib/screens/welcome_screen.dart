@@ -309,16 +309,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             transcript.isEmpty ? l10n.welcomeNoSpeechDetected : transcript;
         _micResult = l10n.welcomeTranscriptionSuccess;
       });
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       setState(() =>
-          _micResult = l10n.welcomeTranscriptionFailed(_shortError(error)));
+          _micResult = l10n.welcomeTranscriptionFailed(l10n.commonError));
     }
-  }
-
-  String _shortError(Object error) {
-    final text = error.toString().replaceFirst(RegExp(r'^Exception: '), '');
-    return text.length > 120 ? '${text.substring(0, 120)}…' : text;
   }
 
   Future<void> _playRecording() async {
