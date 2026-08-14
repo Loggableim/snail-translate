@@ -132,13 +132,17 @@ class AudioService extends ChangeNotifier {
     try {
       if (data is List<int>) {
         final frame = Uint8List.fromList(data);
-        if (frame.length < 4) return;
-        final sampleRate =
-            ByteData.sublistView(frame, 0, 4).getUint32(0, Endian.little);
+        if (frame.length < 5) return;
+        final sampleRate = ByteData.sublistView(frame, 1, 5).getUint32(0, Endian.little);
+        final kind = frame[0];
         if (sampleRate == 0) {
-          onFishTtsAudioEnd?.call();
-        } else if (frame.length > 4) {
-          onFishTtsAudio?.call(Uint8List.sublistView(frame, 4), sampleRate);
+          if (kind == 1) onFishTtsAudioEnd?.call();
+          if (kind == 2) onPcmAudioEnd?.call();
+        } else if (frame.length > 5) {
+          final bytes = Uint8List.sublistView(frame, 5);
+          if (kind == 1) onFishTtsAudio?.call(bytes, sampleRate);
+          if (kind == 2) onPcmAudio?.call(bytes, sampleRate);
+          if (kind == 3) onFallbackPcmAudio?.call(bytes, sampleRate);
         }
         return;
       }
@@ -196,21 +200,6 @@ class AudioService extends ChangeNotifier {
               .add({'signalType': msg['signalType'], 'signal': msg['signal']});
           onSignal?.call(msg['signalType'] as String, msg['signal']);
           notifyListeners();
-          break;
-        case 'pcm_audio':
-          final values =
-              (msg['audio'] as List<dynamic>? ?? const []).cast<int>();
-          onPcmAudio?.call(
-              Uint8List.fromList(values), msg['sampleRate'] as int? ?? 24000);
-          break;
-        case 'pcm_end':
-          onPcmAudioEnd?.call();
-          break;
-        case 'fallback_pcm_audio':
-          final values =
-              (msg['audio'] as List<dynamic>? ?? const []).cast<int>();
-          onFallbackPcmAudio?.call(
-              Uint8List.fromList(values), msg['sampleRate'] as int? ?? 16000);
           break;
         case 'error':
           ErrorLogger.I.log(
@@ -283,16 +272,12 @@ class AudioService extends ChangeNotifier {
 
   void sendPcmAudio(Uint8List pcm16, {int sampleRate = 24000}) {
     if (!_isConnected || _isMuted || pcm16.isEmpty) return;
-    _channel?.sink.add(jsonEncode({
-      'type': 'pcm_audio',
-      'audio': pcm16.toList(growable: false),
-      'sampleRate': sampleRate
-    }));
+    _channel?.sink.add(_framePcm(pcm16, sampleRate, 2));
   }
 
   void sendPcmAudioEnd() {
     if (!_isConnected || _isMuted) return;
-    _channel?.sink.add(jsonEncode({'type': 'pcm_end'}));
+    _channel?.sink.add(_framePcm(Uint8List(0), 0, 2));
   }
 
   void configureFishTts({
@@ -330,11 +315,15 @@ class AudioService extends ChangeNotifier {
 
   void sendFallbackPcmAudio(Uint8List pcm16, {int sampleRate = 16000}) {
     if (!_isConnected || _isMuted || pcm16.isEmpty) return;
-    _channel?.sink.add(jsonEncode({
-      'type': 'fallback_pcm_audio',
-      'audio': pcm16.toList(growable: false),
-      'sampleRate': sampleRate,
-    }));
+    _channel?.sink.add(_framePcm(pcm16, sampleRate, 3));
+  }
+
+  Uint8List _framePcm(Uint8List pcm16, int sampleRate, int kind) {
+    final frame = Uint8List(5 + pcm16.length);
+    frame[0] = kind;
+    ByteData.sublistView(frame, 1, 5).setUint32(0, sampleRate, Endian.little);
+    frame.setRange(5, frame.length, pcm16);
+    return frame;
   }
 
   void sendSignal(String signalType, dynamic signal) {

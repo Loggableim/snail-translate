@@ -5,8 +5,6 @@ enum ProtocolMessageType {
   auth,
   authOk,
   authError,
-  pcmAudio,
-  fallbackPcmAudio,
   chat,
   voice,
   edit,

@@ -36,10 +36,9 @@ interface SessionState {
 }
 
 interface ClientMessage {
-  type: "auth" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
+  type: "auth" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
   token?: string;
   protocolVersion?: number;
-  audio?: number[];
   sampleRate?: number;
   messageId?: string;
   text?: string;
@@ -60,8 +59,7 @@ interface ClientMessage {
 }
 
 interface ServerMessage {
-  type: "auth_ok" | "auth_error" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
-  audio?: number[];
+  type: "auth_ok" | "auth_error" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
   sampleRate?: number;
   messageId?: string;
   text?: string;
@@ -243,6 +241,21 @@ export class SnailRelay implements DurableObject {
       );
 
       let msg: ClientMessage;
+      if (event.data instanceof ArrayBuffer || event.data instanceof Uint8Array) {
+        const frame = event.data instanceof Uint8Array ? event.data : new Uint8Array(event.data);
+        if (frame.length < 5 || frame[0] < 2 || frame[0] > 3) {
+          this.send(ws, { type: "error", error: "Invalid binary PCM frame" });
+          return;
+        }
+        const sampleRate = new DataView(frame.buffer, frame.byteOffset, frame.byteLength).getUint32(1, true);
+        if ((sampleRate === 0 && frame.length !== 5) || frame.length - 5 > MAX_PCM_SAMPLES_PER_MESSAGE * 2) {
+          this.send(ws, { type: "error", error: "Invalid binary PCM frame" });
+          return;
+        }
+        const peer = this.getPeer(ws);
+        if (peer) peer.send(frame);
+        return;
+      }
       try {
         msg = JSON.parse(event.data as string);
       } catch {
@@ -372,17 +385,6 @@ export class SnailRelay implements DurableObject {
           break;
         }
 
-        case "pcm_audio": {
-          if (!authenticated || !msg.audio?.length || !msg.sampleRate ||
-              msg.audio.length > MAX_PCM_SAMPLES_PER_MESSAGE) {
-            this.send(ws, { type: "error", error: "Invalid PCM audio" });
-            return;
-          }
-          const peer = this.getPeer(ws);
-          if (peer) this.send(peer, { type: "pcm_audio", audio: msg.audio, sampleRate: msg.sampleRate });
-          break;
-        }
-
         case "fish_tts_config": {
           if (!authenticated || !peerRole || !msg.voiceId?.trim()) {
             this.send(ws, { type: "error", error: "Invalid Fish TTS configuration" });
@@ -429,27 +431,6 @@ export class SnailRelay implements DurableObject {
           } catch (err) {
             this.send(ws, { type: "error", error: `Fish TTS flush failed: ${(err as Error).message}` });
           }
-          break;
-        }
-
-        case "pcm_end": {
-          if (!authenticated) {
-            this.send(ws, { type: "error", error: "Not authenticated" });
-            return;
-          }
-          const peer = this.getPeer(ws);
-          if (peer) this.send(peer, { type: "pcm_end" });
-          break;
-        }
-
-        case "fallback_pcm_audio": {
-          if (!authenticated || !msg.audio?.length || !msg.sampleRate ||
-              msg.audio.length > MAX_PCM_SAMPLES_PER_MESSAGE) {
-            this.send(ws, { type: "error", error: "Invalid fallback PCM audio" });
-            return;
-          }
-          const peer = this.getPeer(ws);
-          if (peer) this.send(peer, { type: "fallback_pcm_audio", audio: msg.audio, sampleRate: msg.sampleRate });
           break;
         }
 
@@ -640,13 +621,13 @@ export class SnailRelay implements DurableObject {
       (audio) => {
         const target = role === "host" ? this.session.guestSocket : this.session.hostSocket;
         if (target) {
-          try { target.send(framePcm(audio)); } catch {}
+          try { target.send(framePcm(audio, 24000, "fish_tts")); } catch {}
         }
       },
       () => {
         const target = role === "host" ? this.session.guestSocket : this.session.hostSocket;
         if (target) {
-          try { target.send(framePcmEnd()); } catch {}
+          try { target.send(framePcmEnd("fish_tts")); } catch {}
         }
       },
     );

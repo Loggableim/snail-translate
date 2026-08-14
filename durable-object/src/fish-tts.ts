@@ -123,15 +123,19 @@ export class FishTtsConnection {
   }
 }
 
-export function framePcm(audio: Uint8Array, sampleRate = 24000): Uint8Array {
-  const framed = new Uint8Array(4 + audio.length);
-  new DataView(framed.buffer).setUint32(0, sampleRate, true);
-  framed.set(audio, 4);
+export type PcmFrameKind = "fish_tts" | "peer_pcm" | "fallback_pcm";
+const PCM_FRAME_KIND: Record<PcmFrameKind, number> = { fish_tts: 1, peer_pcm: 2, fallback_pcm: 3 };
+
+export function framePcm(audio: Uint8Array, sampleRate = 24000, kind: PcmFrameKind = "fish_tts"): Uint8Array {
+  const framed = new Uint8Array(5 + audio.length);
+  framed[0] = PCM_FRAME_KIND[kind];
+  new DataView(framed.buffer).setUint32(1, sampleRate, true);
+  framed.set(audio, 5);
   return framed;
 }
 
-export function framePcmEnd(): Uint8Array {
-  return new Uint8Array(4);
+export function framePcmEnd(kind: PcmFrameKind = "fish_tts"): Uint8Array {
+  return framePcm(new Uint8Array(), 0, kind);
 }
 
 function clamp(value: number, min: number, max: number): number {

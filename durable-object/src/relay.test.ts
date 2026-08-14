@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { SignJWT } from "jose";
 import { SnailRelay } from "./SnailRelay";
+import { framePcm } from "./fish-tts";
 
 const secret = "relay-test-secret";
 
@@ -122,10 +123,10 @@ describe("SnailRelay lifecycle and limits", () => {
     const { relay } = await initializedRelay();
     const host = await connect(relay, "host", "host");
     host.socket.send(JSON.stringify({ type: "chat", text: "x".repeat(10_001) }));
-    host.socket.send(JSON.stringify({ type: "pcm_audio", audio: new Array(16_001).fill(0), sampleRate: 16_000 }));
+    host.socket.send(framePcm(new Uint8Array(32_001), 16_000, "peer_pcm"));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(messagesOf(host, "error").map((message) => message.error).join(" ")).toContain("too long");
-    expect(messagesOf(host, "error").map((message) => message.error).join(" ")).toContain("Invalid PCM audio");
+    expect(messagesOf(host, "error").map((message) => message.error).join(" ")).toContain("Invalid binary PCM frame");
   });
 
   it("alarm cleanup removes persisted session data", async () => {

@@ -4,8 +4,6 @@ export type ProtocolMessageType =
   | "auth"
   | "auth_ok"
   | "auth_error"
-  | "pcm_audio"
-  | "fallback_pcm_audio"
   | "chat"
   | "voice"
   | "edit"
