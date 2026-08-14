@@ -227,4 +227,38 @@ describe("Worker fetch handler", () => {
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Not found" });
   });
+
+  it("accepts bounded content-free client telemetry", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const response = await call("/api/telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "CF-Connecting-IP": "198.51.100.4" },
+      body: JSON.stringify({
+        provider: "openai",
+        context: "realtime.connect",
+        code: "provider_unavailable",
+        status: 503,
+        text: "must never reach logs",
+      }),
+    });
+    expect(response.status).toBe(202);
+    const payload = JSON.stringify(log.mock.calls);
+    expect(payload).toContain("client_provider_error");
+    expect(payload).toContain("provider_unavailable");
+    expect(payload).not.toContain("must never reach logs");
+  });
+
+  it("rate-limits client telemetry per source window", async () => {
+    const values: Record<string, string> = {};
+    const bindings = { SNAIL_KV: kv(values) };
+    const init = {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "CF-Connecting-IP": "198.51.100.5" },
+      body: JSON.stringify({ provider: "fish", context: "tts", code: "failed" }),
+    };
+    for (let index = 0; index < 30; index++) {
+      expect((await call("/api/telemetry", init, bindings)).status).toBe(202);
+    }
+    expect((await call("/api/telemetry", init, bindings)).status).toBe(429);
+  });
 });

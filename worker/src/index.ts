@@ -64,11 +64,50 @@ const REALTIME_SECRET_LIMIT = 10;
 const REALTIME_SECRET_WINDOW_SECONDS = 60;
 const ROOM_RATE_WINDOW_SECONDS = 60;
 const ROOM_RATE_LIMITS = { create: 10, join: 20, websocket: 40, failedJoin: 5 } as const;
+const TELEMETRY_LIMIT = 30;
+const TELEMETRY_WINDOW_SECONDS = 60;
 
 function observabilityLog(event: string, fields: Record<string, string | number | boolean>): void {
   // Operational telemetry must never contain tokens, keys, message bodies, or
   // raw user identifiers.
   console.log(JSON.stringify({ service: "snail-worker", event, ...fields }));
+}
+
+async function handleTelemetry(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get("Origin") || "";
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const window = Math.floor(Date.now() / (TELEMETRY_WINDOW_SECONDS * 1_000));
+  const key = `telemetry:${ip}:${window}`;
+  const count = Number(await env.SNAIL_KV.get(key) || "0");
+  if (count >= TELEMETRY_LIMIT) {
+    observabilityLog("rate_limit_hit", { action: "telemetry", limit: TELEMETRY_LIMIT });
+    return json({ error: "Telemetry rate limit exceeded" }, 429, origin, env.CORS_ORIGINS);
+  }
+  await env.SNAIL_KV.put(key, String(count + 1), { expirationTtl: TELEMETRY_WINDOW_SECONDS + 5 });
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Invalid telemetry payload" }, 400, origin, env.CORS_ORIGINS);
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return json({ error: "Invalid telemetry payload" }, 400, origin, env.CORS_ORIGINS);
+  }
+  const input = body as Record<string, unknown>;
+  const provider = typeof input.provider === "string" ? input.provider.slice(0, 32) : "unknown";
+  const context = typeof input.context === "string" ? input.context.slice(0, 64) : "unknown";
+  const code = typeof input.code === "string" ? input.code.slice(0, 96) : "unknown";
+  const status = typeof input.status === "number" && Number.isInteger(input.status)
+    ? Math.max(0, Math.min(999, input.status))
+    : undefined;
+  observabilityLog("client_provider_error", {
+    provider,
+    context,
+    code,
+    ...(status === undefined ? {} : { status }),
+  });
+  return json({ ok: true }, 202, origin, env.CORS_ORIGINS);
 }
 
 function iceServers(env: Env): Array<Record<string, unknown>> {
@@ -590,6 +629,12 @@ export default {
     // Quota
     if (path === "/api/quota" && request.method === "GET") {
       return handleQuota(request, env);
+    }
+
+    // Opt-in, content-free client diagnostics. The payload is deliberately
+    // limited to bounded provider context and an error code.
+    if (path === "/api/telemetry" && request.method === "POST") {
+      return handleTelemetry(request, env);
     }
 
     // Short-lived OpenAI Realtime Translation secret (platform-owned key).
