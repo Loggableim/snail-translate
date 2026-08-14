@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 /// Fish Audio v1 speech-to-text client.
@@ -58,7 +58,8 @@ class FishAudioAsrService {
     final decoded = jsonDecode(body);
     if (decoded is Map<String, dynamic>) {
       return FishAsrTranscript(
-        text: (decoded['text'] ?? decoded['transcript'] ?? '').toString().trim(),
+        text:
+            (decoded['text'] ?? decoded['transcript'] ?? '').toString().trim(),
         language: normalizeLanguage(decoded['language'] ??
             decoded['language_code'] ??
             decoded['detected_language']),
@@ -119,15 +120,17 @@ class FishAudioAsrService {
   }
 
   Uint8List _wav(Uint8List pcm, int sampleRate) {
+    return buildWav(pcm, sampleRate);
+  }
+
+  @visibleForTesting
+  static Uint8List buildWav(Uint8List pcm, int sampleRate) {
     final rate = sampleRate > 0 ? sampleRate : 16000;
     final bytesPerSecond = rate * 2;
     final bytes = Uint8List(44 + pcm.length);
     final out = ByteData.sublistView(bytes);
-    void ascii(int offset, String value) {
-      for (var i = 0; i < value.length; i++) {
-        out.setUint8(offset + i, value.codeUnitAt(i));
-      }
-    }
+    void ascii(int offset, String value) =>
+        bytes.setRange(offset, offset + value.length, value.codeUnits);
 
     ascii(0, 'RIFF');
     out.setUint32(4, 36 + pcm.length, Endian.little);
