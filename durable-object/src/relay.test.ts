@@ -221,9 +221,31 @@ describe("SnailRelay lifecycle and limits", () => {
 
     expect(context.storage.values.has("session")).toBe(false);
     expect(context.storage.values.has("session_meta")).toBe(true);
-    expect(context.storage.values.has("chat_history")).toBe(true);
+    expect(context.storage.values.has("chat_history")).toBe(false);
+    expect(context.storage.values.has("chat_history_page_0")).toBe(true);
     expect((relay as unknown as { session: { chatHistory: unknown[] } }).session.chatHistory)
       .toHaveLength(1);
+  });
+
+  it("paginates large history entries below the storage page limit", async () => {
+    const { relay } = await initializedRelay();
+    const entries = Array.from({ length: 3 }, (_, index) => ({
+      type: "voice" as const,
+      messageId: `voice-${index}`,
+      audioData: "A".repeat(70_000),
+      durationMs: 1,
+      timestamp: index,
+    }));
+    const pages = (relay as unknown as {
+      paginateHistory(value: Array<Record<string, unknown>>): Array<unknown[]>;
+    }).paginateHistory(entries);
+
+    expect(pages).toHaveLength(3);
+    for (const page of pages) {
+      expect(new TextEncoder().encode(JSON.stringify(page)).length).toBeLessThan(
+        96 * 1024,
+      );
+    }
   });
 
   it("reschedules an alarm while a session remains active", async () => {

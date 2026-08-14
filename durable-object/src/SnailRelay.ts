@@ -34,6 +34,7 @@ interface SessionState {
   sessionSecret: string;  // Passed from Worker at /init
   hostAgreementPublicKey: string | null;
   guestAgreementPublicKey: string | null;
+  historyPageCount?: number;
   chatHistory: ServerMessage[];
   deliveredMessageIds: Set<string>;
 }
@@ -92,7 +93,8 @@ const PING_INTERVAL_MS = 30_000;
 const MAX_QUOTA_SECONDS = 30 * 60;
 const MAX_PCM_SAMPLES_PER_MESSAGE = 16_000; // max 1 s mono PCM at 16 kHz
 const MAX_CHAT_TEXT_LENGTH = 10_000;         // max chars per chat message
-const MAX_VOICE_AUDIO_DATA_LENGTH = 128 * 1024; // max base64 payload per voice message
+const MAX_VOICE_AUDIO_DATA_LENGTH = 64 * 1024; // keeps one voice entry below a history page
+const MAX_HISTORY_PAGE_BYTES = 96 * 1024;
 const MAX_FISH_TTS_CHARS = 10_000;
 const MAX_FISH_TTS_TEXT_LENGTH = 2_000;
 const ALLOWED_FISH_VOICES = new Set([
@@ -139,6 +141,7 @@ export class SnailRelay implements DurableObject {
       sessionSecret: "",
       hostAgreementPublicKey: null,
       guestAgreementPublicKey: null,
+      historyPageCount: 0,
       chatHistory: [],
       deliveredMessageIds: new Set(),
     };
@@ -151,11 +154,20 @@ export class SnailRelay implements DurableObject {
       const savedHistory = await this.state.storage.get<ServerMessage[]>(
         "chat_history",
       );
+      const pagedHistory: ServerMessage[] = [];
+      const historyPageCount = savedMeta?.historyPageCount ?? 0;
+      for (let page = 0; page < historyPageCount; page++) {
+        const entries = await this.state.storage.get<ServerMessage[]>(
+          `chat_history_page_${page}`,
+        );
+        if (Array.isArray(entries)) pagedHistory.push(...entries);
+      }
       if (saved || savedMeta) {
         this.session = {
           ...this.session,
           ...(saved ?? savedMeta),
-          chatHistory: saved?.chatHistory ?? savedHistory ?? [],
+          chatHistory: saved?.chatHistory ??
+            (pagedHistory.length > 0 ? pagedHistory : savedHistory ?? []),
           hostSocket: null,
           guestSocket: null,
         };
@@ -172,6 +184,7 @@ export class SnailRelay implements DurableObject {
         this.session.fishTtsChars ??= 0;
         this.session.hostAgreementPublicKey ??= null;
         this.session.guestAgreementPublicKey ??= null;
+        this.session.historyPageCount = historyPageCount;
         if (saved) {
           await this.saveState();
         }
@@ -757,9 +770,37 @@ export class SnailRelay implements DurableObject {
       guestSocket: null,
       deliveredMessageIds: [...this.session.deliveredMessageIds],
     };
+    const pages = this.paginateHistory(chatHistory);
+    const previousPageCount = this.session.historyPageCount ?? 0;
+    this.session.historyPageCount = pages.length;
+    persisted.historyPageCount = pages.length;
     await this.state.storage.put("session_meta", persisted);
-    await this.state.storage.put("chat_history", chatHistory);
+    for (let index = 0; index < pages.length; index++) {
+      await this.state.storage.put(`chat_history_page_${index}`, pages[index]);
+    }
+    for (let index = pages.length; index < previousPageCount; index++) {
+      await this.state.storage.delete(`chat_history_page_${index}`);
+    }
+    await this.state.storage.delete("chat_history");
     await this.state.storage.delete("session");
+  }
+
+  private paginateHistory(history: ServerMessage[]): ServerMessage[][] {
+    const pages: ServerMessage[][] = [];
+    let page: ServerMessage[] = [];
+    for (const entry of history.slice(-500)) {
+      const candidate = [...page, entry];
+      if (page.length > 0 &&
+          new TextEncoder().encode(JSON.stringify(candidate)).length >
+              MAX_HISTORY_PAGE_BYTES) {
+        pages.push(page);
+        page = [entry];
+      } else {
+        page = candidate;
+      }
+    }
+    if (page.length > 0) pages.push(page);
+    return pages;
   }
 
   private trimDeliveredMessageIds(): void {
