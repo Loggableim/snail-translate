@@ -443,7 +443,7 @@ export class SnailRelay implements DurableObject {
             await this.saveState();
           } catch (err) {
             const reason = (err as Error).message || "unknown token error";
-            console.error("Auth error:", reason);
+            relayLog("auth_failure", { route: "relay_websocket", reason: "invalid_session_token" });
             this.send(ws, { type: "auth_error", error: `Invalid token: ${reason}` });
             ws.close(4001, "Invalid token");
           }
