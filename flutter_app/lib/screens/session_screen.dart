@@ -71,7 +71,6 @@ class _SessionScreenState extends State<SessionScreen>
     }
   }
 
-
   // Cache provider-owned services before the route starts unmounting. Reading
   // an inherited provider from dispose() can race with Provider's own teardown
   // and trigger Flutter's `_dependents.isEmpty` assertion.
@@ -116,7 +115,8 @@ class _SessionScreenState extends State<SessionScreen>
   void _debugPlaybackDiagnostic(String message) {
     if (!kDebugMode) return;
     final now = DateTime.now();
-    if (now.difference(_lastPlaybackDiagnostic) < const Duration(seconds: 1)) return;
+    if (now.difference(_lastPlaybackDiagnostic) < const Duration(seconds: 1))
+      return;
     _lastPlaybackDiagnostic = now;
     debugPrint(message);
   }
@@ -516,6 +516,9 @@ class _SessionScreenState extends State<SessionScreen>
         }
         // Android microphone foreground services may only start after the
         // RECORD_AUDIO permission and AudioRecord have been accepted.
+        // Android 13+ needs a separate notification permission so the
+        // foreground session remains visible and can be ended by the user.
+        await _snailAudio.requestNotificationPermission();
         await _snailAudio.startSessionKeepAlive();
       }
     }
@@ -772,7 +775,8 @@ class _SessionScreenState extends State<SessionScreen>
 
   void _enqueueSessionPlayback(Uint8List bytes, int sampleRate) {
     _playbackBuffer.add(bytes, sampleRate, DateTime.now());
-    _debugPlaybackDiagnostic('[Snail][Playback] received bytes=${bytes.length} rate=$sampleRate '
+    _debugPlaybackDiagnostic(
+        '[Snail][Playback] received bytes=${bytes.length} rate=$sampleRate '
         'queued=${_playbackBuffer.bufferedMs}ms '
         'target=${_playbackBuffer.targetMs}ms jitter='
         '${_playbackBuffer.largestArrivalJitterMs}ms drops='
@@ -799,7 +803,8 @@ class _SessionScreenState extends State<SessionScreen>
         final started = DateTime.now();
         await _snailAudio.playPcm16(chunk.bytes,
             sampleRate: chunk.sampleRate, output: _audioPolicy.output);
-        _debugPlaybackDiagnostic('[Snail][Playback] played bytes=${chunk.bytes.length} '
+        _debugPlaybackDiagnostic(
+            '[Snail][Playback] played bytes=${chunk.bytes.length} '
             'duration=${chunk.durationMs}ms elapsed=${DateTime.now().difference(started).inMilliseconds}ms');
       }
     } finally {
@@ -952,8 +957,7 @@ class _SessionScreenState extends State<SessionScreen>
                             builder: (context, level, _) {
                               return _LevelBar(
                                 level: level,
-                                gateThreshold:
-                                    _audioPolicy.noiseGateThreshold,
+                                gateThreshold: _audioPolicy.noiseGateThreshold,
                               );
                             },
                           ),
@@ -1202,8 +1206,8 @@ class _SessionScreenState extends State<SessionScreen>
                           : l10n.sessionActive,
                       child: IconButton.filled(
                         onPressed: () async {
-                        audio.toggleMute();
-                        if (audio.isMuted) await _snailAudio.stopPlayback();
+                          audio.toggleMute();
+                          if (audio.isMuted) await _snailAudio.stopPlayback();
                         },
                         icon: Icon(audio.isMuted ? Icons.mic_off : Icons.mic,
                             size: 32),

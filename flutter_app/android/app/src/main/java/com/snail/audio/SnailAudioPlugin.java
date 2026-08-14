@@ -75,8 +75,16 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     private Activity activity;
     private ActivityPluginBinding activityBinding;
     private Result pendingPermissionResult;
+    private Result pendingNotificationPermissionResult;
     private static final int MICROPHONE_PERMISSION_REQUEST = 7314;
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 7315;
     private final RequestPermissionsResultListener permissionListener = (requestCode, permissions, grantResults) -> {
+        if (requestCode == NOTIFICATION_PERMISSION_REQUEST && pendingNotificationPermissionResult != null) {
+            Result pending = pendingNotificationPermissionResult;
+            pendingNotificationPermissionResult = null;
+            pending.success(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED);
+            return true;
+        }
         if (requestCode != MICROPHONE_PERMISSION_REQUEST || pendingPermissionResult == null) return false;
         boolean granted = grantResults.length >= permissions.length;
         for (int grantResult : grantResults) {
@@ -193,6 +201,9 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 break;
             case "requestMicrophonePermission":
                 requestMicrophonePermission(result);
+                break;
+            case "requestNotificationPermission":
+                requestNotificationPermission(result);
                 break;
             case "startCapture":
                 handleStartCapture(result);
@@ -327,6 +338,29 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 : new String[]{Manifest.permission.RECORD_AUDIO};
         activity.requestPermissions(permissions,
                 MICROPHONE_PERMISSION_REQUEST);
+    }
+
+    private void requestNotificationPermission(Result result) {
+        if (applicationContext == null || android.os.Build.VERSION.SDK_INT < 33) {
+            result.success(true);
+            return;
+        }
+        if (applicationContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+            result.success(true);
+            return;
+        }
+        if (activity == null) {
+            result.success(false);
+            return;
+        }
+        if (pendingNotificationPermissionResult != null) {
+            result.error("PERMISSION_REQUEST_PENDING", "A notification permission request is already pending", null);
+            return;
+        }
+        pendingNotificationPermissionResult = result;
+        activity.requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                NOTIFICATION_PERMISSION_REQUEST);
     }
 
     @Override public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {

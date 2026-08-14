@@ -133,6 +133,17 @@ class SnailAudio {
     }
   }
 
+  Future<bool> requestNotificationPermission() async {
+    try {
+      return await _methodChannel
+              .invokeMethod<bool>('requestNotificationPermission') ??
+          false;
+    } catch (e) {
+      debugPrint('SnailAudio notification permission error: $e');
+      return false;
+    }
+  }
+
   // ── Capture Control ────────────────────────────────────────────────
 
   /// Start audio capture with AEC.
@@ -199,11 +210,8 @@ class SnailAudio {
       // Java byte[]; converting to List<int> first boxed every single sample
       // into an Integer on both sides, which produced tens of thousands of
       // short-lived objects per chunk and made playback stutter under GC.
-      await _methodChannel.invokeMethod('playPcm16', {
-        'bytes': bytes,
-        'sampleRate': sampleRate,
-        'output': output.name
-      });
+      await _methodChannel.invokeMethod('playPcm16',
+          {'bytes': bytes, 'sampleRate': sampleRate, 'output': output.name});
     } catch (e) {
       debugPrint('SnailAudio playback error: $e');
     }
