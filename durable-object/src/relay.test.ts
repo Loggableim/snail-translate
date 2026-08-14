@@ -41,7 +41,7 @@ async function initializedRelay() {
   return { relay, ...context };
 }
 
-async function connect(relay: SnailRelay, role: "host" | "guest", sub: string) {
+async function connect(relay: SnailRelay, role: "host" | "guest", sub: string, agreementPublicKey?: string) {
   const response = await relay.fetch(new Request("https://internal/ws", { headers: { Upgrade: "websocket" } }));
   const socket = response.webSocket!;
   socket.accept();
@@ -49,7 +49,12 @@ async function connect(relay: SnailRelay, role: "host" | "guest", sub: string) {
   socket.addEventListener("message", (event) => {
     messages.push(JSON.parse(String(event.data)));
   });
-  socket.send(JSON.stringify({ type: "auth", protocolVersion: 1, token: await token(role, sub) }));
+  socket.send(JSON.stringify({
+    type: "auth",
+    protocolVersion: 1,
+    token: await token(role, sub),
+    ...(agreementPublicKey ? { agreementPublicKey } : {}),
+  }));
   await new Promise((resolve) => setTimeout(resolve, 0));
   return { socket, messages };
 }
@@ -94,6 +99,17 @@ describe("SnailRelay lifecycle and limits", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     const reconnected = await connect(relay, "guest", "guest");
     expect(messagesOf(reconnected, "auth_ok")).toHaveLength(1);
+  });
+
+  it("exchanges agreement public keys only through peer state", async () => {
+    const { relay } = await initializedRelay();
+    const host = await connect(relay, "host", "host", "host-key");
+    const guest = await connect(relay, "guest", "guest", "guest-key");
+
+    expect(messagesOf(host, "peer_joined").at(-1)?.peerAgreementPublicKey)
+      .toBe("guest-key");
+    expect(messagesOf(guest, "peer_joined").at(-1)?.peerAgreementPublicKey)
+      .toBe("host-key");
   });
 
   it("acknowledges a duplicate chat message once and stores one history entry", async () => {

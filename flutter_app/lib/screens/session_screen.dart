@@ -290,6 +290,10 @@ class _SessionScreenState extends State<SessionScreen>
     final geminiService = context.read<GeminiLiveService>();
     final safetyIdentifier =
         context.read<UserIdentityService>().identity?.userId;
+    final identityService = context.read<UserIdentityService>();
+    audioService.localAgreementPublicKey =
+        identityService.identity?.agreementPublicKey;
+    audioService.sharedSecretDeriver = identityService.deriveSharedSecret;
     if (session != null) {
       final microphoneGranted = await _snailAudio.requestMicrophonePermission();
       if (!microphoneGranted) {

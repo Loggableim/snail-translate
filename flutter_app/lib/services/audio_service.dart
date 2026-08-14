@@ -6,6 +6,7 @@ import '../models/session.dart';
 import '../models/chat_message.dart';
 import 'chat_service.dart';
 import 'error_logger.dart';
+import 'chat_crypto_service.dart';
 
 const protocolVersion = 1;
 
@@ -32,6 +33,8 @@ class AudioService extends ChangeNotifier {
   void Function(String signalType, dynamic signal)? onSignal;
   VoidCallback? onAuthenticated;
   Future<String?> Function()? sessionTokenRefresher;
+  String? localAgreementPublicKey;
+  Future<String?> Function(String peerPublicKey)? sharedSecretDeriver;
   void Function(Map<String, dynamic> message)? onP2pChatSend;
   bool Function()? isP2pConnected;
   int _reconnectAttempt = 0;
@@ -115,6 +118,8 @@ class AudioService extends ChangeNotifier {
         'type': 'auth',
         'token': _session!.sessionToken,
         'protocolVersion': protocolVersion,
+        if (localAgreementPublicKey?.isNotEmpty == true)
+          'agreementPublicKey': localAgreementPublicKey,
       }));
 
       _subscription = _channel!.stream.listen(
@@ -183,6 +188,10 @@ class AudioService extends ChangeNotifier {
           break;
         case 'peer_joined':
           _isPeerConnected = true;
+          final peerKey = msg['peerAgreementPublicKey'] as String?;
+          if (peerKey != null && peerKey.isNotEmpty) {
+            unawaited(_configureConversationCrypto(peerKey));
+          }
           chat.flushOutbox();
           notifyListeners();
           break;
@@ -237,6 +246,24 @@ class AudioService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('[Snail] ws.onMessage decode error: $e');
+    }
+  }
+
+  Future<void> _configureConversationCrypto(String peerPublicKey) async {
+    final derive = sharedSecretDeriver;
+    if (derive == null) return;
+    final sharedSecret = await derive(peerPublicKey);
+    if (sharedSecret == null || sharedSecret.isEmpty) return;
+    try {
+      chat.setConversationCrypto(
+          ChatCryptoService.fromBase64SharedSecret(sharedSecret));
+    } catch (error, stackTrace) {
+      ErrorLogger.I.log(
+        provider: 'chat',
+        context: 'conversation_key.invalid',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 

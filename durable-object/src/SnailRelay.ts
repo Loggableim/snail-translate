@@ -32,6 +32,8 @@ interface SessionState {
   quotaUsed: number;
   fishTtsChars: number;
   sessionSecret: string;  // Passed from Worker at /init
+  hostAgreementPublicKey: string | null;
+  guestAgreementPublicKey: string | null;
   chatHistory: ServerMessage[];
   deliveredMessageIds: Set<string>;
 }
@@ -40,6 +42,7 @@ interface ClientMessage {
   type: "auth" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
   token?: string;
   protocolVersion?: number;
+  agreementPublicKey?: string;
   sampleRate?: number;
   messageId?: string;
   text?: string;
@@ -75,6 +78,7 @@ interface ServerMessage {
   error?: string;
   protocolVersion?: number;
   peerId?: string;
+  peerAgreementPublicKey?: string;
   reason?: string;
   // Voice message fields
   audioData?: string;
@@ -133,6 +137,8 @@ export class SnailRelay implements DurableObject {
       quotaUsed: 0,
       fishTtsChars: 0,
       sessionSecret: "",
+      hostAgreementPublicKey: null,
+      guestAgreementPublicKey: null,
       chatHistory: [],
       deliveredMessageIds: new Set(),
     };
@@ -150,6 +156,8 @@ export class SnailRelay implements DurableObject {
             : [...(saved.deliveredMessageIds ?? new Set())],
         );
         this.session.fishTtsChars ??= 0;
+        this.session.hostAgreementPublicKey ??= null;
+        this.session.guestAgreementPublicKey ??= null;
       }
       // Restore secret from storage
       const savedSecret = await this.state.storage.get<string>("secret");
@@ -321,6 +329,7 @@ export class SnailRelay implements DurableObject {
             validateSessionTokenForRoom(payload, this.session.roomId);
             userId = payload.sub;
             peerRole = payload.role;
+            const agreementPublicKey = msg.agreementPublicKey?.trim() || null;
 
             if (payload.role === "host") {
               if (this.session.hostSocket) {
@@ -330,6 +339,7 @@ export class SnailRelay implements DurableObject {
               }
               this.session.hostSocket = ws;
               this.session.hostId = userId;
+              this.session.hostAgreementPublicKey = agreementPublicKey;
             } else {
               if (this.session.guestSocket) {
                 this.send(ws, { type: "auth_error", error: "Guest already connected" });
@@ -338,6 +348,7 @@ export class SnailRelay implements DurableObject {
               }
               this.session.guestSocket = ws;
               this.session.guestId = userId;
+              this.session.guestAgreementPublicKey = agreementPublicKey;
             }
 
             authenticated = true;
@@ -351,11 +362,23 @@ export class SnailRelay implements DurableObject {
             // Notify peer
             const peer = this.getPeer(ws);
             if (peer) {
-              this.send(peer, { type: "peer_joined", peerId: payload.role });
+              this.send(peer, {
+                type: "peer_joined",
+                peerId: payload.role,
+                peerAgreementPublicKey: payload.role === "host"
+                  ? this.session.hostAgreementPublicKey ?? undefined
+                  : this.session.guestAgreementPublicKey ?? undefined,
+              });
               // The newly authenticated socket also needs the peer state.
               // Otherwise the guest remains stuck on "waiting" when the host
               // was already connected before the guest joined.
-              this.send(ws, { type: "peer_joined", peerId: peerRole === "host" ? "guest" : "host" });
+              this.send(ws, {
+                type: "peer_joined",
+                peerId: peerRole === "host" ? "guest" : "host",
+                peerAgreementPublicKey: peerRole === "host"
+                  ? this.session.guestAgreementPublicKey ?? undefined
+                  : this.session.hostAgreementPublicKey ?? undefined,
+              });
             }
 
             await this.saveState();
