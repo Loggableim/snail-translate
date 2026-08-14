@@ -51,8 +51,8 @@ class ChatService extends ChangeNotifier {
 
   Future<void> _loadConversation() async {
     _messages.clear();
-    final raw = await _secureStorage.read(
-        key: 'snail_conversation_$_conversationId');
+    final raw =
+        await _secureStorage.read(key: 'snail_conversation_$_conversationId');
     if (raw == null) return;
     try {
       final decoded = jsonDecode(raw);
@@ -63,7 +63,9 @@ class ChatService extends ChangeNotifier {
       var skipped = 0;
       for (final item in decoded['messages'] as List<dynamic>) {
         try {
-          if (item is! Map<String, dynamic>) throw const FormatException('not an object');
+          if (item is! Map<String, dynamic>) {
+            throw const FormatException('not an object');
+          }
           _messages.add(ChatMessage.fromJson(item, 'local'));
         } catch (_) {
           skipped++;
@@ -73,7 +75,8 @@ class ChatService extends ChangeNotifier {
         ErrorLogger.I.log(
           provider: 'storage',
           context: 'conversation.decode',
-          error: '$skipped corrupt conversation entr${skipped == 1 ? 'y' : 'ies'} skipped',
+          error:
+              '$skipped corrupt conversation entr${skipped == 1 ? 'y' : 'ies'} skipped',
         );
       }
     } catch (error, stackTrace) {
@@ -122,8 +125,7 @@ class ChatService extends ChangeNotifier {
   }
 
   Future<void> _loadOutbox() async {
-    final rawValue =
-        await _secureStorage.read(key: 'snail_outbox_$_roomId');
+    final rawValue = await _secureStorage.read(key: 'snail_outbox_$_roomId');
     _outbox.clear();
     if (rawValue == null) return;
     try {
@@ -135,7 +137,8 @@ class ChatService extends ChangeNotifier {
       var skipped = 0;
       for (final item in decoded) {
         if (item is Map<String, dynamic> &&
-            item['type'] is String && item['messageId'] is String) {
+            item['type'] is String &&
+            item['messageId'] is String) {
           _outbox.add(item);
         } else {
           skipped++;
@@ -145,7 +148,8 @@ class ChatService extends ChangeNotifier {
         ErrorLogger.I.log(
           provider: 'storage',
           context: 'outbox.decode',
-          error: '$skipped corrupt outbox entr${skipped == 1 ? 'y' : 'ies'} skipped',
+          error:
+              '$skipped corrupt outbox entr${skipped == 1 ? 'y' : 'ies'} skipped',
         );
       }
     } catch (error, stackTrace) {
@@ -228,7 +232,6 @@ class ChatService extends ChangeNotifier {
     _messages.add(message);
   }
 
-
   void updateMessageStatus(String messageId, MessageStatus status) {
     final index = _messages.indexWhere((m) => m.id == messageId);
     if (index == -1) return;
@@ -258,8 +261,8 @@ class ChatService extends ChangeNotifier {
       senderId: 'local',
       sourceLang: sourceLang,
       targetLang: targetLang,
-      timestamp: DateTime.fromMillisecondsSinceEpoch(
-          message['timestamp']! as int),
+      timestamp:
+          DateTime.fromMillisecondsSinceEpoch(message['timestamp']! as int),
       outgoing: true,
       status: relayAvailable || p2pAvailable
           ? MessageStatus.sent
@@ -341,10 +344,8 @@ class ChatService extends ChangeNotifier {
   // ── Chat history ───────────────────────────────────────────────────
 
   void replaceHistory(List<Map<String, dynamic>> history) {
-    final outgoingMessageIds = _messages
-        .where((item) => item.outgoing)
-        .map((item) => item.id)
-        .toSet();
+    final outgoingMessageIds =
+        _messages.where((item) => item.outgoing).map((item) => item.id).toSet();
     _messages.clear();
     for (final item in history) {
       if (item['type'] == 'chat') {
