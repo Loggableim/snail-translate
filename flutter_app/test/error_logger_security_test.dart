@@ -40,4 +40,12 @@ void main() {
     expect(message, isNot(contains('user:password')));
     logger.clearLogs();
   });
+
+  test('redacts secrets before deriving an opt-in telemetry code', () {
+    final code = ErrorLogger.errorCodeForTesting(
+      'AIzaSyA12345678901234567890123456789012',
+    );
+    expect(code, isNot(contains('AIza')));
+    expect(code, contains('REDACTED_KEY'));
+  });
 }

@@ -84,11 +84,14 @@ class ErrorLogger extends ChangeNotifier {
   }
 
   static String _errorCode(Object error) {
-    final value = error.toString().split(':').first.trim();
+    final value = _redact(error.toString().split(':').first.trim());
     final sanitized = value.replaceAll(RegExp(r'[^A-Za-z0-9_.-]'), '_');
     if (sanitized.isEmpty) return 'unknown';
     return sanitized.substring(0, sanitized.length.clamp(1, 96));
   }
+
+  @visibleForTesting
+  static String errorCodeForTesting(Object error) => _errorCode(error);
 
   static String _redact(String value) => value
       .replaceAll(RegExp(r'Bearer\s+[A-Za-z0-9._-]+', caseSensitive: false),
