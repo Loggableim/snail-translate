@@ -66,4 +66,23 @@ void main() {
     final wire = jsonDecode(wireMessages.single) as Map<String, dynamic>;
     expect(wire['text'], isNot('queued secret'));
   });
+
+  test('round trips one chat message through an opaque relay payload',
+      () async {
+    final key = List<int>.filled(32, 10);
+    final sender = ChatService()
+      ..setConversationCrypto(ChatCryptoService.fromSharedSecret(key));
+    final receiver = ChatService()
+      ..setConversationCrypto(ChatCryptoService.fromSharedSecret(key));
+    final relayPayloads = <String>[];
+    sender.onSend = relayPayloads.add;
+
+    await sender.sendChat('end to end message');
+    expect(relayPayloads, hasLength(1));
+    expect(relayPayloads.single, isNot(contains('end to end message')));
+
+    await receiver.addIncomingChatSecure(
+        jsonDecode(relayPayloads.single) as Map<String, dynamic>);
+    expect(receiver.messages.single.text, 'end to end message');
+  });
 }
