@@ -406,7 +406,7 @@ class OpenAiRealtimeService extends ChangeNotifier {
           final refreshed = await _credentialRefresher!();
           if (refreshed == null || refreshed.trim().isEmpty) {
             throw StateError(
-                'Realtime client secret konnte nicht erneuert werden');
+                'realtime_client_secret_refresh_failed');
           }
           _apiKey = refreshed.trim();
         }

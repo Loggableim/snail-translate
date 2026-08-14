@@ -74,10 +74,10 @@ class AppShareService extends ChangeNotifier {
       final raw = await _channel.invokeMapMethod<String, dynamic>('apkInfo');
       final path = raw?['path'];
       if (path is! String || path.isEmpty) {
-        throw StateError('Die installierte APK ist auf diesem Gerät nicht verfügbar.');
+        throw StateError('app_share_apk_unavailable');
       }
       final apk = File(path);
-      if (!await apk.exists()) throw StateError('Die installierte APK konnte nicht gelesen werden.');
+      if (!await apk.exists()) throw StateError('app_share_apk_unreadable');
       _apk = apk;
       _version = raw?['version'] as String? ?? 'unknown';
       _apkBytes = await apk.length();
@@ -105,7 +105,7 @@ class AppShareService extends ChangeNotifier {
         headers: headers,
         body: requestBody,
       );
-      if (response.statusCode != 201) throw StateError('Cloudflare-Tunnel konnte nicht erstellt werden (${response.statusCode}).');
+      if (response.statusCode != 201) throw StateError('app_share_create_failed_${response.statusCode}');
       final result = jsonDecode(response.body) as Map<String, dynamic>;
       _url = result['url'] as String? ?? '${ApiKeys.appShareUrl}/${_token!}';
       _expiresAt = DateTime.fromMillisecondsSinceEpoch((result['expiresAt'] as num?)?.toInt() ?? DateTime.now().add(_ttl).millisecondsSinceEpoch);

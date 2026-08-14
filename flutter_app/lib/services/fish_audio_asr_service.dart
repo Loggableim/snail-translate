@@ -51,8 +51,7 @@ class FishAudioAsrService {
     final body = await response.stream.bytesToString();
     if (response.statusCode < 200 || response.statusCode >= 300) {
       if (response.statusCode == 401) {
-        throw Exception(
-            'Fish-Audio-Key ungültig oder abgelaufen (401). Bitte den Key im Settings-Panel neu speichern.');
+        throw Exception('fish_asr_unauthorized');
       }
       throw Exception('Fish Audio ASR error ${response.statusCode}: $body');
     }
