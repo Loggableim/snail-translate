@@ -364,7 +364,8 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       } catch (error) {
         if (mounted) {
           setState(() =>
-              _status = _StandaloneStatus.fishError(error.toString()));
+        _status = _StandaloneStatus.fishError(
+            AppLocalizations.of(context).commonError));
         }
       } finally {
         _fishBusy[source] = false;

@@ -671,7 +671,8 @@ class _SessionScreenState extends State<SessionScreen>
           debugPrint(
               '[Snail][Fish] SKIPPED TTS, no translation: ${result.reason}');
           if (mounted) {
-            setState(() => _fishTranslationError = result.reason);
+            setState(() => _fishTranslationError =
+                result.localizedReason(AppLocalizations.of(context)));
           }
           return;
         }
