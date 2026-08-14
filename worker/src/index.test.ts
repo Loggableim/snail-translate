@@ -23,6 +23,23 @@ function namespace(response: Response = new Response("{}", { status: 200 })): Du
   } as unknown as DurableObjectNamespace;
 }
 
+function recordingNamespace() {
+  const requests: Request[] = [];
+  const fetcher: Fetcher = {
+    fetch: async (request) => {
+      requests.push(request);
+      return new Response("{}", { status: 200 });
+    },
+  };
+  const binding = {
+    idFromName: (name: string) => ({ toString: () => name } as DurableObjectId),
+    get: () => fetcher,
+    newUniqueId: () => ({} as DurableObjectId),
+    getByName: () => fetcher,
+  } as unknown as DurableObjectNamespace;
+  return { binding, requests };
+}
+
 function env(overrides: Partial<Env> = {}): Env {
   return {
     SNAIL_KV: kv(),
@@ -118,6 +135,24 @@ describe("Worker fetch handler", () => {
     const response = await call("/ws", { headers: { Upgrade: "websocket" } });
     expect(response.status).toBe(400);
     expect(await response.text()).toBe("Missing room");
+  });
+
+  it("does not forward a client-provided relay secret to the Durable Object", async () => {
+    const relay = recordingNamespace();
+    const response = await call("/ws?room=snail-ABCD", {
+      headers: {
+        Upgrade: "websocket",
+        Connection: "Upgrade",
+        "Sec-WebSocket-Key": "dGVzdA==",
+        "Sec-WebSocket-Version": "13",
+        "X-Session-Secret": "attacker-secret",
+      },
+    }, { SNAIL_RELAY: relay.binding });
+
+    expect(response.status).toBe(200);
+    expect(relay.requests).toHaveLength(2);
+    expect(await relay.requests[0].clone().json()).toEqual({ sessionSecret: "test-session-secret" });
+    expect(relay.requests[1].headers.get("X-Session-Secret")).toBeNull();
   });
 
   it("returns the handler's 404 fallback", async () => {
