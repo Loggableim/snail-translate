@@ -854,9 +854,12 @@ class _SessionScreenState extends State<SessionScreen>
   }
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<int>(
-        valueListenable: _sessionUiRevision,
-        builder: (context, _, __) => _buildSession(context),
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: _sessionController,
+        builder: (context, _) => ValueListenableBuilder<int>(
+          valueListenable: _sessionUiRevision,
+          builder: (context, _, __) => _buildSession(context),
+        ),
       );
 
   Widget _buildSession(BuildContext context) {
@@ -866,9 +869,14 @@ class _SessionScreenState extends State<SessionScreen>
     final isHost = session?.role == 'host';
     final microphoneReady = _microphoneError == null && audio.isPeerConnected;
     final authFailed = audio.hasTerminalAuthError;
-    final relayLabel = audio.isAuthenticated
-        ? l10n.standaloneStatusActive
-        : l10n.sessionWaitingForConnection;
+    final transitioning =
+        _sessionController.state == SessionControllerState.connecting ||
+            _sessionController.state == SessionControllerState.reconnecting;
+    final relayLabel = transitioning
+        ? l10n.standaloneStatusReconnecting('Session')
+        : audio.isAuthenticated
+            ? l10n.standaloneStatusActive
+            : l10n.sessionWaitingForConnection;
     final peerLabel = audio.isPeerConnected
         ? l10n.sessionConnectedSpeakNow
         : l10n.sessionWaitingForConnection;
