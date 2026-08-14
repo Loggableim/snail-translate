@@ -819,6 +819,17 @@ class _SessionScreenState extends State<SessionScreen>
     final session = context.watch<SessionService>().currentSession;
     final isHost = session?.role == 'host';
     final microphoneReady = _microphoneError == null && audio.isPeerConnected;
+    final relayLabel = audio.isAuthenticated
+        ? l10n.standaloneStatusActive
+        : l10n.sessionWaitingForConnection;
+    final peerLabel = audio.isPeerConnected
+        ? l10n.sessionConnectedSpeakNow
+        : l10n.sessionWaitingForConnection;
+    final routeLabel = switch (_audioPolicy.output) {
+      AudioOutput.speaker => l10n.audioRouteSpeaker,
+      AudioOutput.headset => l10n.audioRouteHeadset,
+      AudioOutput.auto => l10n.audioRouteAuto,
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -881,6 +892,13 @@ class _SessionScreenState extends State<SessionScreen>
                                   ? l10n.sessionConnectedSpeakNow
                                   : l10n.sessionWaitingForConnection,
                       style: Theme.of(context).textTheme.headlineSmall,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$relayLabel · $peerLabel · ${l10n.sessionMicrophoneLabel}: '
+                      '${microphoneReady ? l10n.standaloneStatusActive : l10n.welcomeMicStartFailed} · $routeLabel',
+                      style: Theme.of(context).textTheme.bodySmall,
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
