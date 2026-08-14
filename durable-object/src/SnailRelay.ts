@@ -172,7 +172,7 @@ export class SnailRelay implements DurableObject {
         `Session ${this.session.roomId} inactive for ${Math.round(inactiveMs / 1000)}s — cleaning up`
       );
       this.broadcast({ type: "session_end", reason: "Session timed out due to inactivity" });
-      this.cleanup();
+      await this.cleanup();
     }
   }
 
@@ -718,7 +718,7 @@ export class SnailRelay implements DurableObject {
 
         case "end": {
           this.broadcast({ type: "session_end", reason: "Session ended" });
-          this.cleanup();
+          await this.cleanup();
           break;
         }
       }
@@ -753,7 +753,7 @@ export class SnailRelay implements DurableObject {
       await this.saveState();
 
       if (!this.session.hostSocket && !this.session.guestSocket) {
-        setTimeout(() => this.cleanup(), 60_000);
+        setTimeout(() => { void this.cleanup(); }, 60_000);
       }
     });
 
@@ -829,7 +829,7 @@ export class SnailRelay implements DurableObject {
     await this.state.storage.put("session", persisted);
   }
 
-  private cleanup(): void {
+  private async cleanup(): Promise<void> {
     for (const connection of this.fishTts.values()) connection.close();
     this.fishTts.clear();
     if (this.session.hostSocket) {
@@ -840,5 +840,6 @@ export class SnailRelay implements DurableObject {
     }
     this.session.hostSocket = null;
     this.session.guestSocket = null;
+    await this.state.storage.deleteAll();
   }
 }
