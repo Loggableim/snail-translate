@@ -16,6 +16,10 @@ Worker-Variablen gesetzt werden. In Production muss `DEV_MODE` deaktiviert
 sein. `SESSION_SECRET` muss zufällig, lang und für Worker und Durable Object
 identisch sein.
 
+`CORS_ORIGINS` muss eine kommagetrennte Allowlist der tatsächlichen App-
+Ursprünge enthalten. Unbekannte Origins erhalten keinen
+`Access-Control-Allow-Origin`-Header.
+
 ## Optionale Provider
 
 ```powershell

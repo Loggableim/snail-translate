@@ -53,6 +53,7 @@ function env(overrides: Partial<Env> = {}): Env {
     SESSION_SECRET: "test-session-secret",
     DEV_MODE: "true",
     DEV_API_KEY: "test-api-key",
+    CORS_ORIGINS: "https://snail.app",
     ...overrides,
   };
 }
@@ -82,6 +83,14 @@ describe("Worker fetch handler", () => {
     expect(response.status).toBe(204);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://snail.app");
     expect(response.headers.get("Access-Control-Allow-Headers")).toContain("X-Snail-Identity");
+  });
+
+  it("omits CORS access for an origin outside the configured allowlist", async () => {
+    const response = await call("/api/rooms", {
+      method: "OPTIONS",
+      headers: { Origin: "https://evil.example" },
+    });
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 
   it("rejects protected routes without development credentials", async () => {

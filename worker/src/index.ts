@@ -39,6 +39,8 @@ export interface Env {
   DEV_ALLOW_IDENTITY_AUTH?: string;
   /** Explicit production opt-in for device-identity deployments without Clerk. */
   DEVICE_ID_AUTH?: string;
+  /** Comma-separated browser origins allowed to receive CORS headers. */
+  CORS_ORIGINS?: string;
 }
 
 interface SessionTokenPayload {
@@ -69,13 +71,15 @@ function iceServers(env: Env): Array<Record<string, unknown>> {
 
 // ── CORS ──────────────────────────────────────────────────────────────
 
-function corsHeaders(origin: string): Record<string, string> {
-  return {
-    "Access-Control-Allow-Origin": origin || "*",
+function corsHeaders(origin: string, configuredOrigins = ""): Record<string, string> {
+  const allowlist = configuredOrigins.split(",").map((value) => value.trim()).filter(Boolean);
+  const headers: Record<string, string> = {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-Snail-Identity, X-Snail-Public-Key, X-Snail-Signature, X-Snail-Timestamp",
     "Access-Control-Max-Age": "86400",
   };
+  if (origin && allowlist.includes(origin)) headers["Access-Control-Allow-Origin"] = origin;
+  return headers;
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────
@@ -232,7 +236,7 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get("Origin") || "";
   const userId = await getUserId(request, env);
   if (!userId) {
-    return json({ error: "Unauthorized" }, 401, origin);
+    return json({ error: "Unauthorized" }, 401, origin, env.CORS_ORIGINS);
   }
 
   let body: any = {};
@@ -241,7 +245,7 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
   const tier = isDevMode(env) ? "paid" : "free";
   const quota = await checkQuota(userId, env);
   if (!quota.allowed) {
-    return json({ error: "Quota exceeded", remaining: quota.remaining }, 403, origin);
+    return json({ error: "Quota exceeded", remaining: quota.remaining }, 403, origin, env.CORS_ORIGINS);
   }
 
   const inviteeId = typeof body.inviteeId === "string" && /^[a-f0-9-]{16,80}$/i.test(body.inviteeId.trim())
@@ -260,7 +264,7 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
     }
   }
   if (!roomId || !doStub) {
-    return json({ error: "Could not allocate a unique room code" }, 503, origin);
+    return json({ error: "Could not allocate a unique room code" }, 503, origin, env.CORS_ORIGINS);
   }
   const sessionToken = await createSessionToken(
     { sub: userId, room: roomId, role: "host", tier: tier as "free" | "paid" },
@@ -289,32 +293,32 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
     targetLang: body.targetLang || "en",
     inviteeId,
     tier, quotaRemaining: quota.remaining,
-  }, 201, origin);
+  }, 201, origin, env.CORS_ORIGINS);
 }
 
 async function handleJoinRoom(request: Request, env: Env, roomId: string): Promise<Response> {
   const origin = request.headers.get("Origin") || "";
   const userId = await getUserId(request, env);
   if (!userId) {
-    return json({ error: "Unauthorized" }, 401, origin);
+    return json({ error: "Unauthorized" }, 401, origin, env.CORS_ORIGINS);
   }
 
   const tier = isDevMode(env) ? "paid" : "free";
   const quota = await checkQuota(userId, env);
   if (!quota.allowed) {
-    return json({ error: "Quota exceeded" }, 403, origin);
+    return json({ error: "Quota exceeded" }, 403, origin, env.CORS_ORIGINS);
   }
 
   const doId = env.SNAIL_RELAY.idFromName(roomId);
   const doStub = env.SNAIL_RELAY.get(doId);
   const roomCheck = await doStub.fetch(new Request("https://internal/status"));
   if (roomCheck.status !== 200) {
-    return json({ error: "Room not found" }, 404, origin);
+    return json({ error: "Room not found" }, 404, origin, env.CORS_ORIGINS);
   }
 
   const roomState: any = await roomCheck.json();
   if (roomState.inviteeId && roomState.inviteeId !== getSnailIdentity(request)) {
-    return json({ error: "This session was invited for another Snail identity" }, 403, origin);
+    return json({ error: "This session was invited for another Snail identity" }, 403, origin, env.CORS_ORIGINS);
   }
   // Do not use the persisted `guestId` as a capacity lock here. It is
   // intentionally durable metadata and can outlive a dropped WebSocket;
@@ -338,13 +342,13 @@ async function handleJoinRoom(request: Request, env: Env, roomId: string): Promi
     targetLang: roomState.sourceLang,
     inviteeId: roomState.inviteeId || null,
     tier, quotaRemaining: quota.remaining,
-  }, 200, origin);
+  }, 200, origin, env.CORS_ORIGINS);
 }
 
 async function handleQuota(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get("Origin") || "";
   const userId = await getUserId(request, env);
-  if (!userId) return json({ error: "Unauthorized" }, 401, origin);
+  if (!userId) return json({ error: "Unauthorized" }, 401, origin, env.CORS_ORIGINS);
 
   const tier = isDevMode(env) ? "paid" : "free";
   const used = await getQuotaUsed(userId, env);
@@ -354,7 +358,7 @@ async function handleQuota(request: Request, env: Env): Promise<Response> {
     userId, tier, usedSeconds: used,
     remainingSeconds: remaining,
     totalSeconds: tier === "paid" ? Infinity : FREE_QUOTA_SECONDS,
-  }, 200, origin);
+  }, 200, origin, env.CORS_ORIGINS);
 }
 
 /**
@@ -367,14 +371,14 @@ async function handleQuota(request: Request, env: Env): Promise<Response> {
 async function handleRealtimeClientSecret(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get("Origin") || "";
   const userId = await getUserId(request, env);
-  if (!userId) return json({ error: "Unauthorized" }, 401, origin);
-  if (!env.OPENAI_API_KEY) return json({ error: "Realtime client secrets are not configured" }, 503, origin);
+  if (!userId) return json({ error: "Unauthorized" }, 401, origin, env.CORS_ORIGINS);
+  if (!env.OPENAI_API_KEY) return json({ error: "Realtime client secrets are not configured" }, 503, origin, env.CORS_ORIGINS);
 
   let body: any = {};
   try { body = await request.json(); } catch {}
   const targetLanguage = typeof body.targetLanguage === "string" ? body.targetLanguage.trim().toLowerCase() : "en";
   if (!/^[a-z]{2,3}(?:-[A-Z]{2})?$/.test(targetLanguage)) {
-    return json({ error: "Invalid targetLanguage" }, 400, origin);
+    return json({ error: "Invalid targetLanguage" }, 400, origin, env.CORS_ORIGINS);
   }
 
   const upstream = await fetch("https://api.openai.com/v1/realtime/translations/client_secrets", {
@@ -395,7 +399,7 @@ async function handleRealtimeClientSecret(request: Request, env: Env): Promise<R
   const responseBody = await upstream.text();
   return new Response(responseBody, {
     status: upstream.status,
-    headers: { ...corsHeaders(origin), "Content-Type": upstream.headers.get("Content-Type") || "application/json" },
+    headers: { ...corsHeaders(origin, env.CORS_ORIGINS), "Content-Type": upstream.headers.get("Content-Type") || "application/json" },
   });
 }
 
@@ -408,7 +412,7 @@ async function handleAppShareCreate(request: Request, env: Env, token: string): 
   const expiresAt = Date.now() + APP_SHARE_TTL * 1000;
   const relay = env.SNAIL_APP_SHARE_RELAY.get(env.SNAIL_APP_SHARE_RELAY.idFromName(`app-share:${token}`));
   await relay.fetch(new Request('https://internal/init', { method: 'POST', body: JSON.stringify({ version: String(body.version || 'Snail'), bytes, expiresAt }) }));
-  return json({ url: `${new URL(request.url).origin}/download/${token}`, expiresAt }, 201, request.headers.get('Origin') || '');
+  return json({ url: `${new URL(request.url).origin}/download/${token}`, expiresAt }, 201, request.headers.get('Origin') || '', env.CORS_ORIGINS);
 }
 
 function appShareDownloadPage(token: string): Response {
@@ -419,10 +423,10 @@ function appShareDownloadPage(token: string): Response {
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
-function json(data: any, status: number, origin: string): Response {
+function json(data: any, status: number, origin: string, configuredOrigins = ""): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders(origin), "Content-Type": "application/json" },
+    headers: { ...corsHeaders(origin, configuredOrigins), "Content-Type": "application/json" },
   });
 }
 
@@ -434,7 +438,7 @@ export default {
     const origin = request.headers.get("Origin") || "";
 
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders(origin) });
+      return new Response(null, { status: 204, headers: corsHeaders(origin, env.CORS_ORIGINS) });
     }
 
     const appShareMatch = url.pathname.match(/^\/app-share$/);
@@ -497,7 +501,7 @@ export default {
         status: ready ? "ok" : "degraded",
         devMode: isDevMode(env),
         configured,
-      }, ready ? 200 : 503, origin);
+  }, ready ? 200 : 503, origin, env.CORS_ORIGINS);
     }
 
     // Create room
@@ -521,6 +525,6 @@ export default {
       return handleRealtimeClientSecret(request, env);
     }
 
-    return json({ error: "Not found" }, 404, origin);
+    return json({ error: "Not found" }, 404, origin, env.CORS_ORIGINS);
   },
 };

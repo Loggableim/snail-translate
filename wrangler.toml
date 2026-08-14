@@ -51,6 +51,7 @@ DEV_ALLOW_IDENTITY_AUTH = "true"
 # Set DEVICE_ID_AUTH = "true" when running a non-dev deployment without Clerk.
 # Keep it false unless the deployment has the intended device-identity policy.
 DEVICE_ID_AUTH = "false"
+CORS_ORIGINS = "https://snail.app"
 
 # ── Secrets (set via `wrangler secret put`) ──────────────────────────
 # SESSION_SECRET
