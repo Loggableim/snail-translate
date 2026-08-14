@@ -851,6 +851,7 @@ class _SessionScreenState extends State<SessionScreen>
     final session = context.watch<SessionService>().currentSession;
     final isHost = session?.role == 'host';
     final microphoneReady = _microphoneError == null && audio.isPeerConnected;
+    final authFailed = audio.hasTerminalAuthError;
     final relayLabel = audio.isAuthenticated
         ? l10n.standaloneStatusActive
         : l10n.sessionWaitingForConnection;
@@ -919,7 +920,9 @@ class _SessionScreenState extends State<SessionScreen>
 
                     // Status text
                     Text(
-                      _microphoneError == 'permission'
+                      authFailed
+                          ? l10n.commonError
+                          : _microphoneError == 'permission'
                           ? l10n.welcomeMicPermissionDenied
                           : _microphoneError == 'start'
                               ? l10n.welcomeMicStartFailed
@@ -933,10 +936,10 @@ class _SessionScreenState extends State<SessionScreen>
                     Semantics(
                       label: l10n.sessionMicrophoneLabel,
                       value: '$relayLabel · $peerLabel · '
-                          '${microphoneReady ? l10n.standaloneStatusActive : l10n.welcomeMicStartFailed} · $routeLabel',
+                          '${authFailed ? l10n.commonError : microphoneReady ? l10n.standaloneStatusActive : l10n.welcomeMicStartFailed} · $routeLabel',
                       child: Text(
                         '$relayLabel · $peerLabel · ${l10n.sessionMicrophoneLabel}: '
-                        '${microphoneReady ? l10n.standaloneStatusActive : l10n.welcomeMicStartFailed} · $routeLabel',
+                        '${authFailed ? l10n.commonError : microphoneReady ? l10n.standaloneStatusActive : l10n.welcomeMicStartFailed} · $routeLabel',
                         style: Theme.of(context).textTheme.bodySmall,
                         textAlign: TextAlign.center,
                       ),
