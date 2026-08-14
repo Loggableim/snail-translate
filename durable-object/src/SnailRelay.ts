@@ -513,7 +513,7 @@ export class SnailRelay implements DurableObject {
             });
           } catch (err) {
             relayLog("provider_request_failed", { provider: "fish_tts", operation: "configure" });
-            this.send(ws, { type: "error", error: `Fish TTS connect failed: ${(err as Error).message}` });
+            this.send(ws, { type: "error", error: "Fish TTS connect failed" });
           }
           break;
         }
@@ -535,7 +535,7 @@ export class SnailRelay implements DurableObject {
             await this.fishConnection(peerRole).sendText(msg.text);
           } catch (err) {
             relayLog("provider_request_failed", { provider: "fish_tts", operation: "send_text" });
-            this.send(ws, { type: "error", error: `Fish TTS send failed: ${(err as Error).message}` });
+            this.send(ws, { type: "error", error: "Fish TTS send failed" });
           }
           break;
         }
@@ -549,7 +549,7 @@ export class SnailRelay implements DurableObject {
             await this.fishConnection(peerRole).flush();
           } catch (err) {
             relayLog("provider_request_failed", { provider: "fish_tts", operation: "flush" });
-            this.send(ws, { type: "error", error: `Fish TTS flush failed: ${(err as Error).message}` });
+            this.send(ws, { type: "error", error: "Fish TTS flush failed" });
           }
           break;
         }
