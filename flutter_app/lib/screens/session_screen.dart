@@ -508,9 +508,7 @@ class _SessionScreenState extends State<SessionScreen>
     if (_openAi != null && _openAiListener != null) {
       _openAi!.removeListener(_openAiListener!);
     }
-    if (_guestFallbackOpenAi != null && _guestFallbackOpenAiListener != null) {
-      _guestFallbackOpenAi!.removeListener(_guestFallbackOpenAiListener!);
-    }
+    _disposeGuestFallbackOpenAi();
     _gemini?.disconnect();
     _openAi?.disconnect();
     _guestFallbackOpenAi?.disconnect();
@@ -626,6 +624,7 @@ class _SessionScreenState extends State<SessionScreen>
     required String targetLanguage,
     String? safetyIdentifier,
   }) async {
+    _disposeGuestFallbackOpenAi();
     final service = OpenAiRealtimeService();
     _guestFallbackOpenAi = service;
     await service.connect(
@@ -640,6 +639,18 @@ class _SessionScreenState extends State<SessionScreen>
     };
     service.addListener(_guestFallbackOpenAiListener!);
     _drainGuestFallbackAudio();
+  }
+
+  void _disposeGuestFallbackOpenAi() {
+    final service = _guestFallbackOpenAi;
+    final listener = _guestFallbackOpenAiListener;
+    if (service != null && listener != null) {
+      service.removeListener(listener);
+    }
+    service?.disconnect();
+    _guestFallbackOpenAi = null;
+    _guestFallbackOpenAiListener = null;
+    _guestFallbackConnecting = null;
   }
 
   Future<void> _forwardGuestFallbackAudio(
@@ -658,7 +669,7 @@ class _SessionScreenState extends State<SessionScreen>
       await _guestFallbackConnecting;
       _guestFallbackOpenAi?.sendPcm16(bytes, inputSampleRate: sampleRate);
     } catch (error, stackTrace) {
-      _guestFallbackConnecting = null;
+      _disposeGuestFallbackOpenAi();
       ErrorLogger.I.log(
         provider: 'openai',
         context: 'realtime.guest-fallback',

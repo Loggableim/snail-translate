@@ -166,9 +166,7 @@ class SessionService extends ChangeNotifier {
       final locale = Platform.localeName;
       final lang = locale.split('_').first.toLowerCase();
       if (_supportedLanguages.contains(lang)) return lang;
-      // Map common variants
-      const map = {'pt': 'es', 'nl': 'de', 'pl': 'de', 'ar': 'en'};
-      return map[lang] ?? 'en';
+      return 'en';
     } catch (_) {
       return 'en';
     }
