@@ -2,13 +2,15 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 import 'package:web_socket_channel/io.dart';
+import 'live_translation_provider.dart';
 
 /// Fish Audio's documented realtime TTS transport.
 ///
 /// Fish Audio is the low-cost speech leg of Snail's translation pipeline:
 /// STT/MT produces translated text, then this service streams that text to
 /// Fish Audio and exposes binary audio chunks to the playback queue.
-class FishAudioRealtimeService extends ChangeNotifier {
+class FishAudioRealtimeService extends ChangeNotifier
+    implements LiveTranslationProvider {
   static const endpoint = 'wss://api.fish.audio/v1/tts/live';
   static const _maxBufferedChunks = 24;
 
@@ -32,7 +34,9 @@ class FishAudioRealtimeService extends ChangeNotifier {
   bool _disposed = false;
 
   bool get isConnected => _connected;
+  @override
   String get state => _state;
+  @override
   String? get lastError => _lastError;
   bool get hasPendingAudio => _audioChunks.isNotEmpty;
   int get pendingTextWords => _wordCount(_textBuffer.toString());
@@ -255,6 +259,7 @@ class FishAudioRealtimeService extends ChangeNotifier {
     });
   }
 
+  @override
   Future<void> disconnect() async {
     _retryTimer?.cancel();
     _retryTimer = null;

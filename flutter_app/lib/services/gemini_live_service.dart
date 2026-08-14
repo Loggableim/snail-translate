@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'live_translation_provider.dart';
 
 /// Low-level Gemini Live Translation transport.
 ///
@@ -9,16 +10,23 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 /// PCM16 input and exposes translated 24 kHz PCM16 chunks to the playback
 /// layer. Ephemeral Google tokens can replace the key in the future without
 /// changing the wire protocol.
-class GeminiLiveService extends ChangeNotifier {
+class GeminiLiveService extends ChangeNotifier
+    implements LiveTranslationProvider {
   static const _maxAudioChunks = 96;
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   bool _connected = false;
+  String _state = 'idle';
+  String? _lastError;
   String _inputTranscript = '';
   String _outputTranscript = '';
   final List<Uint8List> _audioChunks = [];
 
   bool get isConnected => _connected;
+  @override
+  String get state => _state;
+  @override
+  String? get lastError => _lastError;
   String get inputTranscript => _inputTranscript;
   String get outputTranscript => _outputTranscript;
   List<Uint8List> takeAudioChunks() {
@@ -32,11 +40,15 @@ class GeminiLiveService extends ChangeNotifier {
       required String targetLanguage,
       String model = 'gemini-3.5-live-translate-preview'}) async {
     if (apiKey.trim().isEmpty) throw ArgumentError('Gemini BYOK-Key fehlt');
+    _state = 'connecting';
+    _lastError = null;
+    notifyListeners();
     final uri = Uri.parse(
         'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${Uri.encodeQueryComponent(apiKey)}');
     _channel = WebSocketChannel.connect(uri);
     await _channel!.ready;
     _connected = true;
+    _state = 'ready';
     _subscription =
         _channel!.stream.listen(_onMessage, onError: _onError, onDone: _onDone);
     _channel!.sink.add(jsonEncode({
@@ -100,19 +112,24 @@ class GeminiLiveService extends ChangeNotifier {
 
   void _onError(Object error) {
     _connected = false;
+    _state = 'degraded';
+    _lastError = error.toString();
     notifyListeners();
   }
 
   void _onDone() {
     _connected = false;
+    _state = 'closed';
     notifyListeners();
   }
 
+  @override
   Future<void> disconnect() async {
     await _subscription?.cancel();
     await _channel?.sink.close();
     _channel = null;
     _connected = false;
+    _state = 'idle';
     notifyListeners();
   }
 

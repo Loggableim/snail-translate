@@ -5,6 +5,7 @@ import 'package:web_socket_channel/io.dart';
 
 import 'audio_processor.dart';
 import 'error_logger.dart';
+import 'live_translation_provider.dart';
 
 /// Immutable, completed section of one continuous translation stream.
 class RealtimeTurn {
@@ -28,7 +29,8 @@ class RealtimeTurn {
 /// The translation protocol is continuous: callers append 24 kHz mono PCM16
 /// and consume audio and transcript deltas as they arrive. There is no
 /// response.create lifecycle for this endpoint.
-class OpenAiRealtimeService extends ChangeNotifier {
+class OpenAiRealtimeService extends ChangeNotifier
+    implements LiveTranslationProvider {
   static const _endpoint = 'wss://api.openai.com/v1/realtime/translations';
   static const _model = 'gpt-realtime-translate';
   static const _maxAudioChunks = 96;
@@ -71,9 +73,11 @@ class OpenAiRealtimeService extends ChangeNotifier {
   static const _maxReconnectAttempts = 6;
 
   bool get isConnected => _connected;
+  @override
   String get state => _state;
   String get inputTranscript => _inputTranscript;
   String get outputTranscript => _outputTranscript;
+  @override
   String? get lastError => _lastError;
   int get droppedAudioChunks => _droppedAudioChunks;
   int get audioDeltaCount => _audioDeltaCount;
@@ -405,8 +409,7 @@ class OpenAiRealtimeService extends ChangeNotifier {
         if (_credentialRefresher != null) {
           final refreshed = await _credentialRefresher!();
           if (refreshed == null || refreshed.trim().isEmpty) {
-            throw StateError(
-                'realtime_client_secret_refresh_failed');
+            throw StateError('realtime_client_secret_refresh_failed');
           }
           _apiKey = refreshed.trim();
         }
@@ -420,6 +423,7 @@ class OpenAiRealtimeService extends ChangeNotifier {
     });
   }
 
+  @override
   Future<void> disconnect() async {
     _closing = true;
     _turnFinalizeTimer?.cancel();
