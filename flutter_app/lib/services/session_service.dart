@@ -71,6 +71,11 @@ class SessionService extends ChangeNotifier {
   String get myLanguage => _myLanguage;
   String get targetLanguage => _targetLanguage;
 
+  /// Returns a fresh identity token when the app was configured with an
+  /// identity provider. A missing provider is intentional in device-auth
+  /// development mode and returns null.
+  Future<String?> refreshSessionToken() async => _sessionTokenProvider?.call();
+
   /// Language this device must translate its own microphone into.
   ///
   /// The worker mirrors the negotiated pair for the guest, so a joined

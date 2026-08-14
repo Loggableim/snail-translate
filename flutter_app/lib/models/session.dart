@@ -42,6 +42,19 @@ class Session {
           .toList(growable: false),
     );
   }
+
+  Session copyWith({String? sessionToken}) => Session(
+        roomId: roomId,
+        sessionToken: sessionToken ?? this.sessionToken,
+        relayUrl: relayUrl,
+        sourceLang: sourceLang,
+        targetLang: targetLang,
+        tier: tier,
+        role: role,
+        inviteeId: inviteeId,
+        quotaRemaining: quotaRemaining,
+        iceServers: iceServers,
+      );
 }
 
 /// User quota model.

@@ -31,6 +31,7 @@ class AudioService extends ChangeNotifier {
   void Function(Uint8List bytes, int sampleRate)? onFallbackPcmAudio;
   void Function(String signalType, dynamic signal)? onSignal;
   VoidCallback? onAuthenticated;
+  Future<String?> Function()? sessionTokenRefresher;
   void Function(Map<String, dynamic> message)? onP2pChatSend;
   bool Function()? isP2pConnected;
   int _reconnectAttempt = 0;
@@ -96,6 +97,10 @@ class AudioService extends ChangeNotifier {
   Future<bool> _doConnect() async {
     if (_session == null) return false;
     try {
+      final refreshed = await sessionTokenRefresher?.call();
+      if (refreshed != null && refreshed.trim().isNotEmpty) {
+        _session = _session!.copyWith(sessionToken: refreshed.trim());
+      }
       final uri = Uri.parse(_session!.relayUrl);
       _channel = WebSocketChannel.connect(uri);
       await _channel!.ready;
