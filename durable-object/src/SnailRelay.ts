@@ -87,6 +87,7 @@ const PING_INTERVAL_MS = 30_000;
 const MAX_QUOTA_SECONDS = 30 * 60;
 const MAX_PCM_SAMPLES_PER_MESSAGE = 16_000; // max 1 s mono PCM at 16 kHz
 const MAX_CHAT_TEXT_LENGTH = 10_000;         // max chars per chat message
+const MAX_VOICE_AUDIO_DATA_LENGTH = 128 * 1024; // max base64 payload per voice message
 const SESSION_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1_000; // 30 minutes
 const PROTOCOL_VERSION = 1;
 
@@ -435,6 +436,13 @@ export class SnailRelay implements DurableObject {
         case "voice": {
           if (!authenticated || !msg.audioData || !msg.durationMs) {
             this.send(ws, { type: "error", error: "Invalid voice message" });
+            return;
+          }
+          if (msg.audioData.length > MAX_VOICE_AUDIO_DATA_LENGTH) {
+            this.send(ws, {
+              type: "error",
+              error: `Voice message too large (max ${MAX_VOICE_AUDIO_DATA_LENGTH} characters)`,
+            });
             return;
           }
 

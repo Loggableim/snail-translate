@@ -141,6 +141,18 @@ describe("SnailRelay lifecycle and limits", () => {
     expect(storage.alarmCalls - before).toBe(0);
   });
 
+  it("rejects oversized voice payloads before persisting them", async () => {
+    const { relay } = await initializedRelay();
+    const host = await connect(relay, "host", "host");
+    host.socket.send(JSON.stringify({
+      type: "voice",
+      audioData: "A".repeat(128 * 1024 + 1),
+      durationMs: 1_000,
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(messagesOf(host, "error")[0].error).toContain("Voice message too large");
+  });
+
   it("alarm cleanup removes persisted session data", async () => {
     const { relay, storage } = await initializedRelay();
     (relay as unknown as { session: { lastActivity: number } }).session.lastActivity = Date.now() - 31 * 60 * 1000;
