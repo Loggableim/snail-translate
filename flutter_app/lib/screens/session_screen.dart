@@ -22,6 +22,7 @@ import '../services/audio_processor.dart';
 import '../services/speech_turn_buffer.dart';
 import '../services/session_playback_buffer.dart';
 import '../services/error_logger.dart';
+import '../controllers/session_controller.dart';
 import '../l10n/app_localizations.dart';
 import 'chat_screen.dart';
 
@@ -114,6 +115,7 @@ class _SessionScreenState extends State<SessionScreen>
   Future<void>? _guestFallbackConnecting;
   int _lastOpenAiSpeechStarts = 0;
   int _connectionGeneration = 0;
+  late final SessionController _sessionController;
 
   void _debugPlaybackDiagnostic(String message) {
     if (!kDebugMode) return;
@@ -205,13 +207,10 @@ class _SessionScreenState extends State<SessionScreen>
       _fishSourceLanguage = 'auto';
       _fishTargetLanguage = target;
     });
-    final sessionService = context.read<SessionService>();
-    await sessionService.setTargetLanguage(target);
-    await _restartProvidersForLanguage();
+    await _sessionController.changeLanguage(target);
   }
 
-  Future<void> _restartProvidersForLanguage() async {
-    final generation = ++_connectionGeneration;
+  Future<void> _disconnectProviders() async {
     await _audioSubscription?.cancel();
     _audioSubscription = null;
     _fishProcessTimer?.cancel();
@@ -224,9 +223,6 @@ class _SessionScreenState extends State<SessionScreen>
     await _gemini?.disconnect();
     _disposeGuestFallbackOpenAi();
     _audioService.disconnect();
-    if (_isConnectionActive(generation)) {
-      unawaited(_connect(generation));
-    }
   }
 
   bool _isConnectionActive(int generation) =>
@@ -237,11 +233,19 @@ class _SessionScreenState extends State<SessionScreen>
     WidgetsBinding.instance.addObserver(this);
     _audioService = context.read<AudioService>();
     _sessionService = context.read<SessionService>();
-    _audioService.sessionTokenRefresher =
-        _sessionService.refreshSessionToken;
+    _audioService.sessionTokenRefresher = _sessionService.refreshSessionToken;
     _sessionTargetLanguage = _sessionService.sessionTargetLanguage;
     _transcriptHistory = context.read<TranscriptHistory>();
     _audioPolicy = context.read<AudioPolicy>();
+    _sessionController = SessionController(
+      initialTargetLanguage: _sessionTargetLanguage,
+      connect: (generation) async {
+        _connectionGeneration = generation;
+        await _connect(generation);
+      },
+      disconnect: _disconnectProviders,
+      setTargetLanguage: _sessionService.setTargetLanguage,
+    );
     _sessionEventSubscription = _snailAudio.sessionEvents.listen((event) {
       if (event != 'ended' || !mounted) return;
       _audioService.disconnect();
@@ -251,7 +255,7 @@ class _SessionScreenState extends State<SessionScreen>
     // Keep the session alive while the user is actively translating. This is
     // intentionally scoped to the session route and released on exit.
     WakelockPlus.enable();
-    unawaited(_connect(_connectionGeneration));
+    unawaited(_sessionController.start());
   }
 
   @override
@@ -596,6 +600,7 @@ class _SessionScreenState extends State<SessionScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _connectionGeneration++;
+    _sessionController.dispose();
     WakelockPlus.disable();
     unawaited(_snailAudio.stopSessionKeepAlive());
     _audioSubscription?.cancel();
