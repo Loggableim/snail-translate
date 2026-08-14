@@ -19,6 +19,7 @@ class AudioPolicy extends ChangeNotifier {
   static const _outputKey = 'audio_policy_output_v1';
   static const _echoGuardKey = 'audio_policy_echo_guard_v1';
   static const _longTurnsKey = 'audio_policy_long_turns_v1';
+  static const _inputKey = 'audio_policy_input_v1';
   // v4 stores a true RMS threshold. Values persisted under the v3 key were
   // mean-square and are ~20x smaller for the same loudness, so reusing them
   // would silently disable the gate.
@@ -34,6 +35,7 @@ class AudioPolicy extends ChangeNotifier {
   AudioOutput _output = AudioOutput.auto;
   bool _echoGuard = false;
   bool _longTurns = false;
+  AudioInput _input = AudioInput.auto;
   double _noiseGateThreshold = defaultNoiseGate;
 
   /// Which device should play translated audio.
@@ -44,6 +46,7 @@ class AudioPolicy extends ChangeNotifier {
 
   /// Whether turn output should be kept alive longer.
   bool get preferLongTurns => _longTurns;
+  AudioInput get input => _input;
 
   /// RMS threshold below which captured audio is treated as silence.
   double get noiseGateThreshold => _noiseGateThreshold;
@@ -80,6 +83,11 @@ class AudioPolicy extends ChangeNotifier {
       _output = _readOutput(prefs, _output);
       _echoGuard = prefs.getBool(_echoGuardKey) ?? (migrated ? _echoGuard : false);
       _longTurns = prefs.getBool(_longTurnsKey) ?? (migrated ? _longTurns : false);
+      final inputValue = prefs.getString(_inputKey);
+      _input = AudioInput.values.firstWhere(
+        (item) => item.name == inputValue,
+        orElse: () => AudioInput.auto,
+      );
       if (migrated) await _persist();
     } catch (_) {
       _applyProfile(AudioPolicyProfile.auto);
@@ -107,6 +115,13 @@ class AudioPolicy extends ChangeNotifier {
   Future<void> setLongTurns(bool value) async {
     if (_longTurns == value) return;
     _longTurns = value;
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> setInput(AudioInput value) async {
+    if (_input == value) return;
+    _input = value;
     notifyListeners();
     await _persist();
   }
@@ -158,6 +173,7 @@ class AudioPolicy extends ChangeNotifier {
       await prefs.setString(_outputKey, _output.name);
       await prefs.setBool(_echoGuardKey, _echoGuard);
       await prefs.setBool(_longTurnsKey, _longTurns);
+      await prefs.setString(_inputKey, _input.name);
     } catch (_) {
       // In-memory state remains valid even if persistence fails.
     }

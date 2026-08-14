@@ -86,6 +86,15 @@ void main() {
     expect(restored.preferLongTurns, isTrue);
   });
 
+  test('persists the selected microphone input across a load cycle', () async {
+    final policy = AudioPolicy();
+    await policy.setInput(AudioInput.headset);
+
+    final restored = AudioPolicy();
+    await restored.load();
+    expect(restored.input, AudioInput.headset);
+  });
+
   test('migrates the legacy profile once without collapsing new settings', () async {
     SharedPreferences.setMockInitialValues({'audio_policy_profile': 'speakerEcho'});
     final restored = AudioPolicy();

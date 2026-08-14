@@ -468,6 +468,7 @@ class _SessionScreenState extends State<SessionScreen>
             }
           });
         }
+        await _snailAudio.setInput(_audioPolicy.input);
         final captureStarted = await _snailAudio.startCapture();
         if (!captureStarted || !_isConnectionActive(generation)) {
           await _snailAudio.stopCapture();
@@ -1025,7 +1026,7 @@ class _SessionScreenState extends State<SessionScreen>
                         const SizedBox(width: 10),
                         Expanded(
                           child: DropdownButtonFormField<AudioInput>(
-                            value: AudioInput.auto,
+                            value: _audioPolicy.input,
                             isExpanded: true,
                             decoration: InputDecoration(
                               labelText: l10n.sessionMicrophoneLabel,
@@ -1044,7 +1045,10 @@ class _SessionScreenState extends State<SessionScreen>
                                   child: Text(l10n.audioRouteHeadset)),
                             ],
                             onChanged: (value) {
-                              if (value != null) _snailAudio.setInput(value);
+                              if (value != null) {
+                                _audioPolicy.setInput(value);
+                                _snailAudio.setInput(value);
+                              }
                             },
                           ),
                         ),
