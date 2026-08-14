@@ -23,6 +23,11 @@ jobs:
             worker/package-lock.json
             durable-object/package-lock.json
 
+      - name: Verify generated protocol types
+        run: |
+          node tools/generate-protocol.mjs
+          git diff --exit-code -- shared/dto/v1/generated
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable

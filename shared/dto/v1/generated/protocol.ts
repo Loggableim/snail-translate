@@ -1,2 +1,20 @@
 // GENERATED from shared/dto/v1/messages.json. Do not edit by hand.
 export const PROTOCOL_VERSION = 1 as const;
+export type ProtocolMessageType =
+  | "auth"
+  | "auth_ok"
+  | "auth_error"
+  | "pcm_audio"
+  | "fallback_pcm_audio"
+  | "chat"
+  | "voice"
+  | "edit"
+  | "delete"
+  | "signal"
+  | "ping"
+  | "chat_history"
+  | "delivery_ack"
+  | "peer_joined"
+  | "peer_left"
+  | "session_end"
+  | "error";
