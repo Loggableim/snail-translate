@@ -154,6 +154,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     private final java.util.concurrent.atomic.AtomicLong playbackPartialWrites = new java.util.concurrent.atomic.AtomicLong();
     private final java.util.concurrent.atomic.AtomicLong playbackWriteFailures = new java.util.concurrent.atomic.AtomicLong();
     private final java.util.concurrent.atomic.AtomicLong playbackBytesWritten = new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong lastPlaybackLogMs = new java.util.concurrent.atomic.AtomicLong();
     private final java.util.concurrent.atomic.AtomicLong playbackMaxWriteMs = new java.util.concurrent.atomic.AtomicLong();
 
     // Config
@@ -749,10 +750,22 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         }
         long elapsed = System.currentTimeMillis() - startedAt;
         playbackMaxWriteMs.accumulateAndGet(elapsed, Math::max);
-        Log.i("SnailAudio", "AudioTrack.write complete: bytes=" + bytes.length
-                + " elapsedMs=" + elapsed + " calls=" + playbackWriteCalls.get()
-                + " partial=" + playbackPartialWrites.get()
-                + " failures=" + playbackWriteFailures.get());
+        if (isDebugBuild()) {
+            long now = System.currentTimeMillis();
+            long previous = lastPlaybackLogMs.get();
+            if (now - previous >= 1_000 && lastPlaybackLogMs.compareAndSet(previous, now)) {
+                Log.i("SnailAudio", "AudioTrack.write summary: bytes=" + bytes.length
+                        + " elapsedMs=" + elapsed + " calls=" + playbackWriteCalls.get()
+                        + " partial=" + playbackPartialWrites.get()
+                        + " failures=" + playbackWriteFailures.get());
+            }
+        }
+    }
+
+    private boolean isDebugBuild() {
+        return applicationContext != null
+                && (applicationContext.getApplicationInfo().flags
+                & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
     }
 
     private synchronized void ensurePlaybackTrack(int rate, String output) {
@@ -1183,7 +1196,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 if (!isHeadsetConnected()) {
                     PcmPreamp.amplifyInPlace(bytes, 3.0, read);
                 }
-                if ((diagnosticReads++ % 50) == 0) {
+                if (isDebugBuild() && (diagnosticReads++ % 50) == 0) {
                     long energy = 0;
                     int samples = read / 2;
                     for (int i = 0; i + 1 < read; i += 2) {
