@@ -35,7 +35,9 @@ class UserIdentityService extends ChangeNotifier {
       await prefs.remove(_legacyStorageKey);
     }
     final publicKey = await _loadDevicePublicKey();
-    if (publicKey != null && publicKey.isNotEmpty && _identity!.publicKey != publicKey) {
+    if (publicKey != null &&
+        publicKey.isNotEmpty &&
+        _identity!.publicKey != publicKey) {
       _identity = UserIdentity(
           userId: _identity!.userId,
           username: _identity!.username,
@@ -78,6 +80,26 @@ class UserIdentityService extends ChangeNotifier {
     try {
       return await const MethodChannel('com.snail.audio/method')
           .invokeMethod<String>('signDevicePayload', {'payload': payload});
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> getDeviceAgreementPublicKey() async {
+    try {
+      return await const MethodChannel('com.snail.audio/method')
+          .invokeMethod<String>('getDeviceAgreementPublicKey');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> deriveSharedSecret(String peerPublicKey) async {
+    if (peerPublicKey.trim().isEmpty) return null;
+    try {
+      return await const MethodChannel('com.snail.audio/method')
+          .invokeMethod<String>(
+              'deriveSharedSecret', {'publicKey': peerPublicKey});
     } catch (_) {
       return null;
     }

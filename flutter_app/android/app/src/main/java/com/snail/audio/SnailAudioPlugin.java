@@ -30,6 +30,8 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.spec.ECGenParameterSpec;
+import java.security.spec.X509EncodedKeySpec;
+import javax.crypto.KeyAgreement;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
@@ -62,6 +64,7 @@ import com.snail.snail.SnailSessionService;
 public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCallHandler, EventChannel.StreamHandler {
     private static final String TAG = "SnailAudio";
     private static final String DEVICE_KEY_ALIAS = "snail.device.identity";
+    private static final String DEVICE_AGREE_ALIAS = "snail.device.agreement";
     private static final String METHOD_CHANNEL = "com.snail.audio/method";
     private static final String EVENT_CHANNEL = "com.snail.audio/stream";
     private static final String SESSION_EVENT_CHANNEL = "com.snail.audio/session_events";
@@ -326,6 +329,25 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                     result.success(signDevicePayload(payload == null ? "" : payload));
                 } catch (Exception error) {
                     result.error("DEVICE_SIGNATURE_ERROR", error.getMessage(), null);
+                }
+                break;
+            case "getDeviceAgreementPublicKey":
+                try {
+                    result.success(getDeviceAgreementPublicKey());
+                } catch (Exception error) {
+                    result.error("DEVICE_KEY_ERROR", error.getMessage(), null);
+                }
+                break;
+            case "deriveSharedSecret":
+                try {
+                    String peerKey = call.argument("publicKey");
+                    if (peerKey == null || peerKey.trim().isEmpty()) {
+                        result.error("INVALID_ARGUMENT", "publicKey is required", null);
+                        break;
+                    }
+                    result.success(deriveSharedSecret(peerKey));
+                } catch (Exception error) {
+                    result.error("DEVICE_KEY_ERROR", error.getMessage(), null);
                 }
                 break;
             case "setAecEnabled":
@@ -791,6 +813,40 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         signature.initSign(privateKey);
         signature.update(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         return Base64.encodeToString(signature.sign(), Base64.NO_WRAP);
+    }
+
+    /** Returns the separate Keystore P-256 public key reserved for ECDH. */
+    private String getDeviceAgreementPublicKey() throws Exception {
+        KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+        keyStore.load(null);
+        if (!keyStore.containsAlias(DEVICE_AGREE_ALIAS)) {
+            KeyPairGenerator generator = KeyPairGenerator.getInstance(
+                    "EC", "AndroidKeyStore");
+            generator.initialize(new android.security.keystore.KeyGenParameterSpec.Builder(
+                    DEVICE_AGREE_ALIAS,
+                    android.security.keystore.KeyProperties.PURPOSE_AGREE_KEY)
+                    .setAlgorithmParameterSpec(new ECGenParameterSpec("secp256r1"))
+                    .build());
+            generator.generateKeyPair();
+        }
+        java.security.cert.Certificate certificate = keyStore.getCertificate(DEVICE_AGREE_ALIAS);
+        if (certificate == null) throw new IllegalStateException("Device agreement key unavailable");
+        return Base64.encodeToString(certificate.getPublicKey().getEncoded(), Base64.NO_WRAP);
+    }
+
+    private String deriveSharedSecret(String peerPublicKey) throws Exception {
+        getDeviceAgreementPublicKey();
+        KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+        keyStore.load(null);
+        PrivateKey privateKey = (PrivateKey) keyStore.getKey(DEVICE_AGREE_ALIAS, null);
+        if (privateKey == null) throw new IllegalStateException("Device agreement private key unavailable");
+        byte[] encodedPeer = Base64.decode(peerPublicKey, Base64.DEFAULT);
+        java.security.KeyFactory factory = java.security.KeyFactory.getInstance("EC");
+        java.security.PublicKey publicKey = factory.generatePublic(new X509EncodedKeySpec(encodedPeer));
+        KeyAgreement agreement = KeyAgreement.getInstance("ECDH");
+        agreement.init(privateKey);
+        agreement.doPhase(publicKey, true);
+        return Base64.encodeToString(agreement.generateSecret(), Base64.NO_WRAP);
     }
 
     /** Writes every PCM byte or fails explicitly; AudioTrack may short-write. */
