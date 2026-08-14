@@ -895,11 +895,16 @@ class _SessionScreenState extends State<SessionScreen>
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      '$relayLabel · $peerLabel · ${l10n.sessionMicrophoneLabel}: '
-                      '${microphoneReady ? l10n.standaloneStatusActive : l10n.welcomeMicStartFailed} · $routeLabel',
-                      style: Theme.of(context).textTheme.bodySmall,
-                      textAlign: TextAlign.center,
+                    Semantics(
+                      label: l10n.sessionMicrophoneLabel,
+                      value: '$relayLabel · $peerLabel · '
+                          '${microphoneReady ? l10n.standaloneStatusActive : l10n.welcomeMicStartFailed} · $routeLabel',
+                      child: Text(
+                        '$relayLabel · $peerLabel · ${l10n.sessionMicrophoneLabel}: '
+                        '${microphoneReady ? l10n.standaloneStatusActive : l10n.welcomeMicStartFailed} · $routeLabel',
+                        style: Theme.of(context).textTheme.bodySmall,
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                     const SizedBox(height: 8),
 
@@ -1189,28 +1194,38 @@ class _SessionScreenState extends State<SessionScreen>
                     SizedBox(height: compact ? 20 : 48),
 
                     // Mute button
-                    IconButton.filled(
-                      onPressed: () async {
+                    Semantics(
+                      button: true,
+                      label: audio.isMuted
+                          ? l10n.sessionMuted
+                          : l10n.sessionActive,
+                      child: IconButton.filled(
+                        onPressed: () async {
                         audio.toggleMute();
                         if (audio.isMuted) await _snailAudio.stopPlayback();
-                      },
-                      icon: Icon(audio.isMuted ? Icons.mic_off : Icons.mic,
-                          size: 32),
-                      style: IconButton.styleFrom(
-                        minimumSize: const Size(80, 80),
-                        backgroundColor: audio.isMuted
-                            ? Colors.red
-                            : Theme.of(context).colorScheme.primary,
-                        foregroundColor: Colors.white,
+                        },
+                        icon: Icon(audio.isMuted ? Icons.mic_off : Icons.mic,
+                            size: 32),
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size(80, 80),
+                          backgroundColor: audio.isMuted
+                              ? Colors.red
+                              : Theme.of(context).colorScheme.primary,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     // ── Audio level meter ──
                     ValueListenableBuilder<double>(
                       valueListenable: _micLevel,
-                      builder: (context, level, _) => _LevelBar(
-                        level: level,
-                        gateThreshold: _audioPolicy.noiseGateThreshold,
+                      builder: (context, level, _) => Semantics(
+                        label: l10n.sessionMicrophoneLabel,
+                        value: '${_levelDb(level)} dBFS',
+                        child: _LevelBar(
+                          level: level,
+                          gateThreshold: _audioPolicy.noiseGateThreshold,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
