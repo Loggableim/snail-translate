@@ -10,6 +10,7 @@ import '../services/snail_audio.dart';
 import '../services/fish_audio_asr_service.dart';
 import '../services/session_service.dart';
 import '../services/provider_config_service.dart';
+import '../services/fish_audio_realtime_service.dart';
 import '../models/provider_config.dart';
 
 /// One-time guided onboarding shown on first app launch.
@@ -17,8 +18,31 @@ import '../models/provider_config.dart';
 /// Two steps:
 /// 1. Core value proposition — what Snail does
 /// 2. Microphone test — record a short sample and hear it played back
+typedef WelcomeProviderProbe = Future<String?> Function(ProviderConfig config);
+
+Future<String?> defaultWelcomeProviderProbe(ProviderConfig config) async {
+  final service = FishAudioRealtimeService();
+  try {
+    await service.connect(
+      apiKey: config.apiKey,
+      voiceId: config.voiceId,
+      model: config.model,
+      temperature: config.temperature,
+      topP: config.topP,
+      speed: config.speed,
+    );
+    await service.disconnect();
+    return null;
+  } catch (_) {
+    await service.disconnect();
+    return 'provider_connection';
+  }
+}
+
 class WelcomeScreen extends StatefulWidget {
-  const WelcomeScreen({super.key});
+  const WelcomeScreen({super.key, this.providerProbe});
+
+  final WelcomeProviderProbe? providerProbe;
 
   static const _shownKey = 'snail_welcome_shown';
 
@@ -337,7 +361,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           context.watch<SessionService>().myLanguage,
                       onContinue: () => _goToPage(1),
                     ),
-                    _ProviderKeyWelcome(onContinue: () => _goToPage(2)),
+                    _ProviderKeyWelcome(
+                      onContinue: () => _goToPage(2),
+                      providerProbe: widget.providerProbe,
+                    ),
                     // ── Page 1: Value proposition ──
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1104,9 +1131,13 @@ class _LanguageSplash extends StatelessWidget {
 }
 
 class _ProviderKeyWelcome extends StatefulWidget {
-  const _ProviderKeyWelcome({required this.onContinue});
+  const _ProviderKeyWelcome({
+    required this.onContinue,
+    this.providerProbe,
+  });
 
   final VoidCallback onContinue;
+  final WelcomeProviderProbe? providerProbe;
 
   @override
   State<_ProviderKeyWelcome> createState() => _ProviderKeyWelcomeState();
@@ -1121,6 +1152,7 @@ class _ProviderKeyWelcomeState extends State<_ProviderKeyWelcome> {
   );
   bool _obscure = true;
   bool _saving = false;
+  String? _probeError;
 
   @override
   void initState() {
@@ -1163,8 +1195,22 @@ class _ProviderKeyWelcomeState extends State<_ProviderKeyWelcome> {
     } catch (_) {
       // Keep onboarding functional when embedded without the app providers.
     }
+    final probe = widget.providerProbe ?? defaultWelcomeProviderProbe;
+    final probeError = await probe(updated);
+    if (probeError != null) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _probeError = probeError;
+        });
+      }
+      return;
+    }
     if (mounted) {
-      setState(() => _saving = false);
+      setState(() {
+        _saving = false;
+        _probeError = null;
+      });
       widget.onContinue();
     }
   }
@@ -1186,6 +1232,14 @@ class _ProviderKeyWelcomeState extends State<_ProviderKeyWelcome> {
                 ?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height: 10),
         Text(l10n.welcomeFishSetupBody, textAlign: TextAlign.center),
+        if (_probeError != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            l10n.welcomeTranscriptionFailed('provider connection'),
+            style: TextStyle(color: colors.error),
+            textAlign: TextAlign.center,
+          ),
+        ],
         const SizedBox(height: 22),
         TextField(
           controller: _key,
