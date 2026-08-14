@@ -16,6 +16,9 @@ enum AudioPolicyProfile { auto, headset, speakerEcho, longerSpeech }
 /// - [preferLongTurns] — whether to keep turn output alive longer
 class AudioPolicy extends ChangeNotifier {
   static const _key = 'audio_policy_profile';
+  static const _outputKey = 'audio_policy_output_v1';
+  static const _echoGuardKey = 'audio_policy_echo_guard_v1';
+  static const _longTurnsKey = 'audio_policy_long_turns_v1';
   // v4 stores a true RMS threshold. Values persisted under the v3 key were
   // mean-square and are ~20x smaller for the same loudness, so reusing them
   // would silently disable the gate.
@@ -72,7 +75,12 @@ class AudioPolicy extends ChangeNotifier {
         (item) => item.name == value,
         orElse: () => AudioPolicyProfile.auto,
       );
-      _applyProfile(profile);
+      final migrated = !_hasIndependentSettings(prefs);
+      if (migrated) _applyProfile(profile);
+      _output = _readOutput(prefs, _output);
+      _echoGuard = prefs.getBool(_echoGuardKey) ?? (migrated ? _echoGuard : false);
+      _longTurns = prefs.getBool(_longTurnsKey) ?? (migrated ? _longTurns : false);
+      if (migrated) await _persist();
     } catch (_) {
       _applyProfile(AudioPolicyProfile.auto);
     }
@@ -147,12 +155,25 @@ class AudioPolicy extends ChangeNotifier {
   Future<void> _persist() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      // Persist as the closest legacy profile for backward compat.
-      final profile = _toLegacyProfile();
-      await prefs.setString(_key, profile.name);
+      await prefs.setString(_outputKey, _output.name);
+      await prefs.setBool(_echoGuardKey, _echoGuard);
+      await prefs.setBool(_longTurnsKey, _longTurns);
     } catch (_) {
       // In-memory state remains valid even if persistence fails.
     }
+  }
+
+  bool _hasIndependentSettings(SharedPreferences prefs) =>
+      prefs.containsKey(_outputKey) &&
+      prefs.containsKey(_echoGuardKey) &&
+      prefs.containsKey(_longTurnsKey);
+
+  AudioOutput _readOutput(SharedPreferences prefs, AudioOutput fallback) {
+    final value = prefs.getString(_outputKey);
+    return AudioOutput.values.firstWhere(
+      (item) => item.name == value,
+      orElse: () => fallback,
+    );
   }
 
   AudioPolicyProfile _toLegacyProfile() {
