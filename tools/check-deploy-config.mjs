@@ -1,7 +1,9 @@
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const configPath = resolve(process.cwd(), "wrangler.toml");
+// Resolve the repository config from this script so the guard behaves the
+// same way from the repository root and from worker/ (where npm deploy runs).
+const configPath = fileURLToPath(new URL("../wrangler.toml", import.meta.url));
 const config = await readFile(configPath, "utf8");
 const hasProductionRoute = /\[\[routes\]\][\s\S]*?^pattern\s*=\s*"(?![^"\n]*workers\.dev)[^"]+"/m.test(config);
 const devMode = /^DEV_MODE\s*=\s*"true"\s*$/m.test(config);
