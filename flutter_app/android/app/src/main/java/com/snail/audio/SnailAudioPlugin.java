@@ -41,6 +41,7 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
+import io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener;
 import com.snail.snail.SnailSessionService;
 
 /**
@@ -72,8 +73,20 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private Context applicationContext;
     private Activity activity;
+    private ActivityPluginBinding activityBinding;
     private Result pendingPermissionResult;
     private static final int MICROPHONE_PERMISSION_REQUEST = 7314;
+    private final RequestPermissionsResultListener permissionListener = (requestCode, permissions, grantResults) -> {
+        if (requestCode != MICROPHONE_PERMISSION_REQUEST || pendingPermissionResult == null) return false;
+        boolean granted = grantResults.length >= permissions.length;
+        for (int grantResult : grantResults) {
+            granted &= grantResult == PackageManager.PERMISSION_GRANTED;
+        }
+        Result pending = pendingPermissionResult;
+        pendingPermissionResult = null;
+        pending.success(granted);
+        return true;
+    };
 
     // Audio
     private AudioRecord audioRecord;
@@ -249,11 +262,21 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 }
                 break;
             case "setAecEnabled":
-                aecEnabled = call.argument("enabled");
+                Boolean requestedAec = call.argument("enabled");
+                if (requestedAec == null) {
+                    result.error("INVALID_ARGUMENT", "enabled must be a boolean", null);
+                    break;
+                }
+                aecEnabled = requestedAec;
                 result.success(null);
                 break;
             case "setNoiseSuppressionEnabled":
-                noiseSuppressionEnabled = call.argument("enabled");
+                Boolean requestedNoiseSuppression = call.argument("enabled");
+                if (requestedNoiseSuppression == null) {
+                    result.error("INVALID_ARGUMENT", "enabled must be a boolean", null);
+                    break;
+                }
+                noiseSuppressionEnabled = requestedNoiseSuppression;
                 result.success(null);
                 break;
             case "getAudioSessionId":
@@ -294,6 +317,10 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             result.success(false);
             return;
         }
+        if (pendingPermissionResult != null) {
+            result.error("PERMISSION_REQUEST_PENDING", "A microphone permission request is already pending", null);
+            return;
+        }
         pendingPermissionResult = result;
         String[] permissions = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
                 ? new String[]{Manifest.permission.RECORD_AUDIO, Manifest.permission.BLUETOOTH_CONNECT}
@@ -304,30 +331,39 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
 
     @Override public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
         activity = binding.getActivity();
-        binding.addRequestPermissionsResultListener((requestCode, permissions, grantResults) -> {
-            if (requestCode != MICROPHONE_PERMISSION_REQUEST || pendingPermissionResult == null) return false;
-            boolean granted = grantResults.length >= permissions.length;
-            for (int grantResult : grantResults) {
-                granted &= grantResult == PackageManager.PERMISSION_GRANTED;
-            }
-            Result pending = pendingPermissionResult;
-            pendingPermissionResult = null;
-            pending.success(granted);
-            return true;
-        });
+        activityBinding = binding;
+        binding.addRequestPermissionsResultListener(permissionListener);
     }
 
-    @Override public void onDetachedFromActivityForConfigChanges() { activity = null; }
+    @Override public void onDetachedFromActivityForConfigChanges() {
+        if (activityBinding != null) activityBinding.removeRequestPermissionsResultListener(permissionListener);
+        activityBinding = null;
+        activity = null;
+    }
     @Override public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) { onAttachedToActivity(binding); }
-    @Override public void onDetachedFromActivity() { activity = null; }
+    @Override public void onDetachedFromActivity() {
+        if (activityBinding != null) activityBinding.removeRequestPermissionsResultListener(permissionListener);
+        activityBinding = null;
+        activity = null;
+    }
 
     private void handleInitialize(MethodCall call, Result result) {
-        sampleRate = call.argument("sampleRate");
-        if (sampleRate == 0) sampleRate = 16000;
+        Integer requestedSampleRate = call.argument("sampleRate");
+        if (requestedSampleRate == null || requestedSampleRate <= 0 || requestedSampleRate > 192000) {
+            result.error("INVALID_ARGUMENT", "sampleRate must be between 1 and 192000 Hz", null);
+            return;
+        }
+        sampleRate = requestedSampleRate;
 
-        aecEnabled = call.hasArgument("aecEnabled") ? call.argument("aecEnabled") : true;
-        noiseSuppressionEnabled = call.hasArgument("noiseSuppressionEnabled")
-                ? call.argument("noiseSuppressionEnabled") : true;
+        Boolean requestedAec = call.hasArgument("aecEnabled") ? call.argument("aecEnabled") : Boolean.TRUE;
+        Boolean requestedNoiseSuppression = call.hasArgument("noiseSuppressionEnabled")
+                ? call.argument("noiseSuppressionEnabled") : Boolean.TRUE;
+        if (requestedAec == null || requestedNoiseSuppression == null) {
+            result.error("INVALID_ARGUMENT", "aecEnabled and noiseSuppressionEnabled must be booleans", null);
+            return;
+        }
+        aecEnabled = requestedAec;
+        noiseSuppressionEnabled = requestedNoiseSuppression;
         // Calculate buffer size (20ms frames)
         int frameSize = (sampleRate * 20) / 1000; // samples per 20ms
         bufferSize = frameSize * 2; // 16-bit = 2 bytes per sample
