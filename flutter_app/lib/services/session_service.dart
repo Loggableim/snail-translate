@@ -253,20 +253,19 @@ class SessionService extends ChangeNotifier {
       // turns it into a distinct, non-existent room (`SNAIL-ABCD`).
       final normalizedRoomId = 'snail-${match.group(1)!.toUpperCase()}';
       const requestBody = '';
-      final response = await retry(
-        () async => withTimeout(
-          http.post(
-            Uri.parse('${ApiKeys.workerUrl}/api/rooms/$normalizedRoomId/join'),
-            headers: await _authHeaders(
-                json: true,
-                method: 'POST',
-                path: '/api/rooms/$normalizedRoomId/join',
-                body: requestBody),
-            body: requestBody,
-          ),
-          const Duration(seconds: 15),
+      // Joining also creates a short-lived session token. A timeout can occur
+      // after the Worker has issued it, so repeating this POST is unsafe.
+      final response = await withTimeout(
+        http.post(
+          Uri.parse('${ApiKeys.workerUrl}/api/rooms/$normalizedRoomId/join'),
+          headers: await _authHeaders(
+              json: true,
+              method: 'POST',
+              path: '/api/rooms/$normalizedRoomId/join',
+              body: requestBody),
+          body: requestBody,
         ),
-        maxAttempts: 3,
+        const Duration(seconds: 15),
       );
 
       if (response.statusCode == 200) {
