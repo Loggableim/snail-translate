@@ -880,9 +880,12 @@ class _SessionScreenState extends State<SessionScreen>
           ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: Icon(
-              microphoneReady ? Icons.people : Icons.mic_off,
-              color: microphoneReady ? Colors.green : Colors.grey,
+            child: Semantics(
+              label: l10n.sessionConnectionDetail('$relayLabel · $peerLabel'),
+              child: Icon(
+                microphoneReady ? Icons.people : Icons.mic_off,
+                color: microphoneReady ? Colors.green : Colors.grey,
+              ),
             ),
           ),
         ],
