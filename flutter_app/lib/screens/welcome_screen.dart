@@ -1277,7 +1277,7 @@ class _ProviderKeyWelcomeState extends State<_ProviderKeyWelcome> {
         if (_probeError != null) ...[
           const SizedBox(height: 12),
           Text(
-            l10n.welcomeTranscriptionFailed('provider connection'),
+            l10n.welcomeTranscriptionFailed(l10n.commonError),
             style: TextStyle(color: colors.error),
             textAlign: TextAlign.center,
           ),
