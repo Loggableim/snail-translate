@@ -57,6 +57,13 @@ describe("AppShareRelay", () => {
     expect(new Uint8Array(received[0])).toEqual(new Uint8Array([1, 2, 3, 4]));
     expect(host.messages).toContainEqual({ type: "guest_connected" });
     expect(guest.messages).toContainEqual({ type: "host_ready" });
+    host.socket.send(new Uint8Array([5]).buffer);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(received).toHaveLength(1);
+    expect(host.messages).toContainEqual({
+      type: "transfer_error",
+      error: "Transfer exceeds announced size",
+    });
   });
 
   it("rejects duplicate roles and cleans expired storage", async () => {
