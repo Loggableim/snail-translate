@@ -16,7 +16,8 @@ void main() {
     expect(policy.output, AudioOutput.auto);
   });
 
-  test('speaker profile forces echo guard without long-turn behavior', () async {
+  test('speaker profile forces echo guard without long-turn behavior',
+      () async {
     final policy = AudioPolicy();
     await policy.setProfile(AudioPolicyProfile.speakerEcho);
     expect(policy.forceEchoGuard, isTrue);
@@ -24,7 +25,8 @@ void main() {
     expect(policy.output, AudioOutput.speaker);
   });
 
-  test('longer-speech profile keeps turn output from being discarded', () async {
+  test('longer-speech profile keeps turn output from being discarded',
+      () async {
     final policy = AudioPolicy();
     await policy.setProfile(AudioPolicyProfile.longerSpeech);
     expect(policy.forceEchoGuard, isFalse);
@@ -66,10 +68,10 @@ void main() {
 
     test('label reflects current state', () async {
       final policy = AudioPolicy();
-      expect(policy.label, 'Automatisch');
+      expect(policy.label, 'auto');
       await policy.setOutput(AudioOutput.speaker);
       await policy.setEchoGuard(true);
-      expect(policy.label, 'Lautsprecher, Echo-Schutz');
+      expect(policy.label, 'speaker+echo');
     });
   });
 
@@ -95,8 +97,10 @@ void main() {
     expect(restored.input, AudioInput.headset);
   });
 
-  test('migrates the legacy profile once without collapsing new settings', () async {
-    SharedPreferences.setMockInitialValues({'audio_policy_profile': 'speakerEcho'});
+  test('migrates the legacy profile once without collapsing new settings',
+      () async {
+    SharedPreferences.setMockInitialValues(
+        {'audio_policy_profile': 'speakerEcho'});
     final restored = AudioPolicy();
     await restored.load();
     expect(restored.output, AudioOutput.speaker);

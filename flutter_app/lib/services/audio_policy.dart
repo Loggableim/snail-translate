@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'snail_audio.dart';
+import '../l10n/app_localizations.dart';
 
 /// Legacy profile kept for backward-compatible persistence.
 /// New code should use the individual [output], [forceEchoGuard],
@@ -51,16 +52,29 @@ class AudioPolicy extends ChangeNotifier {
   /// RMS threshold below which captured audio is treated as silence.
   double get noiseGateThreshold => _noiseGateThreshold;
 
-  /// Human-readable label for the current policy.
+  /// Stable, locale-independent identifier for diagnostics and persistence.
   String get label {
-    final device = switch (_output) {
-      AudioOutput.speaker => 'Lautsprecher',
-      AudioOutput.headset => 'Headset',
-      AudioOutput.auto => 'Automatisch',
-    };
-    final echo = _echoGuard ? ', Echo-Schutz' : '';
-    final turns = _longTurns ? ', längere Sätze' : '';
+    final device = _output.name;
+    final echo = _echoGuard ? '+echo' : '';
+    final turns = _longTurns ? '+long-turns' : '';
     return '$device$echo$turns';
+  }
+
+  /// Localized label for presentation in a Flutter widget tree.
+  String localizedLabel(AppLocalizations l10n) {
+    final device = switch (_output) {
+      AudioOutput.speaker => l10n.audioRouteSpeaker,
+      AudioOutput.headset => l10n.audioRouteHeadset,
+      AudioOutput.auto => l10n.audioRouteAuto,
+    };
+    final profile = _toLegacyProfile();
+    final suffix = switch (profile) {
+      AudioPolicyProfile.speakerEcho => ' / ${l10n.settingsProfileSpeakerEcho}',
+      AudioPolicyProfile.longerSpeech =>
+        ' / ${l10n.settingsProfileLongerSentences}',
+      _ => '',
+    };
+    return '$device$suffix';
   }
 
   /// Legacy profile getter for backward compatibility.
@@ -81,8 +95,10 @@ class AudioPolicy extends ChangeNotifier {
       final migrated = !_hasIndependentSettings(prefs);
       if (migrated) _applyProfile(profile);
       _output = _readOutput(prefs, _output);
-      _echoGuard = prefs.getBool(_echoGuardKey) ?? (migrated ? _echoGuard : false);
-      _longTurns = prefs.getBool(_longTurnsKey) ?? (migrated ? _longTurns : false);
+      _echoGuard =
+          prefs.getBool(_echoGuardKey) ?? (migrated ? _echoGuard : false);
+      _longTurns =
+          prefs.getBool(_longTurnsKey) ?? (migrated ? _longTurns : false);
       final inputValue = prefs.getString(_inputKey);
       _input = AudioInput.values.firstWhere(
         (item) => item.name == inputValue,
