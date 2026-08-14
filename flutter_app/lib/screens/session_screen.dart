@@ -155,6 +155,26 @@ class _SessionScreenState extends State<SessionScreen>
     });
     final sessionService = context.read<SessionService>();
     await sessionService.setTargetLanguage(target);
+    await _restartProvidersForLanguage();
+  }
+
+  Future<void> _restartProvidersForLanguage() async {
+    final generation = ++_connectionGeneration;
+    await _audioSubscription?.cancel();
+    _audioSubscription = null;
+    _fishProcessTimer?.cancel();
+    _fishProcessTimer = null;
+    _playbackBuffer.clear();
+    _playbackDraining = false;
+    await _snailAudio.stopCapture();
+    await _p2p.dispose();
+    await _openAi?.disconnect();
+    await _gemini?.disconnect();
+    _disposeGuestFallbackOpenAi();
+    _audioService.disconnect();
+    if (_isConnectionActive(generation)) {
+      unawaited(_connect(generation));
+    }
   }
 
   bool _isConnectionActive(int generation) =>
