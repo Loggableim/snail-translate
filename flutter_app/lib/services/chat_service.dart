@@ -15,9 +15,11 @@ class ChatService extends ChangeNotifier {
 
   final List<ChatMessage> _messages = [];
   final List<Map<String, dynamic>> _outbox = [];
+  final Set<String> _inFlight = <String>{};
 
   /// Callback to send a raw JSON message through the WebSocket.
   void Function(String jsonMessage)? onSend;
+  bool Function()? canSend;
 
   /// Callback to send via P2P (WebRTC data channel).
   void Function(Map<String, dynamic> message)? onP2pSend;
@@ -105,10 +107,16 @@ class ChatService extends ChangeNotifier {
 
   /// Flush queued messages. Called by AudioService when connection is ready.
   void flushOutbox() {
+    if (canSend?.call() == false) return;
     for (final message in List<Map<String, dynamic>>.from(_outbox)) {
+      final id = message['messageId'];
+      if (id is String && !_inFlight.add(id)) continue;
       onSend?.call(jsonEncode(message));
     }
   }
+
+  /// Makes queued messages eligible for delivery after a transport drop.
+  void markTransportUnavailable() => _inFlight.clear();
 
   // ── Idempotency ────────────────────────────────────────────────────
 
@@ -145,7 +153,8 @@ class ChatService extends ChangeNotifier {
       'targetLang': targetLang,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     };
-    final canSend = onSend != null;
+    final relayAvailable = onSend != null && (canSend?.call() ?? true);
+    final p2pAvailable = isP2pConnected?.call() == true && onP2pSend != null;
     _messages.add(ChatMessage(
       id: messageId,
       text: text.trim(),
@@ -155,14 +164,17 @@ class ChatService extends ChangeNotifier {
       timestamp: DateTime.fromMillisecondsSinceEpoch(
           message['timestamp']! as int),
       outgoing: true,
-      status: canSend ? MessageStatus.sent : MessageStatus.queued,
+      status: relayAvailable || p2pAvailable
+          ? MessageStatus.sent
+          : MessageStatus.queued,
     ));
     notifyListeners();
-    if (isP2pConnected?.call() == true) onP2pSend?.call(message);
-    if (!canSend) {
+    if (p2pAvailable) onP2pSend?.call(message);
+    if (!relayAvailable && !p2pAvailable) {
       _queue(message);
-    } else {
+    } else if (relayAvailable) {
       onSend?.call(jsonEncode(message));
+      _inFlight.add(messageId);
     }
   }
 
@@ -225,6 +237,7 @@ class ChatService extends ChangeNotifier {
   // ── Delivery ack ───────────────────────────────────────────────────
 
   void handleDeliveryAck(String messageId) {
+    _inFlight.remove(messageId);
     _outbox.removeWhere((item) => item['messageId'] == messageId);
     updateMessageStatus(messageId, MessageStatus.delivered);
     _persistOutbox();

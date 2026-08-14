@@ -86,6 +86,7 @@ class AudioService extends ChangeNotifier {
         _channel?.sink.add(jsonMessage);
       }
     };
+    chat.canSend = () => _isConnected && _isAuthenticated;
     chat.onP2pSend = (message) {
       if (isP2pConnected?.call() == true) onP2pChatSend?.call(message);
     };
@@ -243,6 +244,7 @@ class AudioService extends ChangeNotifier {
     );
     _isConnected = false;
     _isAuthenticated = false;
+    chat.markTransportUnavailable();
     notifyListeners();
     chat.persistConversation();
     _tryReconnect();
@@ -252,6 +254,7 @@ class AudioService extends ChangeNotifier {
     _isConnected = false;
     _isAuthenticated = false;
     _isPeerConnected = false;
+    chat.markTransportUnavailable();
     notifyListeners();
     _tryReconnect();
   }
@@ -358,6 +361,7 @@ class AudioService extends ChangeNotifier {
     _isConnected = false;
     _isAuthenticated = false;
     _isPeerConnected = false;
+    chat.markTransportUnavailable();
     _isReconnecting = false;
     _fishTtsConfig = null;
     notifyListeners();
