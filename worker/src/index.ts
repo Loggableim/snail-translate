@@ -62,6 +62,8 @@ const MAX_ROOM_ID_ATTEMPTS = 5;
 const APP_SHARE_TTL = 15 * 60;
 const REALTIME_SECRET_LIMIT = 10;
 const REALTIME_SECRET_WINDOW_SECONDS = 60;
+const ROOM_RATE_WINDOW_SECONDS = 60;
+const ROOM_RATE_LIMITS = { create: 10, join: 20, websocket: 40, failedJoin: 5 } as const;
 
 function iceServers(env: Env): Array<Record<string, unknown>> {
   const servers: Array<Record<string, unknown>> = [{ urls: "stun:stun.l.google.com:19302" }];
@@ -199,6 +201,31 @@ async function checkQuota(userId: string, env: Env): Promise<{ allowed: boolean;
   return { allowed: remaining > 0, remaining };
 }
 
+async function checkRoomRateLimit(
+  request: Request,
+  env: Env,
+  action: keyof typeof ROOM_RATE_LIMITS,
+): Promise<Response | null> {
+  const identity = request.headers.get("X-Snail-Identity")?.trim();
+  const ip = request.headers.get("CF-Connecting-IP")?.trim() || "unknown";
+  const subject = identity ? `identity:${identity}` : `ip:${ip}`;
+  const window = Math.floor(Date.now() / (ROOM_RATE_WINDOW_SECONDS * 1_000));
+  const key = `room-rate:${action}:${subject}:${window}`;
+  const used = Number(await env.SNAIL_KV.get(key) || "0");
+  if (used >= ROOM_RATE_LIMITS[action]) {
+    return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+      status: 429,
+      headers: {
+        ...corsHeaders(request.headers.get("Origin") || "", env.CORS_ORIGINS),
+        "Content-Type": "application/json",
+        "Retry-After": String(ROOM_RATE_WINDOW_SECONDS),
+      },
+    });
+  }
+  await env.SNAIL_KV.put(key, String(used + 1), { expirationTtl: ROOM_RATE_WINDOW_SECONDS + 5 });
+  return null;
+}
+
 // ── Room Management ───────────────────────────────────────────────────
 
 function generateRoomId(): string {
@@ -315,11 +342,13 @@ async function handleJoinRoom(request: Request, env: Env, roomId: string): Promi
   const doStub = env.SNAIL_RELAY.get(doId);
   const roomCheck = await doStub.fetch(new Request("https://internal/status"));
   if (roomCheck.status !== 200) {
+    await checkRoomRateLimit(request, env, "failedJoin");
     return json({ error: "Room not found" }, 404, origin, env.CORS_ORIGINS);
   }
 
   const roomState: any = await roomCheck.json();
   if (roomState.inviteeId && roomState.inviteeId !== getSnailIdentity(request)) {
+    await checkRoomRateLimit(request, env, "failedJoin");
     return json({ error: "This session was invited for another Snail identity" }, 403, origin, env.CORS_ORIGINS);
   }
   // Do not use the persisted `guestId` as a capacity lock here. It is
@@ -461,6 +490,8 @@ export default {
     if (request.headers.get("Upgrade") === "websocket") {
       const roomId = url.searchParams.get("room");
       if (!roomId) return new Response("Missing room", { status: 400 });
+      const limited = await checkRoomRateLimit(request, env, "websocket");
+      if (limited) return limited;
       const doId = env.SNAIL_RELAY.idFromName(roomId);
       const doStub = env.SNAIL_RELAY.get(doId);
       // Ensure DO has the session secret before handling WebSocket
@@ -515,12 +546,16 @@ export default {
 
     // Create room
     if (path === "/api/rooms" && request.method === "POST") {
+      const limited = await checkRoomRateLimit(request, env, "create");
+      if (limited) return limited;
       return handleCreateRoom(request, env);
     }
 
     // Join room
     const joinMatch = path.match(/^\/api\/rooms\/(.+)\/join$/);
     if (joinMatch && request.method === "POST") {
+      const limited = await checkRoomRateLimit(request, env, "join");
+      if (limited) return limited;
       return handleJoinRoom(request, env, joinMatch[1]);
     }
 

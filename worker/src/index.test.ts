@@ -144,6 +144,27 @@ describe("Worker fetch handler", () => {
     expect(await response.json()).toEqual({ error: "Could not allocate a unique room code" });
   });
 
+  it("rate-limits repeated room joins and advertises the retry window", async () => {
+    const sharedKv = kv();
+    const bindings = {
+      SNAIL_KV: sharedKv,
+      SNAIL_RELAY: namespace(new Response("Not found", { status: 404 })),
+    };
+    for (let i = 0; i < 20; i++) {
+      const response = await call("/api/rooms/ABCD2345/join", {
+        method: "POST",
+        headers: { "X-API-Key": "test-api-key" },
+      }, bindings);
+      expect(response.status).toBe(404);
+    }
+    const response = await call("/api/rooms/ABCD2345/join", {
+      method: "POST",
+      headers: { "X-API-Key": "test-api-key" },
+    }, bindings);
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("60");
+  });
+
   it("reports an unavailable realtime secret through the real route", async () => {
     const response = await call("/api/realtime/client-secret", {
       method: "POST",
