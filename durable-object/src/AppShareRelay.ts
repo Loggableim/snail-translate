@@ -35,7 +35,8 @@ export class AppShareRelay implements DurableObject {
       return new Response('WebSocket required', { status: 426 });
     }
     const role = url.searchParams.get('role') === 'host' ? 'host' : 'guest';
-    if ((role === 'host' && this.host) || (role === 'guest' && this.guest)) {
+    if ((role === 'host' && this.isOpen(this.host)) ||
+        (role === 'guest' && this.isOpen(this.guest))) {
       return new Response(`${role} already connected`, { status: 409 });
     }
     const pair = new WebSocketPair();
@@ -43,13 +44,14 @@ export class AppShareRelay implements DurableObject {
     server.accept();
     if (role === 'host') this.host = server; else this.guest = server;
     this.send(server, { type: 'connected', role, bytes: this.meta.bytes, version: this.meta.version });
-    if (role === 'guest' && this.host) {
+    if (role === 'guest' && this.isOpen(this.host)) {
       this.send(this.host, { type: 'guest_connected' });
       this.send(server, { type: 'host_ready' });
     }
     server.addEventListener('message', (event) => this.onMessage(server, role, event.data));
     server.addEventListener('close', () => {
-      if (role === 'host') this.host = null; else this.guest = null;
+      if (role === 'host' && this.host === server) this.host = null;
+      if (role === 'guest' && this.guest === server) this.guest = null;
       const peer = role === 'host' ? this.guest : this.host;
       if (peer) this.send(peer, { type: `${role}_disconnected` });
     });
@@ -75,7 +77,21 @@ export class AppShareRelay implements DurableObject {
     }
   }
 
-  private send(socket: WebSocket | null, data: unknown) { if (socket) socket.send(JSON.stringify(data)); }
+  private isOpen(socket: WebSocket | null): socket is WebSocket {
+    return socket !== null && socket.readyState === WebSocket.OPEN;
+  }
+
+  private send(socket: WebSocket | null, data: unknown) {
+    if (this.isOpen(socket)) socket.send(JSON.stringify(data));
+  }
   private broadcast(data: unknown) { this.send(this.host, data); this.send(this.guest, data); }
-  async alarm() { this.host?.close(4000, 'Share expired'); this.guest?.close(4000, 'Share expired'); await this.state.storage.deleteAll(); }
+  async alarm() {
+    this.host?.close(4000, 'Share expired');
+    this.guest?.close(4000, 'Share expired');
+    this.host = null;
+    this.guest = null;
+    this.meta = null;
+    this.transferred = 0;
+    await this.state.storage.deleteAll();
+  }
 }
