@@ -28,6 +28,8 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.spec.ECGenParameterSpec;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
@@ -115,6 +117,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     /// AudioTrack jitter buffer. Large enough to bridge normal websocket
     /// delivery gaps, small enough to keep conversational latency.
     private static final int PLAYBACK_BUFFER_MS = 750;
+    private static final Map<Long, short[]> PREAMP_LUTS = new ConcurrentHashMap<>();
     private final java.util.concurrent.atomic.AtomicLong playbackWriteCalls = new java.util.concurrent.atomic.AtomicLong();
     private final java.util.concurrent.atomic.AtomicLong playbackPartialWrites = new java.util.concurrent.atomic.AtomicLong();
     private final java.util.concurrent.atomic.AtomicLong playbackWriteFailures = new java.util.concurrent.atomic.AtomicLong();
@@ -629,15 +632,32 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
 
     /** Applies a conservative soft-limited gain without hard-clipping speech. */
     private static void amplifyPcm16InPlace(byte[] pcm, double gain, int length) {
+        long gainKey = Double.doubleToLongBits(gain);
+        short[] lut = PREAMP_LUTS.get(gainKey);
+        if (lut == null) {
+            short[] candidate = buildPreampLut(gain);
+            short[] existing = PREAMP_LUTS.putIfAbsent(gainKey, candidate);
+            lut = existing == null ? candidate : existing;
+        }
         int limit = Math.min(Math.max(length, 0), pcm.length);
         for (int i = 0; i + 1 < limit; i += 2) {
             int sample = (short) ((pcm[i] & 0xff) | (pcm[i + 1] << 8));
-            double normalized = sample / 32768.0;
-            int amplified = (int) Math.round(
-                    (Math.tanh(normalized * gain) / Math.tanh(gain)) * Short.MAX_VALUE);
+            int amplified = lut[sample + 32768];
             pcm[i] = (byte) (amplified & 0xff);
             pcm[i + 1] = (byte) ((amplified >> 8) & 0xff);
         }
+    }
+
+    private static short[] buildPreampLut(double gain) {
+        short[] lut = new short[65536];
+        double denominator = Math.tanh(gain);
+        for (int index = 0; index < lut.length; index++) {
+            int sample = index - 32768;
+            double normalized = sample / 32768.0;
+            lut[index] = (short) Math.round(
+                    (Math.tanh(normalized * gain) / denominator) * Short.MAX_VALUE);
+        }
+        return lut;
     }
 
     /** Writes every PCM byte or fails explicitly; AudioTrack may short-write. */
