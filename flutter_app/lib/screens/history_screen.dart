@@ -119,7 +119,7 @@ class HistoryScreen extends StatelessWidget {
   }
 
   Widget _providerChip(AppLocalizations l10n, String provider) {
-    final label = provider == 'unknown' || provider == 'unbekannt'
+    final label = provider == 'unknown'
         ? l10n.commonUnknown
         : provider;
     return Container(

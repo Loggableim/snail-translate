@@ -217,11 +217,12 @@ class _ChatScreenState extends State<ChatScreen> {
         targetLang: alreadyTranslated ? session.myLanguage : target,
       );
       _controller.clear();
-    } catch (error) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(AppLocalizations.of(context)
-                .chatTranslationFailed(error.toString()))));
+                .chatTranslationFailed(
+                    AppLocalizations.of(context).commonError))));
       }
     } finally {
       if (mounted) setState(() => _translating = false);
