@@ -54,7 +54,7 @@ class _StartShare extends StatelessWidget {
         ),
         if (share.error != null) ...[
           const SizedBox(height: 16),
-          Text(share.error!,
+          Text(share.localizedError(l10n),
               textAlign: TextAlign.center,
               style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ],

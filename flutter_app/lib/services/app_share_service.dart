@@ -10,8 +10,10 @@ import 'package:web_socket_channel/io.dart';
 
 import 'api_keys.dart';
 import 'user_identity_service.dart';
+import '../l10n/app_localizations.dart';
 
 enum AppShareStatus { ready, preparing, linkReady, guestConnected, transferring, finished, disconnected, failed }
+enum AppShareErrorCode { unavailable, tunnel, transfer }
 
 /// Offers this device's installed APK over an ephemeral Cloudflare websocket
 /// tunnel. The APK remains a File on the host; no APK bytes are uploaded or
@@ -36,6 +38,7 @@ class AppShareService extends ChangeNotifier {
   DateTime? _transferStartedAt;
   AppShareStatus _status = AppShareStatus.ready;
   String? _error;
+  AppShareErrorCode? _errorCode;
 
   bool get isSharing => _tunnel != null && _url != null;
   String? get url => _url;
@@ -48,6 +51,8 @@ class AppShareService extends ChangeNotifier {
   bool get isTransferring => _isTransferring;
   AppShareStatus get status => _status;
   String? get error => _error;
+  AppShareErrorCode? get errorCode => _errorCode;
+  String localizedError(AppLocalizations l10n) => l10n.commonError;
   double get progress => _apkBytes == null || _apkBytes == 0
       ? 0
       : (_transferredBytes / _apkBytes!).clamp(0, 1);
@@ -61,6 +66,7 @@ class AppShareService extends ChangeNotifier {
   Future<void> start() async {
     if (isSharing || _isPreparing) return;
     _error = null;
+    _errorCode = null;
     _isPreparing = true;
     _status = AppShareStatus.preparing;
     notifyListeners();
@@ -107,7 +113,9 @@ class AppShareService extends ChangeNotifier {
       await _connectHostTunnel();
       _expiryTimer = Timer(_ttl, stop);
     } catch (error) {
-      _error = error.toString().replaceFirst('Bad state: ', '').replaceFirst('StateError: ', '');
+      _error = 'app_share_unavailable';
+      _errorCode = AppShareErrorCode.unavailable;
+      debugPrint('[AppShare] start failed: $error');
       _status = AppShareStatus.failed;
       await stop();
     } finally {
@@ -124,7 +132,9 @@ class AppShareService extends ChangeNotifier {
     _tunnel = tunnel;
     await tunnel.ready;
     _tunnelSubscription = tunnel.stream.listen(_onTunnelMessage, onError: (Object error) {
-      _error = 'Tunnelfehler: $error'; _status = AppShareStatus.disconnected; notifyListeners();
+      _error = 'app_share_tunnel'; _errorCode = AppShareErrorCode.tunnel;
+      debugPrint('[AppShare] tunnel failed: $error');
+      _status = AppShareStatus.disconnected; notifyListeners();
     }, onDone: () {
       if (_status != AppShareStatus.finished) { _status = AppShareStatus.disconnected; notifyListeners(); }
     });
@@ -179,7 +189,9 @@ class AppShareService extends ChangeNotifier {
       _isTransferring = false;
       _downloads++;
     } catch (error) {
-      _error = 'Übertragung fehlgeschlagen: $error';
+      _error = 'app_share_transfer';
+      _errorCode = AppShareErrorCode.transfer;
+      debugPrint('[AppShare] transfer failed: $error');
       _status = AppShareStatus.failed;
       tunnel.sink.add(jsonEncode({'type': 'transfer_error'}));
       _isTransferring = false;
