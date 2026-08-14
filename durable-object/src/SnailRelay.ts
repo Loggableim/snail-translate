@@ -655,6 +655,10 @@ export class SnailRelay implements DurableObject {
           const idx = this.session.chatHistory.findIndex(
             (m) => m.messageId === msg.messageId
           );
+          if (idx !== -1 && this.session.chatHistory[idx].senderId !== userId) {
+            this.send(ws, { type: "error", error: "You can only edit your own messages" });
+            return;
+          }
           if (idx !== -1) {
             this.session.chatHistory[idx] = {
               ...this.session.chatHistory[idx],
@@ -677,6 +681,11 @@ export class SnailRelay implements DurableObject {
         case "delete": {
           if (!authenticated || !msg.messageId) {
             this.send(ws, { type: "error", error: "Invalid delete message" });
+            return;
+          }
+          const message = this.session.chatHistory.find((m) => m.messageId === msg.messageId);
+          if (message && message.senderId !== userId) {
+            this.send(ws, { type: "error", error: "You can only delete your own messages" });
             return;
           }
           // Remove from in-memory chat history

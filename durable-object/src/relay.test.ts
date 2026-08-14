@@ -92,6 +92,20 @@ describe("SnailRelay lifecycle and limits", () => {
     expect(messagesOf(reconnectingGuest, "chat_history")[0].history).toHaveLength(1);
   });
 
+  it("prevents a peer from editing or deleting another user's message", async () => {
+    const { relay } = await initializedRelay();
+    const host = await connect(relay, "host", "host");
+    const guest = await connect(relay, "guest", "guest");
+    host.socket.send(JSON.stringify({ type: "chat", messageId: "owned-by-host", text: "hello" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    guest.socket.send(JSON.stringify({ type: "edit", messageId: "owned-by-host", text: "changed" }));
+    guest.socket.send(JSON.stringify({ type: "delete", messageId: "owned-by-host" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const errors = messagesOf(guest, "error").map((message) => message.error).join(" ");
+    expect(errors).toContain("only edit your own");
+    expect(errors).toContain("only delete your own");
+  });
+
   it("rejects oversized chat and PCM messages", async () => {
     const { relay } = await initializedRelay();
     const host = await connect(relay, "host", "host");
