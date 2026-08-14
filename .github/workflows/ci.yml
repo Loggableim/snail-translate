@@ -110,6 +110,9 @@ jobs:
           flutter build apk --release --split-per-abi
           mapfile -t apks < <(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*release.apk' -print)
           test "${#apks[@]}" -eq 3
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$apksigner"
           for apk in "${apks[@]}"; do
             test "$(stat -c '%s' "$apk")" -lt 104857600
+            "$apksigner" verify --verbose "$apk"
           done
