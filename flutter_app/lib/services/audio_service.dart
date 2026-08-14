@@ -151,7 +151,8 @@ class AudioService extends ChangeNotifier {
       if (data is List<int>) {
         final frame = Uint8List.fromList(data);
         if (frame.length < 5) return;
-        final sampleRate = ByteData.sublistView(frame, 1, 5).getUint32(0, Endian.little);
+        final sampleRate =
+            ByteData.sublistView(frame, 1, 5).getUint32(0, Endian.little);
         final kind = frame[0];
         if (sampleRate == 0) {
           if (kind == 1) onFishTtsAudioEnd?.call();
@@ -205,9 +206,12 @@ class AudioService extends ChangeNotifier {
           notifyListeners();
           break;
         case 'chat':
-          chat.addIncomingChat(Map<String, dynamic>.from(msg));
-          chat.persistConversation();
-          notifyListeners();
+          unawaited(chat
+              .addIncomingChatSecure(Map<String, dynamic>.from(msg))
+              .then((_) {
+            chat.persistConversation();
+            notifyListeners();
+          }));
           break;
         case 'delivery_ack':
           final messageId = msg['messageId'] as String?;
@@ -220,7 +224,7 @@ class AudioService extends ChangeNotifier {
               (msg['history'] as List<dynamic>? ?? const <dynamic>[])
                   .whereType<Map<String, dynamic>>()
                   .toList();
-          chat.replaceHistory(history);
+          unawaited(chat.replaceHistorySecure(history));
           break;
         case 'signal':
           if (_signals.length >= _maxSignals) _signals.removeAt(0);

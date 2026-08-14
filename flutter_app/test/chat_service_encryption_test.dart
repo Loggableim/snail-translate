@@ -24,4 +24,27 @@ void main() {
       'secret phrase',
     );
   });
+
+  test('decrypts encrypted incoming messages and keeps legacy plaintext',
+      () async {
+    final crypto = ChatCryptoService.fromSharedSecret(List<int>.filled(32, 8));
+    final service = ChatService()..setConversationCrypto(crypto);
+    final encrypted = await crypto.encrypt('incoming secret');
+
+    await service.addIncomingChatSecure({
+      'type': 'chat',
+      'messageId': 'encrypted-message',
+      'text': encrypted,
+      'timestamp': 1,
+    });
+    await service.addIncomingChatSecure({
+      'type': 'chat',
+      'messageId': 'legacy-message',
+      'text': 'old plaintext',
+      'timestamp': 2,
+    });
+
+    expect(service.messages.map((message) => message.text),
+        containsAll(<String>['incoming secret', 'old plaintext']));
+  });
 }

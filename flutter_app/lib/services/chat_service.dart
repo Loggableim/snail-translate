@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -240,6 +241,33 @@ class ChatService extends ChangeNotifier {
     _messages.add(message);
   }
 
+  /// Adds a relay/P2P message after decrypting the v1 envelope. Existing
+  /// plaintext messages remain readable during the local history migration.
+  Future<void> addIncomingChatSecure(Map<String, dynamic> value) async {
+    if (_crypto == null) {
+      addIncomingChat(value);
+      return;
+    }
+    final text = value['text'];
+    if (text is! String) return;
+    final decoded = Map<String, dynamic>.from(value);
+    try {
+      decoded['text'] = await _crypto!.decrypt(text);
+    } on FormatException {
+      // Legacy plaintext is intentionally accepted until that entry is
+      // rewritten by the normal conversation persistence path.
+    } on SecretBoxAuthenticationError catch (error, stackTrace) {
+      ErrorLogger.I.log(
+        provider: 'chat',
+        context: 'conversation.decrypt',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return;
+    }
+    addIncomingChat(decoded);
+  }
+
   void updateMessageStatus(String messageId, MessageStatus status) {
     final index = _messages.indexWhere((m) => m.id == messageId);
     if (index == -1) return;
@@ -376,6 +404,22 @@ class ChatService extends ChangeNotifier {
         }
         addIncomingChat(value);
       }
+    }
+    _scheduleConversationPersist();
+    notifyListeners();
+  }
+
+  Future<void> replaceHistorySecure(List<Map<String, dynamic>> history) async {
+    final outgoingMessageIds =
+        _messages.where((item) => item.outgoing).map((item) => item.id).toSet();
+    _messages.clear();
+    for (final item in history) {
+      if (item['type'] != 'chat') continue;
+      final value = Map<String, dynamic>.from(item);
+      if (outgoingMessageIds.contains(value['messageId'])) {
+        value['senderId'] = '';
+      }
+      await addIncomingChatSecure(value);
     }
     _scheduleConversationPersist();
     notifyListeners();
