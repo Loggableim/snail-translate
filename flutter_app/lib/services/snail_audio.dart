@@ -36,6 +36,8 @@ class SnailAudio {
   DateTime _playbackUntil = DateTime.fromMillisecondsSinceEpoch(0);
   bool _echoGuardEnabled = true;
 
+  static bool _isValidSampleRate(int value) => value > 0 && value <= 192000;
+
   // ── Properties ──────────────────────────────────────────────────────
 
   bool get isInitialized => _isInitialized;
@@ -56,6 +58,7 @@ class SnailAudio {
       {int sampleRate = 16000,
       bool aecEnabled = true,
       bool noiseSuppressionEnabled = true}) async {
+    if (!_isValidSampleRate(sampleRate)) return false;
     try {
       // Subscribe before starting the native recorder. Otherwise the native
       // thread can emit its first frames while no EventChannel listener is
@@ -104,6 +107,7 @@ class SnailAudio {
     bool aecEnabled = true,
     bool noiseSuppressionEnabled = true,
   }) async {
+    if (!_isValidSampleRate(sampleRate)) return false;
     try {
       final result = await _methodChannel.invokeMethod<bool>('initialize', {
         'sampleRate': sampleRate,
@@ -204,7 +208,7 @@ class SnailAudio {
   /// pass MP3/container bytes to this method.
   Future<void> playPcm16(Uint8List bytes,
       {int sampleRate = 24000, AudioOutput output = AudioOutput.auto}) async {
-    if (bytes.isEmpty) return;
+    if (bytes.isEmpty || !_isValidSampleRate(sampleRate)) return;
     final durationMs = ((bytes.length * 1000) / (sampleRate * 2)).ceil();
     // Only cover the measured chunk duration plus a small acoustic tail. The
     // hardware AEC remains the primary mechanism; this is not a half-duplex

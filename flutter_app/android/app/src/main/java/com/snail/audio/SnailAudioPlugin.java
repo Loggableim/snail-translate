@@ -408,6 +408,9 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     }
 
     @Override public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+        if (activityBinding != null) {
+            activityBinding.removeRequestPermissionsResultListener(permissionListener);
+        }
         activity = binding.getActivity();
         activityBinding = binding;
         binding.addRequestPermissionsResultListener(permissionListener);
@@ -421,16 +424,21 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     @Override public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) { onAttachedToActivity(binding); }
     @Override public void onDetachedFromActivity() {
         if (activityBinding != null) activityBinding.removeRequestPermissionsResultListener(permissionListener);
+        if (pendingPermissionResult != null) {
+            pendingPermissionResult.error("ACTIVITY_DETACHED", "The activity was detached before microphone permission completed", null);
+            pendingPermissionResult = null;
+        }
+        if (pendingNotificationPermissionResult != null) {
+            pendingNotificationPermissionResult.error("ACTIVITY_DETACHED", "The activity was detached before notification permission completed", null);
+            pendingNotificationPermissionResult = null;
+        }
         activityBinding = null;
         activity = null;
     }
 
     private void handleInitialize(MethodCall call, Result result) {
-        Integer requestedSampleRate = call.argument("sampleRate");
-        if (requestedSampleRate == null || requestedSampleRate <= 0 || requestedSampleRate > 192000) {
-            result.error("INVALID_ARGUMENT", "sampleRate must be between 1 and 192000 Hz", null);
-            return;
-        }
+        Integer requestedSampleRate = readSampleRate(call, result, 16000, true);
+        if (requestedSampleRate == null) return;
         sampleRate = requestedSampleRate;
 
         Boolean requestedAec = call.hasArgument("aecEnabled") ? call.argument("aecEnabled") : Boolean.TRUE;
@@ -459,6 +467,26 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         result.success(true);
     }
 
+    private Integer readSampleRate(MethodCall call, Result result, int defaultRate, boolean required) {
+        Object raw = call.argument("sampleRate");
+        if (raw == null) {
+            if (!required) return defaultRate;
+            result.error("INVALID_ARGUMENT", "sampleRate must be between 1 and 192000 Hz", null);
+            return null;
+        }
+        if (!(raw instanceof Number)) {
+            result.error("INVALID_ARGUMENT", "sampleRate must be an integer between 1 and 192000 Hz", null);
+            return null;
+        }
+        double numeric = ((Number) raw).doubleValue();
+        int rate = ((Number) raw).intValue();
+        if (!Double.isFinite(numeric) || numeric != rate || rate <= 0 || rate > 192000) {
+            result.error("INVALID_ARGUMENT", "sampleRate must be an integer between 1 and 192000 Hz", null);
+            return null;
+        }
+        return rate;
+    }
+
     private void startSessionKeepAlive() {
         if (applicationContext == null) return;
         Intent intent = new Intent(applicationContext, SnailSessionService.class);
@@ -480,8 +508,9 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         // The standard codec delivers a Flutter Uint8List as a byte[], so no
         // per-sample unboxing happens here any more.
         final byte[] bytes = call.argument("bytes");
-        Integer requestedRate = call.argument("sampleRate");
-        final int outputRate = requestedRate == null ? 24000 : requestedRate;
+        Integer requestedRate = readSampleRate(call, result, 24000, false);
+        if (requestedRate == null) return;
+        final int outputRate = requestedRate;
         if (bytes == null || bytes.length == 0) { result.success(null); return; }
         String requested = call.argument("output") == null ? "default" : (String) call.argument("output");
         // VOICE_CALL is routed to the quiet earpiece by several Android
@@ -1052,7 +1081,9 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
 
     private void handleStartStandaloneCapture(MethodCall call, Result result) {
         if (standaloneCapturing) { result.success(true); return; }
-        int rate = call.hasArgument("sampleRate") ? (Integer) call.argument("sampleRate") : 16000;
+        Integer requestedRate = readSampleRate(call, result, 16000, false);
+        if (requestedRate == null) return;
+        int rate = requestedRate;
         int min = AudioRecord.getMinBufferSize(rate, channelConfig, audioFormat);
         try {
             // PHONE uses the near-field handset microphone; HEADSET uses the
