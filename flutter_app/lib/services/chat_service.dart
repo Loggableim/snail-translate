@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 import '../models/chat_message.dart';
 import '../models/message_status.dart';
+import 'error_logger.dart';
 
 /// Manages chat messages, persistence, and outbox.
 ///
@@ -50,13 +51,35 @@ class ChatService extends ChangeNotifier {
         key: 'snail_conversation_$_conversationId');
     if (raw == null) return;
     try {
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      _messages.addAll((decoded['messages'] as List<dynamic>? ?? const [])
-          .whereType<Map<String, dynamic>>()
-          .map((item) => ChatMessage.fromJson(item, 'local')));
-    } catch (_) {
-      await _secureStorage.delete(
-          key: 'snail_conversation_$_conversationId');
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic> || decoded['messages'] is! List) {
+        await _quarantine('conversation', raw, 'invalid conversation envelope');
+        return;
+      }
+      var skipped = 0;
+      for (final item in decoded['messages'] as List<dynamic>) {
+        try {
+          if (item is! Map<String, dynamic>) throw const FormatException('not an object');
+          _messages.add(ChatMessage.fromJson(item, 'local'));
+        } catch (_) {
+          skipped++;
+        }
+      }
+      if (skipped > 0) {
+        ErrorLogger.I.log(
+          provider: 'storage',
+          context: 'conversation.decode',
+          error: '$skipped corrupt conversation entr${skipped == 1 ? 'y' : 'ies'} skipped',
+        );
+      }
+    } catch (error, stackTrace) {
+      await _quarantine('conversation', raw, 'invalid JSON');
+      ErrorLogger.I.log(
+        provider: 'storage',
+        context: 'conversation.decode',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -80,12 +103,48 @@ class ChatService extends ChangeNotifier {
     if (rawValue == null) return;
     try {
       final decoded = jsonDecode(rawValue);
-      if (decoded is List<dynamic>) {
-        _outbox.addAll(decoded.whereType<Map<String, dynamic>>());
+      if (decoded is! List) {
+        await _quarantine('outbox', rawValue, 'invalid outbox envelope');
+        return;
       }
-    } catch (_) {
-      await _secureStorage.delete(key: 'snail_outbox_$_roomId');
+      var skipped = 0;
+      for (final item in decoded) {
+        if (item is Map<String, dynamic> &&
+            item['type'] is String && item['messageId'] is String) {
+          _outbox.add(item);
+        } else {
+          skipped++;
+        }
+      }
+      if (skipped > 0) {
+        ErrorLogger.I.log(
+          provider: 'storage',
+          context: 'outbox.decode',
+          error: '$skipped corrupt outbox entr${skipped == 1 ? 'y' : 'ies'} skipped',
+        );
+      }
+    } catch (error, stackTrace) {
+      await _quarantine('outbox', rawValue, 'invalid JSON');
+      ErrorLogger.I.log(
+        provider: 'storage',
+        context: 'outbox.decode',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
+  }
+
+  Future<void> _quarantine(String kind, String raw, String reason) async {
+    final suffix = DateTime.now().microsecondsSinceEpoch;
+    await _secureStorage.write(
+      key: 'snail_${kind}_quarantine_$suffix',
+      value: raw,
+    );
+    ErrorLogger.I.log(
+      provider: 'storage',
+      context: '$kind.quarantine',
+      error: reason,
+    );
   }
 
   Future<void> _persistOutbox() async {
