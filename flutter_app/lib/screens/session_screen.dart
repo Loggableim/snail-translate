@@ -214,7 +214,6 @@ class _SessionScreenState extends State<SessionScreen>
       _p2p.onChat = relayAudio.receiveP2pData;
       relayAudio.isP2pConnected = () => _p2p.isConnected;
       relayAudio.onP2pChatSend = _p2p.sendChat;
-      relayAudio.onP2pStickerSend = _p2p.sendData;
       relayAudio.onSignal = (type, signal) => _p2p.acceptSignal(type, signal);
       relayAudio.onPcmAudio = (bytes, sampleRate) {
         // Relay PCM is a fallback while ICE is negotiating.

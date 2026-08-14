@@ -333,19 +333,6 @@
   "@chatPendingCount": {
     "placeholders": { "count": { "type": "int" } }
   },
-  "chatImportTelegramPackTooltip": "导入Telegram贴纸包",
-  "chatTelegramStickerPackTitle": "Telegram贴纸包",
-  "chatPackLinkLabel": "包链接 (t.me/addstickers/...)",
-  "chatBotTokenLabel": "Telegram机器人令牌",
-  "chatImportButton": "导入",
-  "chatStickersImported": "已导入{count}个贴纸",
-  "@chatStickersImported": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "chatTelegramImportFailed": "Telegram导入失败: {error}",
-  "@chatTelegramImportFailed": {
-    "placeholders": { "error": { "type": "String" } }
-  },
   "chatTranslationFailed": "翻译失败: {error}",
   "@chatTranslationFailed": {
     "placeholders": { "error": { "type": "String" } }

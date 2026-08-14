@@ -333,19 +333,6 @@
   "@chatPendingCount": {
     "placeholders": { "count": { "type": "int" } }
   },
-  "chatImportTelegramPackTooltip": "Importer le pack de stickers Telegram",
-  "chatTelegramStickerPackTitle": "Pack de stickers Telegram",
-  "chatPackLinkLabel": "Lien du pack (t.me/addstickers/...)",
-  "chatBotTokenLabel": "Jeton bot Telegram",
-  "chatImportButton": "Importer",
-  "chatStickersImported": "{count} stickers importés",
-  "@chatStickersImported": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "chatTelegramImportFailed": "Importation Telegram échouée : {error}",
-  "@chatTelegramImportFailed": {
-    "placeholders": { "error": { "type": "String" } }
-  },
   "chatTranslationFailed": "Traduction échouée : {error}",
   "@chatTranslationFailed": {
     "placeholders": { "error": { "type": "String" } }

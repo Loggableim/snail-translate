@@ -43,7 +43,6 @@ Entwicklungsreferenz; sie ist kein Produkt-Fallback.
 | WebRTC-Audio/DataChannel mit Relay-Fallback | implementiert |
 | QR-Identität, Kontakte und gezielte Einladungen | implementiert |
 | Verschlüsselte Conversation-Historie und Offline-Outbox | implementiert |
-| Telegram-Sticker | Bot-API-Import öffentlicher Packs; vollständiges MTProto offen |
 | Provider-Live-E2E-/Latenzbenchmark | offen, benötigt reale Provider-Konfiguration |
 
 Snail unterstützt im Zielbild einen Messenger-Modus. Die Nutzer
@@ -72,12 +71,6 @@ aktuellen Android-Versionen verlässlich nutzbar und vermeidet eine unnötig
 personenbezogene Hardwarekennung. Der Übersetzungsverlauf speichert nur
 abgeschlossene Turns lokal und wird mit Neustart-, Duplikat-, Lösch- und
 Abbruch-Smoke-Tests abgesichert.
-
-Im Messenger können öffentliche Telegram-Stickerpacks über einen
-`t.me/addstickers/...`-Link importiert werden. Dafür wird lokal ein Telegram-
-Bot-Token benötigt; der Token wird nicht in Chatnachrichten oder im Relay
-übertragen. Statische WebP-Sticker werden als lokale Daten übertragen,
-animierte/video Sticker behalten ihre Telegram-Metadaten.
 
 ## Architektur
 

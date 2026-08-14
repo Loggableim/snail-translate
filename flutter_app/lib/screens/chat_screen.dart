@@ -1,14 +1,10 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../services/audio_service.dart';
 import '../services/session_service.dart';
-import '../models/sticker_message.dart';
 import '../services/provider_config_service.dart';
 import '../services/translation_service.dart';
-import '../services/telegram_sticker_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -22,8 +18,6 @@ class _ChatScreenState extends State<ChatScreen> {
   final _translator = TranslationService();
   bool _translating = false;
   final Set<String> _translatedIncoming = {};
-  final _telegram = TelegramStickerService();
-  List<StickerMessage> _importedStickers = const [];
 
   @override
   Widget build(BuildContext context) {
@@ -83,23 +77,8 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: audio.messages.length + audio.stickers.length,
+              itemCount: audio.messages.length,
               itemBuilder: (_, index) {
-                if (index >= audio.messages.length) {
-                  final sticker = audio.stickers[index - audio.messages.length];
-                  return Align(
-                    alignment: sticker.outgoing
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: sticker.isAnimated || sticker.isVideo
-                          ? Text(sticker.emoji,
-                              style: const TextStyle(fontSize: 48))
-                          : _stickerImage(sticker),
-                    ),
-                  );
-                }
                 final message = audio.messages[index];
                 final bubbleColor = message.outgoing
                     ? Theme.of(context).colorScheme.primary
@@ -155,14 +134,6 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
                 children: [
-                  IconButton(
-                      icon: const Icon(Icons.emoji_emotions_outlined),
-                      onPressed: () => _sendSticker(audio)),
-                  IconButton(
-                      icon: const Icon(Icons.library_add_outlined),
-                      tooltip: AppLocalizations.of(context)
-                          .chatImportTelegramPackTooltip,
-                      onPressed: _importTelegramPack),
                   Expanded(
                       child: TextField(
                           controller: _controller,
@@ -210,95 +181,6 @@ class _ChatScreenState extends State<ChatScreen> {
             sourceLang: message.sourceLang, targetLang: message.targetLang);
       } catch (_) {
         _translatedIncoming.remove(message.id);
-      }
-    }
-  }
-
-  void _sendSticker(AudioService audio) {
-    if (_importedStickers.isNotEmpty) {
-      final sticker = _importedStickers.first;
-      setState(
-          () => _importedStickers = [..._importedStickers.skip(1), sticker]);
-      audio.sendSticker(sticker);
-      return;
-    }
-    // Sticker assets are provider-neutral. Telegram imports can populate the
-    // same payload later; this button proves the transport contract now.
-    audio.sendSticker(const StickerMessage(
-      id: 'snail-demo-sticker',
-      assetUrl:
-          'https://cdn.jsdelivr.net/gh/twitter/twemoji/assets/72x72/1f604.png',
-      emoji: '😄',
-      packShortName: 'snail-demo',
-      mimeType: 'image/png',
-    ));
-  }
-
-  Widget _stickerImage(StickerMessage sticker) {
-    if (sticker.assetUrl.startsWith('data:')) {
-      final comma = sticker.assetUrl.indexOf(',');
-      if (comma > 0) {
-        try {
-          return Image.memory(
-              base64Decode(sticker.assetUrl.substring(comma + 1)),
-              width: 96,
-              height: 96,
-              errorBuilder: (_, __, ___) =>
-                  Text(sticker.emoji, style: const TextStyle(fontSize: 48)));
-        } catch (e) {
-          debugPrint('[Chat] sticker base64 decode error: $e');
-        }
-      }
-    }
-    return Image.network(sticker.assetUrl,
-        width: 96,
-        height: 96,
-        errorBuilder: (_, __, ___) =>
-            Text(sticker.emoji, style: const TextStyle(fontSize: 48)));
-  }
-
-  Future<void> _importTelegramPack() async {
-    final l10n = AppLocalizations.of(context);
-    final link = TextEditingController();
-    final token = TextEditingController();
-    final values = await showDialog<List<String>>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.chatTelegramStickerPackTitle),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-              controller: link,
-              decoration: InputDecoration(
-                  labelText: l10n.chatPackLinkLabel)),
-          TextField(
-              controller: token,
-              obscureText: true,
-              decoration: InputDecoration(labelText: l10n.chatBotTokenLabel)),
-        ]),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(l10n.commonCancel)),
-          FilledButton(
-              onPressed: () => Navigator.pop(context, [link.text, token.text]),
-              child: Text(l10n.chatImportButton)),
-        ],
-      ),
-    );
-    link.dispose();
-    token.dispose();
-    if (values == null || !mounted) return;
-    try {
-      final imported =
-          await _telegram.importPack(botToken: values[1], packLink: values[0]);
-      if (!mounted) return;
-      setState(() => _importedStickers = imported);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l10n.chatStickersImported(imported.length))));
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(l10n.chatTelegramImportFailed(error.toString()))));
       }
     }
   }

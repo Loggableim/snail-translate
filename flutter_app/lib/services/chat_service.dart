@@ -4,9 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 import '../models/chat_message.dart';
 import '../models/message_status.dart';
-import '../models/sticker_message.dart';
 
-/// Manages chat messages, stickers, persistence, and outbox.
+/// Manages chat messages, persistence, and outbox.
 ///
 /// Extracted from AudioService to separate messaging concerns from
 /// WebSocket/audio streaming.
@@ -15,7 +14,6 @@ class ChatService extends ChangeNotifier {
   static const _secureStorage = FlutterSecureStorage();
 
   final List<ChatMessage> _messages = [];
-  final List<StickerMessage> _stickers = [];
   final List<Map<String, dynamic>> _outbox = [];
 
   /// Callback to send a raw JSON message through the WebSocket.
@@ -31,7 +29,6 @@ class ChatService extends ChangeNotifier {
   String? _roomId;
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
-  List<StickerMessage> get stickers => List.unmodifiable(_stickers);
   int get pendingCount => _outbox.length;
 
   // ── Initialization ─────────────────────────────────────────────────
@@ -47,7 +44,6 @@ class ChatService extends ChangeNotifier {
 
   Future<void> _loadConversation() async {
     _messages.clear();
-    _stickers.clear();
     final raw = await _secureStorage.read(
         key: 'snail_conversation_$_conversationId');
     if (raw == null) return;
@@ -56,9 +52,6 @@ class ChatService extends ChangeNotifier {
       _messages.addAll((decoded['messages'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
           .map((item) => ChatMessage.fromJson(item, 'local')));
-      _stickers.addAll((decoded['stickers'] as List<dynamic>? ?? const [])
-          .whereType<Map<String, dynamic>>()
-          .map(StickerMessage.fromJson));
     } catch (_) {
       await _secureStorage.delete(
           key: 'snail_conversation_$_conversationId');
@@ -73,10 +66,6 @@ class ChatService extends ChangeNotifier {
         'messages': _messages
             .skip(_messages.length > 500 ? _messages.length - 500 : 0)
             .map((message) => message.toJson())
-            .toList(),
-        'stickers': _stickers
-            .skip(_stickers.length > 500 ? _stickers.length - 500 : 0)
-            .map((sticker) => sticker.toJson())
             .toList(),
       }),
     );
@@ -125,8 +114,6 @@ class ChatService extends ChangeNotifier {
 
   bool _hasMessage(String id) =>
       id.isNotEmpty && _messages.any((item) => item.id == id);
-  bool _hasSticker(String id) =>
-      id.isNotEmpty && _stickers.any((item) => item.id == id);
 
   // ── Incoming ───────────────────────────────────────────────────────
 
@@ -136,11 +123,6 @@ class ChatService extends ChangeNotifier {
     _messages.add(message);
   }
 
-  void addIncomingSticker(Map<String, dynamic> value) {
-    final sticker = StickerMessage.fromJson(value);
-    if (sticker.id.isEmpty || _hasSticker(sticker.id)) return;
-    _stickers.add(sticker);
-  }
 
   void updateMessageStatus(String messageId, MessageStatus status) {
     final index = _messages.indexWhere((m) => m.id == messageId);
@@ -178,23 +160,6 @@ class ChatService extends ChangeNotifier {
     notifyListeners();
     if (isP2pConnected?.call() == true) onP2pSend?.call(message);
     if (!canSend) {
-      _queue(message);
-    } else {
-      onSend?.call(jsonEncode(message));
-    }
-  }
-
-  void sendSticker(StickerMessage sticker) {
-    final message = {
-      'type': 'sticker',
-      ...sticker.toJson(),
-      'timestamp': DateTime.now().millisecondsSinceEpoch
-    };
-    _stickers.add(sticker);
-    notifyListeners();
-    _persistConversation();
-    if (isP2pConnected?.call() == true) onP2pSend?.call(message);
-    if (onSend == null) {
       _queue(message);
     } else {
       onSend?.call(jsonEncode(message));
@@ -254,10 +219,6 @@ class ChatService extends ChangeNotifier {
       addIncomingChat(message);
       _persistConversation();
       notifyListeners();
-    } else if (message['type'] == 'sticker') {
-      addIncomingSticker(message);
-      _persistConversation();
-      notifyListeners();
     }
   }
 
@@ -276,20 +237,9 @@ class ChatService extends ChangeNotifier {
         .where((item) => item.outgoing)
         .map((item) => item.id)
         .toSet();
-    final outgoingStickerIds = _stickers
-        .where((item) => item.outgoing)
-        .map((item) => item.id)
-        .toSet();
     _messages.clear();
-    _stickers.clear();
     for (final item in history) {
-      if (item['type'] == 'sticker') {
-        final value = Map<String, dynamic>.from(item);
-        if (outgoingStickerIds.contains(value['messageId'])) {
-          value['outgoing'] = true;
-        }
-        addIncomingSticker(value);
-      } else if (item['type'] == 'chat') {
+      if (item['type'] == 'chat') {
         final value = Map<String, dynamic>.from(item);
         if (outgoingMessageIds.contains(value['messageId'])) {
           value['senderId'] = '';

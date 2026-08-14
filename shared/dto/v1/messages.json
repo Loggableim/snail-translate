@@ -10,7 +10,7 @@
       "enum": [
         "auth", "auth_ok", "auth_error",
         "audio", "pcm_audio", "fallback_pcm_audio",
-        "chat", "sticker", "voice",
+        "chat", "voice",
         "edit", "delete",
         "signal",
         "ping",
@@ -29,23 +29,6 @@
         "senderId": { "type": "string" },
         "sourceLang": { "type": "string", "minLength": 2, "maxLength": 5 },
         "targetLang": { "type": "string", "minLength": 2, "maxLength": 5 },
-        "timestamp": { "type": "integer" }
-      }
-    },
-    "StickerMessage": {
-      "type": "object",
-      "required": ["type", "messageId", "assetUrl", "mimeType", "timestamp"],
-      "properties": {
-        "type": { "const": "sticker" },
-        "messageId": { "type": "string", "format": "uuid" },
-        "assetUrl": { "type": "string", "maxLength": 2048 },
-        "mimeType": { "type": "string" },
-        "emoji": { "type": "string", "maxLength": 10 },
-        "packShortName": { "type": "string", "maxLength": 100 },
-        "stickerId": { "type": "string" },
-        "fileUniqueId": { "type": "string" },
-        "isAnimated": { "type": "boolean" },
-        "isVideo": { "type": "boolean" },
         "timestamp": { "type": "integer" }
       }
     },

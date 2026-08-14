@@ -37,7 +37,7 @@ interface SessionState {
 }
 
 interface ClientMessage {
-  type: "auth" | "audio" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "sticker" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
+  type: "auth" | "audio" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
   token?: string;
   audio?: number[];
   sampleRate?: number;
@@ -45,13 +45,6 @@ interface ClientMessage {
   text?: string;
   sourceLang?: string;
   targetLang?: string;
-  assetUrl?: string;
-  emoji?: string;
-  packShortName?: string;
-  stickerId?: string;
-  fileUniqueId?: string;
-  isAnimated?: boolean;
-  isVideo?: boolean;
   mimeType?: string;
   signalType?: "offer" | "answer" | "ice";
   signal?: unknown;
@@ -67,7 +60,7 @@ interface ClientMessage {
 }
 
 interface ServerMessage {
-  type: "auth_ok" | "auth_error" | "audio" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "chat" | "sticker" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
+  type: "auth_ok" | "auth_error" | "audio" | "pcm_audio" | "pcm_end" | "fallback_pcm_audio" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
   audio?: number[];
   sampleRate?: number;
   messageId?: string;
@@ -76,13 +69,6 @@ interface ServerMessage {
   sourceLang?: string;
   targetLang?: string;
   timestamp?: number;
-  assetUrl?: string;
-  emoji?: string;
-  packShortName?: string;
-  stickerId?: string;
-  fileUniqueId?: string;
-  isAnimated?: boolean;
-  isVideo?: boolean;
   mimeType?: string;
   signalType?: "offer" | "answer" | "ice";
   signal?: unknown;
@@ -102,9 +88,6 @@ const PING_INTERVAL_MS = 30_000;
 const MAX_QUOTA_SECONDS = 30 * 60;
 const MAX_PCM_SAMPLES_PER_MESSAGE = 16_000; // max 1 s mono PCM at 16 kHz
 const MAX_CHAT_TEXT_LENGTH = 10_000;         // max chars per chat message
-const MAX_STICKER_URL_LENGTH = 2_048;       // max chars for sticker asset URL
-const MAX_STICKER_EMOJI_LENGTH = 10;        // max chars for sticker emoji
-const MAX_STICKER_PACK_NAME_LENGTH = 100;   // max chars for sticker pack name
 const SESSION_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1_000; // 30 minutes
 
 // ── Durable Object ────────────────────────────────────────────────────
@@ -488,58 +471,6 @@ export class SnailRelay implements DurableObject {
           }
           const peer = this.getPeer(ws);
           if (peer) this.send(peer, { type: "fallback_pcm_audio", audio: msg.audio, sampleRate: msg.sampleRate });
-          break;
-        }
-
-        case "sticker": {
-          if (!authenticated || !msg.assetUrl || !msg.mimeType) {
-            this.send(ws, { type: "error", error: "Invalid sticker" });
-            return;
-          }
-
-          if (msg.assetUrl.length > MAX_STICKER_URL_LENGTH) {
-            this.send(ws, { type: "error", error: `Sticker URL too long (max ${MAX_STICKER_URL_LENGTH} characters)` });
-            return;
-          }
-          if (msg.emoji && msg.emoji.length > MAX_STICKER_EMOJI_LENGTH) {
-            this.send(ws, { type: "error", error: `Sticker emoji too long (max ${MAX_STICKER_EMOJI_LENGTH} characters)` });
-            return;
-          }
-          if (msg.packShortName && msg.packShortName.length > MAX_STICKER_PACK_NAME_LENGTH) {
-            this.send(ws, { type: "error", error: `Sticker pack name too long (max ${MAX_STICKER_PACK_NAME_LENGTH} characters)` });
-            return;
-          }
-          const messageId = msg.messageId || crypto.randomUUID();
-
-          this.session.deliveredMessageIds ??= [];
-          if (this.session.deliveredMessageIds.includes(messageId)) {
-            this.send(ws, { type: "delivery_ack", messageId });
-            break;
-          }
-
-          const stickerMessage = {
-            type: "sticker",
-            messageId,
-            senderId: userId || undefined,
-            assetUrl: msg.assetUrl,
-            emoji: msg.emoji || '🙂',
-            packShortName: msg.packShortName || 'snail-local',
-            stickerId: msg.stickerId,
-            fileUniqueId: msg.fileUniqueId,
-            isAnimated: msg.isAnimated === true,
-            isVideo: msg.isVideo === true,
-            mimeType: msg.mimeType,
-            timestamp: msg.timestamp || Date.now(),
-          } as ServerMessage;
-
-          this.session.chatHistory.push(stickerMessage);
-          this.session.chatHistory = this.session.chatHistory.slice(-500);
-          this.session.deliveredMessageIds.push(messageId);
-          this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
-          await this.saveState();
-          const peer = this.getPeer(ws);
-          if (peer) this.send(peer, stickerMessage);
-          this.send(ws, { type: "delivery_ack", messageId: stickerMessage.messageId });
           break;
         }
 

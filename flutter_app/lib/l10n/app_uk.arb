@@ -333,19 +333,6 @@
   "@chatPendingCount": {
     "placeholders": { "count": { "type": "int" } }
   },
-  "chatImportTelegramPackTooltip": "Імпортувати стікерпак Telegram",
-  "chatTelegramStickerPackTitle": "Стікерпак Telegram",
-  "chatPackLinkLabel": "Посилання на пак (t.me/addstickers/...)",
-  "chatBotTokenLabel": "Токен бота Telegram",
-  "chatImportButton": "Імпортувати",
-  "chatStickersImported": "Імпортовано стікерів: {count}",
-  "@chatStickersImported": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "chatTelegramImportFailed": "Не вдалося імпортувати з Telegram: {error}",
-  "@chatTelegramImportFailed": {
-    "placeholders": { "error": { "type": "String" } }
-  },
   "chatTranslationFailed": "Переклад не вдався: {error}",
   "@chatTranslationFailed": {
     "placeholders": { "error": { "type": "String" } }

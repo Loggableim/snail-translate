@@ -333,19 +333,6 @@
   "@chatPendingCount": {
     "placeholders": { "count": { "type": "int" } }
   },
-  "chatImportTelegramPackTooltip": "Telegram 스티커 팩 가져오기",
-  "chatTelegramStickerPackTitle": "Telegram 스티커 팩",
-  "chatPackLinkLabel": "팩 링크 (t.me/addstickers/...)",
-  "chatBotTokenLabel": "Telegram 봇 토큰",
-  "chatImportButton": "가져오기",
-  "chatStickersImported": "{count}개 스티커 가져옴",
-  "@chatStickersImported": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "chatTelegramImportFailed": "Telegram 가져오기 실패: {error}",
-  "@chatTelegramImportFailed": {
-    "placeholders": { "error": { "type": "String" } }
-  },
   "chatTranslationFailed": "번역 실패: {error}",
   "@chatTranslationFailed": {
     "placeholders": { "error": { "type": "String" } }

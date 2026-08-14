@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/session.dart';
 import '../models/chat_message.dart';
-import '../models/sticker_message.dart';
 import 'chat_service.dart';
 import 'error_logger.dart';
 
@@ -29,7 +28,6 @@ class AudioService extends ChangeNotifier {
   void Function(String signalType, dynamic signal)? onSignal;
   VoidCallback? onAuthenticated;
   void Function(Map<String, dynamic> message)? onP2pChatSend;
-  void Function(Map<String, dynamic> message)? onP2pStickerSend;
   bool Function()? isP2pConnected;
   int _reconnectAttempt = 0;
   Timer? _reconnectTimer;
@@ -44,7 +42,6 @@ class AudioService extends ChangeNotifier {
   bool get isReconnecting => _isReconnecting;
   bool get isAuthenticated => _isAuthenticated;
   List<ChatMessage> get messages => chat.messages;
-  List<StickerMessage> get stickers => chat.stickers;
   int get pendingCount => chat.pendingCount;
   List<Map<String, dynamic>> get signals => List.unmodifiable(_signals);
 
@@ -61,8 +58,6 @@ class AudioService extends ChangeNotifier {
       {String sourceLang = 'de', String targetLang = 'en'}) {
     chat.sendChat(text, sourceLang: sourceLang, targetLang: targetLang);
   }
-
-  void sendSticker(StickerMessage sticker) => chat.sendSticker(sticker);
 
   void receiveP2pData(Map<String, dynamic> message) =>
       chat.receiveP2pData(message);
@@ -191,11 +186,6 @@ class AudioService extends ChangeNotifier {
                   .whereType<Map<String, dynamic>>()
                   .toList();
           chat.replaceHistory(history);
-          break;
-        case 'sticker':
-          chat.addIncomingSticker(Map<String, dynamic>.from(msg));
-          chat.persistConversation();
-          notifyListeners();
           break;
         case 'signal':
           if (_signals.length >= _maxSignals) _signals.removeAt(0);
