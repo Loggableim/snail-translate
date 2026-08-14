@@ -50,11 +50,11 @@ class TranslationService {
       required String targetLang,
       required ProviderConfig config}) async {
     if (text.trim().isEmpty) {
-      return const TranslationResult.failed('', 'leerer Text', TranslationFailureCode.emptyInput);
+      return const TranslationResult.failed('', 'translation_empty_input', TranslationFailureCode.emptyInput);
     }
     if (sourceLang == targetLang) {
       return TranslationResult.failed(text,
-          'Quell- und Zielsprache sind identisch ($sourceLang)',
+          'translation_same_language_$sourceLang',
           TranslationFailureCode.sameLanguage);
     }
     final prompt =
@@ -67,7 +67,7 @@ class TranslationService {
       final model = config.provider == TranslationProvider.fishAudio
           ? config.translationModel
           : config.model;
-      var primaryError = 'Übersetzungsdienst nicht erreichbar';
+      var primaryError = 'translation_provider_unreachable';
       try {
         final response = await _client.post(
           Uri.parse('${endpoint.replaceFirst(RegExp(r'/$'), '')}/api/chat'),
@@ -87,14 +87,14 @@ class TranslationService {
           if (content != null && content.isNotEmpty) {
             return TranslationResult.ok(content);
           }
-          primaryError = '$endpoint lieferte eine leere Übersetzung';
+          primaryError = 'translation_empty_response';
         } else {
-          primaryError = '$endpoint antwortete mit ${response.statusCode}';
+          primaryError = 'translation_http_${response.statusCode}';
         }
       } catch (error) {
         // Fish's mobile default must not silently depend on Ollama on the
         // same phone. Continue with the public low-cost translation fallback.
-        primaryError = '$endpoint nicht erreichbar';
+          primaryError = 'translation_endpoint_unreachable';
       }
       if (config.provider == TranslationProvider.fishAudio) {
         try {
@@ -119,24 +119,22 @@ class TranslationService {
             }
             return TranslationResult.failed(
                 text,
-                'MyMemory lehnte $sourceLang→$targetLang ab'
-                '${status == null ? '' : ' ($status)'}; $primaryError');
+                'mymemory_rejected_${status ?? 'unknown'}; $primaryError');
           }
           return TranslationResult.failed(
               text,
-              'MyMemory antwortete mit ${fallback.statusCode}; '
+              'mymemory_http_${fallback.statusCode}; '
               '$primaryError');
         } catch (error) {
           return TranslationResult.failed(
-              text, 'MyMemory nicht erreichbar; $primaryError');
+              text, 'mymemory_unreachable; $primaryError');
         }
       }
       return TranslationResult.failed(text, primaryError);
     }
 
     if (config.provider == TranslationProvider.geminiLive) {
-      throw Exception(
-          'Gemini Live ist für Chat-Text noch nicht implementiert; für Live-Audio vorgesehen');
+      throw Exception('gemini_chat_translation_not_supported');
     }
 
     if (config.apiKey.trim().isEmpty) throw Exception('OpenAI-BYOK-Key fehlt');
@@ -181,13 +179,13 @@ class TranslationService {
           .whereType<String>()
           .join();
       return output.trim().isEmpty
-          ? TranslationResult.failed(text, 'OpenAI lieferte eine leere Antwort')
+          ? TranslationResult.failed(text, 'openai_empty_response')
           : TranslationResult.ok(output.trim());
     }
     final content =
         (body['choices']?[0]?['message']?['content'] as String?)?.trim();
     return content == null || content.isEmpty
-        ? TranslationResult.failed(text, 'OpenAI lieferte eine leere Antwort')
+        ? TranslationResult.failed(text, 'openai_empty_response')
         : TranslationResult.ok(content);
   }
 }

@@ -42,7 +42,7 @@ void main() {
       // The old code returned the input here, and the caller handed it to TTS
       // — the app spoke the user's own sentence back in their own language.
       expect(result.translated, isFalse);
-      expect(result.reason, contains('identisch'));
+      expect(result.reason, contains('same_language'));
       expect(result.text, startsWith('Guten Morgen'));
     });
 
@@ -122,7 +122,7 @@ void main() {
       expect(result.reason, contains('429'));
     });
 
-    test('the unreachable local Ollama default is named in the reason',
+    test('an unreachable local Ollama default returns a stable reason code',
         () async {
       final service = TranslationService(client: _client('nope', myMemoryStatus: 500));
       final result = await service.translate(
@@ -134,7 +134,7 @@ void main() {
       // The shipped Fish default points at an Ollama on the phone itself,
       // so the primary call can never succeed there.
       expect(result.translated, isFalse);
-      expect(result.reason, contains('127.0.0.1:11434'));
+      expect(result.reason, contains('translation_endpoint_unreachable'));
     });
   });
 }
