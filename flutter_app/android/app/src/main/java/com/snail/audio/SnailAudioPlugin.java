@@ -117,6 +117,17 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     private int playbackRate = 24000;
     private String playbackOutput = "default";
     private AudioManager audioManager;
+    private volatile Boolean cachedHeadsetConnected;
+    private volatile android.media.AudioDeviceInfo cachedInputHeadset;
+    private final android.media.AudioDeviceCallback audioDeviceCallback =
+            new android.media.AudioDeviceCallback() {
+                @Override public void onAudioDevicesAdded(android.media.AudioDeviceInfo[] added) {
+                    invalidateAudioDeviceCache();
+                }
+                @Override public void onAudioDevicesRemoved(android.media.AudioDeviceInfo[] removed) {
+                    invalidateAudioDeviceCache();
+                }
+            };
     private int previousAudioMode = AudioManager.MODE_NORMAL;
     private boolean communicationModeActive = false;
     private final BroadcastReceiver sessionEndedReceiver = new BroadcastReceiver() {
@@ -171,6 +182,9 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
         applicationContext = binding.getApplicationContext();
         audioManager = (AudioManager) applicationContext.getSystemService(Context.AUDIO_SERVICE);
+        if (audioManager != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            audioManager.registerAudioDeviceCallback(audioDeviceCallback, mainHandler);
+        }
         methodChannel = new MethodChannel(binding.getBinaryMessenger(), METHOD_CHANNEL);
         methodChannel.setMethodCallHandler(this);
 
@@ -204,6 +218,9 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
 
     @Override
     public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
+        if (audioManager != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            audioManager.unregisterAudioDeviceCallback(audioDeviceCallback);
+        }
         stopCapture();
         stopStandaloneCapture();
         stopPlayback();
@@ -277,6 +294,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 break;
             case "setInput":
                 preferredInput = call.argument("input") == null ? "auto" : (String) call.argument("input");
+                invalidateAudioDeviceCache();
                 applyInputRoute();
                 result.success(null);
                 break;
@@ -629,6 +647,14 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     }
 
     private boolean isHeadsetConnected() {
+        Boolean cached = cachedHeadsetConnected;
+        if (cached != null) return cached;
+        boolean detected = detectHeadsetConnected();
+        cachedHeadsetConnected = detected;
+        return detected;
+    }
+
+    private boolean detectHeadsetConnected() {
         if (audioManager == null) return false;
         // A Bluetooth A2DP proxy can remain available even when the phone is
         // actually using its earpiece/speaker. It is not proof of an active
@@ -1085,13 +1111,23 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
 
     private android.media.AudioDeviceInfo findInputHeadset() {
         if (audioManager == null || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M) return null;
+        android.media.AudioDeviceInfo cached = cachedInputHeadset;
+        if (cached != null) return cached;
         for (android.media.AudioDeviceInfo device : audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)) {
             int type = device.getType();
             if (type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET
                     || type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-                    || type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET) return device;
+                || type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET) {
+                    cachedInputHeadset = device;
+                    return device;
+                }
         }
         return null;
+    }
+
+    private void invalidateAudioDeviceCache() {
+        cachedHeadsetConnected = null;
+        cachedInputHeadset = null;
     }
 
     private android.media.AudioDeviceInfo findBuiltInMic() {
