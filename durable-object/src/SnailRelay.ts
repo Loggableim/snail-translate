@@ -32,7 +32,7 @@ interface SessionState {
   quotaUsed: number;
   sessionSecret: string;  // Passed from Worker at /init
   chatHistory: ServerMessage[];
-  deliveredMessageIds?: string[];
+  deliveredMessageIds: Set<string>;
 }
 
 interface ClientMessage {
@@ -119,7 +119,7 @@ export class SnailRelay implements DurableObject {
       quotaUsed: 0,
       sessionSecret: "",
       chatHistory: [],
-      deliveredMessageIds: [],
+      deliveredMessageIds: new Set(),
     };
 
     this.state.blockConcurrencyWhile(async () => {
@@ -129,7 +129,11 @@ export class SnailRelay implements DurableObject {
         // Sessions created before chat history was introduced may not have
         // this field yet.
         this.session.chatHistory ??= [];
-        this.session.deliveredMessageIds ??= [];
+        this.session.deliveredMessageIds = new Set(
+          Array.isArray(saved.deliveredMessageIds)
+            ? saved.deliveredMessageIds
+            : [...(saved.deliveredMessageIds ?? new Set())],
+        );
       }
       // Restore secret from storage
       const savedSecret = await this.state.storage.get<string>("secret");
@@ -359,8 +363,7 @@ export class SnailRelay implements DurableObject {
 
           const messageId = msg.messageId || crypto.randomUUID();
 
-          this.session.deliveredMessageIds ??= [];
-          if (this.session.deliveredMessageIds.includes(messageId)) {
+          if (this.session.deliveredMessageIds.has(messageId)) {
             this.send(ws, { type: "delivery_ack", messageId });
             break;
           }
@@ -377,8 +380,8 @@ export class SnailRelay implements DurableObject {
 
           this.session.chatHistory.push(chatMessage);
           this.session.chatHistory = this.session.chatHistory.slice(-500);
-          this.session.deliveredMessageIds.push(messageId);
-          this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
+          this.session.deliveredMessageIds.add(messageId);
+          this.trimDeliveredMessageIds();
           await this.saveState();
           const peer = this.getPeer(ws);
           if (peer) this.send(peer, chatMessage);
@@ -450,8 +453,7 @@ export class SnailRelay implements DurableObject {
 
           const messageId = msg.messageId || crypto.randomUUID();
 
-          this.session.deliveredMessageIds ??= [];
-          if (this.session.deliveredMessageIds.includes(messageId)) {
+          if (this.session.deliveredMessageIds.has(messageId)) {
             this.send(ws, { type: "delivery_ack", messageId });
             break;
           }
@@ -469,8 +471,8 @@ export class SnailRelay implements DurableObject {
 
           this.session.chatHistory.push(voiceMessage);
           this.session.chatHistory = this.session.chatHistory.slice(-500);
-          this.session.deliveredMessageIds.push(messageId);
-          this.session.deliveredMessageIds = this.session.deliveredMessageIds.slice(-500);
+          this.session.deliveredMessageIds.add(messageId);
+          this.trimDeliveredMessageIds();
           await this.saveState();
           const peer = this.getPeer(ws);
           if (peer) this.send(peer, voiceMessage);
@@ -673,12 +675,21 @@ export class SnailRelay implements DurableObject {
   private async saveState(): Promise<void> {
     // WebSocket instances are live runtime objects and cannot be persisted.
     // Store only the durable session metadata; sockets are restored on connect.
-    const persisted: SessionState = {
+    const persisted = {
       ...this.session,
       hostSocket: null,
       guestSocket: null,
+      deliveredMessageIds: [...this.session.deliveredMessageIds],
     };
     await this.state.storage.put("session", persisted);
+  }
+
+  private trimDeliveredMessageIds(): void {
+    while (this.session.deliveredMessageIds.size > 500) {
+      const oldest = this.session.deliveredMessageIds.values().next().value as string | undefined;
+      if (oldest === undefined) break;
+      this.session.deliveredMessageIds.delete(oldest);
+    }
   }
 
   private async cleanup(): Promise<void> {
