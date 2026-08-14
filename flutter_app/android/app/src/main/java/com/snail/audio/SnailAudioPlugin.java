@@ -1159,15 +1159,33 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
 
     private void stopStandaloneCapture() {
         standaloneCapturing = false;
-        if (standalonePhoneThread != null) { standalonePhoneThread.interrupt(); standalonePhoneThread = null; }
-        if (standaloneHeadsetThread != null) { standaloneHeadsetThread.interrupt(); standaloneHeadsetThread = null; }
-        if (phoneRecord != null) { try { phoneRecord.stop(); } catch (Exception ignored) {} phoneRecord.release(); phoneRecord = null; }
-        if (headsetRecord != null) { try { headsetRecord.stop(); } catch (Exception ignored) {} headsetRecord.release(); headsetRecord = null; }
+        final Thread phoneThread = standalonePhoneThread;
+        final Thread headsetThread = standaloneHeadsetThread;
+        if (phoneThread != null) phoneThread.interrupt();
+        if (headsetThread != null) headsetThread.interrupt();
+        // Stop unblocks AudioRecord.read(). Join before release so a capture
+        // thread cannot call into an AudioRecord after its native resources
+        // have been released.
+        if (phoneRecord != null) { try { phoneRecord.stop(); } catch (Exception ignored) {} }
+        if (headsetRecord != null) { try { headsetRecord.stop(); } catch (Exception ignored) {} }
+        joinCaptureThread(phoneThread);
+        joinCaptureThread(headsetThread);
+        if (phoneRecord != null) { phoneRecord.release(); phoneRecord = null; }
+        if (headsetRecord != null) { headsetRecord.release(); headsetRecord = null; }
+        standalonePhoneThread = null;
+        standaloneHeadsetThread = null;
         if (standalonePhoneAec != null) { standalonePhoneAec.release(); standalonePhoneAec = null; }
         if (standaloneHeadsetAec != null) { standaloneHeadsetAec.release(); standaloneHeadsetAec = null; }
         if (standalonePhoneNs != null) { standalonePhoneNs.release(); standalonePhoneNs = null; }
         if (standaloneHeadsetNs != null) { standaloneHeadsetNs.release(); standaloneHeadsetNs = null; }
         standaloneHasHeadset = false;
+    }
+
+    private void joinCaptureThread(Thread thread) {
+        if (thread == null || thread == Thread.currentThread()) return;
+        try { thread.join(); } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void handleStopCapture(Result result) {
