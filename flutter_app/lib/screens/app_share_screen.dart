@@ -106,7 +106,7 @@ class _ActiveShare extends StatelessWidget {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 14),
-        Text(share.status,
+        Text(_statusLabel(l10n, share.status),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
@@ -146,6 +146,17 @@ class _ActiveShare extends StatelessWidget {
 
   String _bytes(num? value) =>
       value == null ? '—' : '${(value / (1024 * 1024)).toStringAsFixed(1)} MB';
+  String _statusLabel(AppLocalizations l10n, AppShareStatus status) => switch (status) {
+        AppShareStatus.ready => l10n.appShareDirectTitle,
+        AppShareStatus.preparing => l10n.appSharePreparingLink,
+        AppShareStatus.linkReady => l10n.appShareDownloadReady,
+        AppShareStatus.guestConnected => l10n.appShareDownloadReady,
+        AppShareStatus.transferring => l10n.appSharePreparingLink,
+        AppShareStatus.finished => l10n.appShareDownloadReady,
+        AppShareStatus.disconnected => l10n.appShareStopDownload,
+        AppShareStatus.failed => l10n.appShareStopDownload,
+      };
+
   String _time(DateTime? value) => value == null
       ? '—'
       : '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';

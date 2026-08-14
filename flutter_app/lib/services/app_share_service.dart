@@ -11,6 +11,8 @@ import 'package:web_socket_channel/io.dart';
 import 'api_keys.dart';
 import 'user_identity_service.dart';
 
+enum AppShareStatus { ready, preparing, linkReady, guestConnected, transferring, finished, disconnected, failed }
+
 /// Offers this device's installed APK over an ephemeral Cloudflare websocket
 /// tunnel. The APK remains a File on the host; no APK bytes are uploaded or
 /// persisted by Cloudflare.
@@ -32,7 +34,7 @@ class AppShareService extends ChangeNotifier {
   bool _isPreparing = false;
   bool _isTransferring = false;
   DateTime? _transferStartedAt;
-  String _status = 'Bereit';
+  AppShareStatus _status = AppShareStatus.ready;
   String? _error;
 
   bool get isSharing => _tunnel != null && _url != null;
@@ -44,7 +46,7 @@ class AppShareService extends ChangeNotifier {
   int get transferredBytes => _transferredBytes;
   bool get isPreparing => _isPreparing;
   bool get isTransferring => _isTransferring;
-  String get status => _status;
+  AppShareStatus get status => _status;
   String? get error => _error;
   double get progress => _apkBytes == null || _apkBytes == 0
       ? 0
@@ -60,7 +62,7 @@ class AppShareService extends ChangeNotifier {
     if (isSharing || _isPreparing) return;
     _error = null;
     _isPreparing = true;
-    _status = 'Link wird vorbereitet …';
+    _status = AppShareStatus.preparing;
     notifyListeners();
     try {
       final raw = await _channel.invokeMapMethod<String, dynamic>('apkInfo');
@@ -101,12 +103,12 @@ class AppShareService extends ChangeNotifier {
       final result = jsonDecode(response.body) as Map<String, dynamic>;
       _url = result['url'] as String? ?? '${ApiKeys.appShareUrl}/${_token!}';
       _expiresAt = DateTime.fromMillisecondsSinceEpoch((result['expiresAt'] as num?)?.toInt() ?? DateTime.now().add(_ttl).millisecondsSinceEpoch);
-      _status = 'Link bereit — warte auf Download';
+      _status = AppShareStatus.linkReady;
       await _connectHostTunnel();
       _expiryTimer = Timer(_ttl, stop);
     } catch (error) {
       _error = error.toString().replaceFirst('Bad state: ', '').replaceFirst('StateError: ', '');
-      _status = 'Nicht bereit';
+      _status = AppShareStatus.failed;
       await stop();
     } finally {
       _isPreparing = false;
@@ -122,9 +124,9 @@ class AppShareService extends ChangeNotifier {
     _tunnel = tunnel;
     await tunnel.ready;
     _tunnelSubscription = tunnel.stream.listen(_onTunnelMessage, onError: (Object error) {
-      _error = 'Tunnelfehler: $error'; _status = 'Tunnel getrennt'; notifyListeners();
+      _error = 'Tunnelfehler: $error'; _status = AppShareStatus.disconnected; notifyListeners();
     }, onDone: () {
-      if (_status != 'Fertig') { _status = 'Tunnel getrennt'; notifyListeners(); }
+      if (_status != AppShareStatus.finished) { _status = AppShareStatus.disconnected; notifyListeners(); }
     });
   }
 
@@ -134,7 +136,7 @@ class AppShareService extends ChangeNotifier {
       final message = jsonDecode(raw) as Map<String, dynamic>;
       switch (message['type']) {
         case 'guest_connected':
-          _status = 'Gast verbunden — wartet auf Transfer';
+          _status = AppShareStatus.guestConnected;
           break;
         case 'guest_ready':
           if (!_isTransferring) unawaited(_sendApk());
@@ -143,11 +145,11 @@ class AppShareService extends ChangeNotifier {
           _transferredBytes = (message['transferred'] as num?)?.toInt() ?? _transferredBytes;
           break;
         case 'transfer_complete':
-          _status = 'Fertig';
+          _status = AppShareStatus.finished;
           _isTransferring = false;
           break;
         case 'guest_disconnected':
-          if (_isTransferring) _status = 'Gast hat die Übertragung getrennt';
+          if (_isTransferring) _status = AppShareStatus.disconnected;
           break;
       }
       notifyListeners();
@@ -163,7 +165,7 @@ class AppShareService extends ChangeNotifier {
     _isTransferring = true;
     _transferredBytes = 0;
     _transferStartedAt = DateTime.now();
-    _status = 'Übertragung läuft …';
+    _status = AppShareStatus.transferring;
     tunnel.sink.add(jsonEncode({'type': 'transfer_start'}));
     notifyListeners();
     try {
@@ -173,12 +175,12 @@ class AppShareService extends ChangeNotifier {
       await tunnel.sink.addStream(apk.openRead());
       if (_tunnel != tunnel) return;
       tunnel.sink.add(jsonEncode({'type': 'transfer_complete'}));
-      _status = 'Fertig';
+      _status = AppShareStatus.finished;
       _isTransferring = false;
       _downloads++;
     } catch (error) {
       _error = 'Übertragung fehlgeschlagen: $error';
-      _status = 'Übertragung fehlgeschlagen';
+      _status = AppShareStatus.failed;
       tunnel.sink.add(jsonEncode({'type': 'transfer_error'}));
       _isTransferring = false;
     }
@@ -198,7 +200,7 @@ class AppShareService extends ChangeNotifier {
     await _tunnel?.sink.close(); _tunnel = null;
     _apk = null; _token = null; _url = null; _expiresAt = null;
     _transferredBytes = 0; _isTransferring = false; _isPreparing = false; _transferStartedAt = null;
-    if (_error == null) _status = 'Bereit';
+    if (_error == null) _status = AppShareStatus.ready;
     notifyListeners();
   }
 
