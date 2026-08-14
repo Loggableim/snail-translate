@@ -21,4 +21,19 @@ void main() {
     expect(sent, hasLength(1));
     expect((jsonDecode(sent.single) as Map<String, dynamic>)['text'], 'offline');
   });
+
+  test('queues edit and delete operations while offline', () {
+    final service = ChatService();
+    service.onSend = (_) {};
+    service.canSend = () => false;
+    service.sendChat('before');
+    final id = service.messages.single.id;
+
+    service.editMessage(id, 'after');
+    expect(service.messages.single.text, 'after');
+    expect(service.pendingCount, 2);
+    service.deleteMessage(id);
+    expect(service.messages, isEmpty);
+    expect(service.pendingCount, 3);
+  });
 }

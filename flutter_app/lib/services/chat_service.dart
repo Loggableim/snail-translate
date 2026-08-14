@@ -118,6 +118,19 @@ class ChatService extends ChangeNotifier {
   /// Makes queued messages eligible for delivery after a transport drop.
   void markTransportUnavailable() => _inFlight.clear();
 
+  void _dispatch(Map<String, dynamic> message) {
+    final id = message['messageId'];
+    final relayAvailable = onSend != null && (canSend?.call() ?? true);
+    final p2pAvailable = isP2pConnected?.call() == true && onP2pSend != null;
+    if (p2pAvailable) onP2pSend!.call(message);
+    if (relayAvailable) {
+      onSend!(jsonEncode(message));
+      if (id is String) _inFlight.add(id);
+    } else if (!p2pAvailable) {
+      _queue(message);
+    }
+  }
+
   // ── Idempotency ────────────────────────────────────────────────────
 
   bool _hasMessage(String id) =>
@@ -185,8 +198,7 @@ class ChatService extends ChangeNotifier {
     _persistConversation();
     notifyListeners();
     final message = {'type': 'delete', 'messageId': messageId};
-    if (isP2pConnected?.call() == true) onP2pSend?.call(message);
-    onSend?.call(jsonEncode(message));
+    _dispatch(message);
   }
 
   void editMessage(String messageId, String newText) {
@@ -210,8 +222,7 @@ class ChatService extends ChangeNotifier {
       'messageId': messageId,
       'text': newText.trim()
     };
-    if (isP2pConnected?.call() == true) onP2pSend?.call(message);
-    onSend?.call(jsonEncode(message));
+    _dispatch(message);
   }
 
   // ── Search ─────────────────────────────────────────────────────────
