@@ -33,7 +33,7 @@ function state() {
 
 async function initializedRelay() {
   const context = state();
-  const relay = new SnailRelay(context.durableState, {});
+  const relay = new SnailRelay(context.durableState, { FISHAUDIO_API_KEY: "test-fish-key" });
   await relay.fetch(new Request("https://internal/init", {
     method: "POST",
     body: JSON.stringify({ roomId: "snail-TEST", hostId: "host", sourceLang: "de", targetLang: "en", sessionSecret: secret }),
@@ -151,6 +151,21 @@ describe("SnailRelay lifecycle and limits", () => {
     }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(messagesOf(host, "error")[0].error).toContain("Voice message too large");
+  });
+
+  it("rejects unknown Fish voices and oversized TTS text", async () => {
+    const { relay } = await initializedRelay();
+    const host = await connect(relay, "host", "host");
+    host.socket.send(JSON.stringify({
+      type: "fish_tts_config",
+      voiceId: "unknown-voice",
+      model: "s2-pro",
+    }));
+    host.socket.send(JSON.stringify({ type: "fish_tts_text", text: "x".repeat(2_001) }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const errors = messagesOf(host, "error").map((message) => message.error).join(" ");
+    expect(errors).toContain("Unsupported Fish TTS voice or model");
+    expect(errors).toContain("Fish TTS quota exceeded");
   });
 
   it("alarm cleanup removes persisted session data", async () => {

@@ -30,6 +30,7 @@ interface SessionState {
   hostSocket: WebSocket | null;
   guestSocket: WebSocket | null;
   quotaUsed: number;
+  fishTtsChars: number;
   sessionSecret: string;  // Passed from Worker at /init
   chatHistory: ServerMessage[];
   deliveredMessageIds: Set<string>;
@@ -88,6 +89,14 @@ const MAX_QUOTA_SECONDS = 30 * 60;
 const MAX_PCM_SAMPLES_PER_MESSAGE = 16_000; // max 1 s mono PCM at 16 kHz
 const MAX_CHAT_TEXT_LENGTH = 10_000;         // max chars per chat message
 const MAX_VOICE_AUDIO_DATA_LENGTH = 128 * 1024; // max base64 payload per voice message
+const MAX_FISH_TTS_CHARS = 10_000;
+const MAX_FISH_TTS_TEXT_LENGTH = 2_000;
+const ALLOWED_FISH_VOICES = new Set([
+  "802e3bc2b27e49c2995d23ef70e6ac89",
+  "2d4039641d67419fa132ca59fa2f61ad",
+  "42039da0dcbd49bc8846fc1c12def1f4",
+]);
+const ALLOWED_FISH_MODELS = new Set(["s2-pro", "s1"]);
 const SESSION_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1_000; // 30 minutes
 const PROTOCOL_VERSION = 1;
 
@@ -117,6 +126,7 @@ export class SnailRelay implements DurableObject {
       hostSocket: null,
       guestSocket: null,
       quotaUsed: 0,
+      fishTtsChars: 0,
       sessionSecret: "",
       chatHistory: [],
       deliveredMessageIds: new Set(),
@@ -134,6 +144,7 @@ export class SnailRelay implements DurableObject {
             ? saved.deliveredMessageIds
             : [...(saved.deliveredMessageIds ?? new Set())],
         );
+        this.session.fishTtsChars ??= 0;
       }
       // Restore secret from storage
       const savedSecret = await this.state.storage.get<string>("secret");
@@ -398,6 +409,11 @@ export class SnailRelay implements DurableObject {
             this.send(ws, { type: "error", error: "Server Fish TTS is not configured" });
             return;
           }
+          if (!ALLOWED_FISH_VOICES.has(msg.voiceId) ||
+              (msg.model != null && !ALLOWED_FISH_MODELS.has(msg.model))) {
+            this.send(ws, { type: "error", error: "Unsupported Fish TTS voice or model" });
+            return;
+          }
           try {
             await this.fishConnection(peerRole).configure({
               voiceId: msg.voiceId,
@@ -417,6 +433,13 @@ export class SnailRelay implements DurableObject {
             this.send(ws, { type: "error", error: "Invalid Fish TTS text" });
             return;
           }
+          if (msg.text.length > MAX_FISH_TTS_TEXT_LENGTH ||
+              this.session.fishTtsChars + msg.text.length > MAX_FISH_TTS_CHARS) {
+            this.send(ws, { type: "error", error: "Fish TTS quota exceeded" });
+            return;
+          }
+          this.session.fishTtsChars += msg.text.length;
+          await this.saveState();
           try {
             await this.fishConnection(peerRole).sendText(msg.text);
           } catch (err) {
