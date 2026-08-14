@@ -271,8 +271,12 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             result.success(true);
             return;
         }
-        if (applicationContext.checkSelfPermission(Manifest.permission.RECORD_AUDIO)
-                == PackageManager.PERMISSION_GRANTED) {
+        boolean microphoneGranted = applicationContext.checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED;
+        boolean bluetoothGranted = android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S
+                || applicationContext.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
+                == PackageManager.PERMISSION_GRANTED;
+        if (microphoneGranted && bluetoothGranted) {
             result.success(true);
             return;
         }
@@ -281,7 +285,10 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             return;
         }
         pendingPermissionResult = result;
-        activity.requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},
+        String[] permissions = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                ? new String[]{Manifest.permission.RECORD_AUDIO, Manifest.permission.BLUETOOTH_CONNECT}
+                : new String[]{Manifest.permission.RECORD_AUDIO};
+        activity.requestPermissions(permissions,
                 MICROPHONE_PERMISSION_REQUEST);
     }
 
@@ -289,7 +296,10 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         activity = binding.getActivity();
         binding.addRequestPermissionsResultListener((requestCode, permissions, grantResults) -> {
             if (requestCode != MICROPHONE_PERMISSION_REQUEST || pendingPermissionResult == null) return false;
-            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            boolean granted = grantResults.length >= permissions.length;
+            for (int grantResult : grantResults) {
+                granted &= grantResult == PackageManager.PERMISSION_GRANTED;
+            }
             Result pending = pendingPermissionResult;
             pendingPermissionResult = null;
             pending.success(granted);
