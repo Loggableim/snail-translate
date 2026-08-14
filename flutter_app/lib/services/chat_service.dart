@@ -191,7 +191,7 @@ class ChatService extends ChangeNotifier {
 
   /// Flush queued messages. Called by AudioService when connection is ready.
   void flushOutbox() {
-    if (canSend?.call() == false) return;
+    if (onSend == null || canSend?.call() == false) return;
     for (final message in List<Map<String, dynamic>>.from(_outbox)) {
       final id = message['messageId'];
       if (id is String && !_inFlight.add(id)) continue;

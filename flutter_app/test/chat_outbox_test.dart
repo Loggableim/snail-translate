@@ -36,4 +36,18 @@ void main() {
     expect(service.messages, isEmpty);
     expect(service.pendingCount, 3);
   });
+
+  test('does not reserve queued messages before a send callback exists', () {
+    final service = ChatService();
+    service.canSend = () => true;
+    service.sendChat('waiting for channel');
+    expect(service.pendingCount, 1);
+
+    service.flushOutbox();
+    final sent = <String>[];
+    service.onSend = sent.add;
+    service.flushOutbox();
+
+    expect(sent, hasLength(1));
+  });
 }
