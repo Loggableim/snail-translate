@@ -1,0 +1,27 @@
+import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:snail/services/chat_crypto_service.dart';
+import 'package:snail/services/chat_service.dart';
+
+void main() {
+  test('sends an encrypted text field when conversation crypto is configured',
+      () async {
+    final service = ChatService();
+    service.setConversationCrypto(
+        ChatCryptoService.fromSharedSecret(List<int>.filled(32, 7)));
+    final wireMessages = <String>[];
+    service.onSend = wireMessages.add;
+
+    await service.sendChat('secret phrase');
+
+    expect(wireMessages, hasLength(1));
+    final wire = jsonDecode(wireMessages.single) as Map<String, dynamic>;
+    expect(wire['text'], isNot('secret phrase'));
+    expect(
+      await ChatCryptoService.fromSharedSecret(List<int>.filled(32, 7))
+          .decrypt(wire['text'] as String),
+      'secret phrase',
+    );
+  });
+}

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../models/chat_message.dart';
 import '../models/message_status.dart';
 import 'error_logger.dart';
+import 'chat_crypto_service.dart';
 
 /// Manages chat messages, persistence, and outbox.
 ///
@@ -34,9 +35,16 @@ class ChatService extends ChangeNotifier {
 
   String? _conversationId;
   String? _roomId;
+  ChatCryptoService? _crypto;
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   int get pendingCount => _outbox.length;
+
+  /// Installs the conversation key negotiated with the peer.
+  ///
+  /// A null value keeps the legacy plaintext path for conversations created
+  /// before E2E key exchange was available.
+  void setConversationCrypto(ChatCryptoService? crypto) => _crypto = crypto;
 
   // ── Initialization ─────────────────────────────────────────────────
 
@@ -241,8 +249,8 @@ class ChatService extends ChangeNotifier {
 
   // ── Outgoing ───────────────────────────────────────────────────────
 
-  void sendChat(String text,
-      {String sourceLang = 'de', String targetLang = 'en'}) {
+  Future<void> sendChat(String text,
+      {String sourceLang = 'de', String targetLang = 'en'}) async {
     if (text.trim().isEmpty) return;
     final messageId = _uuid.v4();
     final message = {
@@ -269,12 +277,25 @@ class ChatService extends ChangeNotifier {
           : MessageStatus.queued,
     ));
     notifyListeners();
-    if (p2pAvailable) onP2pSend?.call(message);
+    unawaited(_dispatchOutgoing(message,
+        relayAvailable: relayAvailable, p2pAvailable: p2pAvailable));
+  }
+
+  Future<void> _dispatchOutgoing(Map<String, dynamic> message,
+      {required bool relayAvailable, required bool p2pAvailable}) async {
+    final wireMessage = _crypto == null
+        ? message
+        : {
+            ...message,
+            'text': await _crypto!.encrypt(message['text'] as String),
+          };
+    if (p2pAvailable) onP2pSend?.call(wireMessage);
     if (!relayAvailable && !p2pAvailable) {
-      _queue(message);
+      await _queue(wireMessage);
     } else if (relayAvailable) {
-      onSend?.call(jsonEncode(message));
-      _inFlight.add(messageId);
+      onSend?.call(jsonEncode(wireMessage));
+      final id = wireMessage['messageId'];
+      if (id is String) _inFlight.add(id);
     }
   }
 
