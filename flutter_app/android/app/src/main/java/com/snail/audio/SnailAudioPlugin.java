@@ -804,7 +804,6 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         // headphones. STREAM_VOICE_CALL commonly stays on the earpiece when a
         // Bluetooth A2DP device is connected; media audio follows the user's
         // active headset route while capture/AEC remains in communication mode.
-        int stream = AudioManager.STREAM_MUSIC;
         int min = AudioTrack.getMinBufferSize(rate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
         // A fixed time-based jitter buffer. Sizing this from the first chunk
         // made the capacity depend on whichever chunk happened to arrive
@@ -815,14 +814,24 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         // several blocking passes, which is correct.
         int bytesPerSecond = rate * 2;
         int capacity = Math.max(min, (bytesPerSecond * PLAYBACK_BUFFER_MS) / 1000);
-        playbackTrack = new AudioTrack(
-                stream,
-                rate,
-                AudioFormat.CHANNEL_OUT_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                capacity,
-                AudioTrack.MODE_STREAM
-        );
+        AudioAttributes attributes = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build();
+        AudioFormat format = new AudioFormat.Builder()
+                .setSampleRate(rate)
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .build();
+        AudioTrack.Builder builder = new AudioTrack.Builder()
+                .setAudioAttributes(attributes)
+                .setAudioFormat(format)
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .setBufferSizeInBytes(capacity);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            builder.setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY);
+        }
+        playbackTrack = builder.build();
         if (playbackTrack.getState() != AudioTrack.STATE_INITIALIZED) {
             stopPlayback();
             throw new IllegalStateException("Voice communication playback unavailable");
