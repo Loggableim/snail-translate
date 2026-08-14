@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -17,6 +18,9 @@ class ChatService extends ChangeNotifier {
   final List<ChatMessage> _messages = [];
   final List<Map<String, dynamic>> _outbox = [];
   final Set<String> _inFlight = <String>{};
+  Timer? _conversationPersistTimer;
+  Future<void>? _conversationWrite;
+  bool _conversationDirty = false;
 
   /// Callback to send a raw JSON message through the WebSocket.
   void Function(String jsonMessage)? onSend;
@@ -83,7 +87,7 @@ class ChatService extends ChangeNotifier {
     }
   }
 
-  Future<void> _persistConversation() async {
+  Future<void> _writeConversation() async {
     if (_conversationId == null) return;
     await _secureStorage.write(
       key: 'snail_conversation_$_conversationId',
@@ -94,6 +98,27 @@ class ChatService extends ChangeNotifier {
             .toList(),
       }),
     );
+  }
+
+  void _scheduleConversationPersist() {
+    if (_conversationId == null) return;
+    _conversationDirty = true;
+    _conversationPersistTimer?.cancel();
+    _conversationPersistTimer = Timer(const Duration(milliseconds: 500), () {
+      unawaited(_flushConversationPersistence());
+    });
+  }
+
+  Future<void> _flushConversationPersistence() async {
+    _conversationPersistTimer?.cancel();
+    _conversationPersistTimer = null;
+    if (!_conversationDirty || _conversationId == null) return;
+    _conversationDirty = false;
+    final previous = _conversationWrite ?? Future<void>.value();
+    final write = previous.then((_) => _writeConversation());
+    _conversationWrite = write;
+    await write;
+    if (_conversationDirty) await _flushConversationPersistence();
   }
 
   Future<void> _loadOutbox() async {
@@ -254,7 +279,7 @@ class ChatService extends ChangeNotifier {
     final removed = _messages.where((m) => m.id == messageId).toList();
     if (removed.isEmpty) return;
     _messages.removeWhere((m) => m.id == messageId);
-    _persistConversation();
+    _scheduleConversationPersist();
     notifyListeners();
     final message = {'type': 'delete', 'messageId': messageId};
     _dispatch(message);
@@ -274,7 +299,7 @@ class ChatService extends ChangeNotifier {
       outgoing: _messages[index].outgoing,
       status: _messages[index].status,
     );
-    _persistConversation();
+    _scheduleConversationPersist();
     notifyListeners();
     final message = {
       'type': 'edit',
@@ -299,7 +324,7 @@ class ChatService extends ChangeNotifier {
   void receiveP2pData(Map<String, dynamic> message) {
     if (message['type'] == 'chat') {
       addIncomingChat(message);
-      _persistConversation();
+      _scheduleConversationPersist();
       notifyListeners();
     }
   }
@@ -330,11 +355,26 @@ class ChatService extends ChangeNotifier {
         addIncomingChat(value);
       }
     }
-    _persistConversation();
+    _scheduleConversationPersist();
     notifyListeners();
   }
 
   // ── Persist after external changes ─────────────────────────────────
 
-  void persistConversation() => _persistConversation();
+  Future<void> persistConversation({bool immediate = false}) async {
+    if (immediate) {
+      _conversationPersistTimer?.cancel();
+      _conversationDirty = true;
+      await _flushConversationPersistence();
+    } else {
+      _scheduleConversationPersist();
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(persistConversation(immediate: true));
+    _conversationPersistTimer?.cancel();
+    super.dispose();
+  }
 }

@@ -246,7 +246,7 @@ class AudioService extends ChangeNotifier {
     _isAuthenticated = false;
     chat.markTransportUnavailable();
     notifyListeners();
-    chat.persistConversation();
+    chat.persistConversation(immediate: true);
     _tryReconnect();
   }
 
@@ -364,6 +364,7 @@ class AudioService extends ChangeNotifier {
     chat.markTransportUnavailable();
     _isReconnecting = false;
     _fishTtsConfig = null;
+    chat.persistConversation(immediate: true);
     notifyListeners();
   }
 }
