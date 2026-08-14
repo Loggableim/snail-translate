@@ -198,20 +198,19 @@ class SessionService extends ChangeNotifier {
         'targetLang': _targetLanguage,
         if (inviteeId != null && inviteeId.isNotEmpty) 'inviteeId': inviteeId,
       });
-      final response = await retry(
-        () async => withTimeout(
-          http.post(
-            Uri.parse('${ApiKeys.workerUrl}/api/rooms'),
-            headers: await _authHeaders(
-                json: true,
-                method: 'POST',
-                path: '/api/rooms',
-                body: requestBody),
-            body: requestBody,
-          ),
-          const Duration(seconds: 15),
+      // Room creation is not idempotent: a timeout may occur after the
+      // Worker has already allocated the room. Do not repeat this POST.
+      final response = await withTimeout(
+        http.post(
+          Uri.parse('${ApiKeys.workerUrl}/api/rooms'),
+          headers: await _authHeaders(
+              json: true,
+              method: 'POST',
+              path: '/api/rooms',
+              body: requestBody),
+          body: requestBody,
         ),
-        maxAttempts: 3,
+        const Duration(seconds: 15),
       );
 
       if (response.statusCode == 201) {
@@ -252,7 +251,7 @@ class SessionService extends ChangeNotifier {
         return null;
       }
       // Durable Object names are case-sensitive. Rooms are created as
-      // `snail-ABCD`, so only normalize the suffix; uppercasing the prefix
+      // `snail-AAYV2B7C`, so only normalize the suffix; uppercasing the prefix
       // turns it into a distinct, non-existent room (`SNAIL-ABCD`).
       final normalizedRoomId = 'snail-${match.group(1)!.toUpperCase()}';
       const requestBody = '';
