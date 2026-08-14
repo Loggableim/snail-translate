@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            worker/package-lock.json
+            durable-object/package-lock.json
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: flutter_app
+        run: flutter pub get
+
+      - name: Analyze Flutter app
+        working-directory: flutter_app
+        run: flutter analyze
+
+      - name: Test Flutter app
+        working-directory: flutter_app
+        run: flutter test
+
+      - name: Install Worker dependencies
+        working-directory: worker
+        run: npm ci
+
+      - name: Test Worker
+        working-directory: worker
+        run: npx vitest run
+
+      - name: Install Durable Object dependencies
+        working-directory: durable-object
+        run: npm ci
+
+      - name: Typecheck Durable Object
+        working-directory: durable-object
+        run: npx tsc --noEmit
+
+      - name: Test Durable Object
+        working-directory: durable-object
+        run: npx vitest run
+
+      - name: Scan changed text for secret patterns
+        shell: bash
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if git diff --unified=0 "$base"...HEAD -- \
+            ':!*.lock' ':!*.md' ':!*.arb' | \
+            grep -EIn '(sk-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{35}|bot[0-9]+:[A-Za-z0-9_-]{20,}|BEGIN (RSA|EC|OPENSSH) PRIVATE KEY)'; then
+              echo 'Potential secret found in changed source.'
+              exit 1
+          fi
+
+  release-smoke:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build release APK smoke test
+        working-directory: flutter_app
+        run: |
+          flutter pub get
+          flutter build apk --release --split-per-abi
