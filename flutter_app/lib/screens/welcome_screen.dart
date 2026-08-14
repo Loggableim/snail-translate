@@ -18,10 +18,21 @@ import '../models/provider_config.dart';
 /// Two steps:
 /// 1. Core value proposition — what Snail does
 /// 2. Microphone test — record a short sample and hear it played back
-typedef WelcomeProviderProbe = Future<String?> Function(ProviderConfig config);
+class WelcomeProviderProbeResult {
+  const WelcomeProviderProbeResult({this.error, this.audio});
 
-Future<String?> defaultWelcomeProviderProbe(ProviderConfig config) async {
+  final String? error;
+  final Uint8List? audio;
+}
+
+typedef WelcomeProviderProbe = Future<WelcomeProviderProbeResult> Function(
+    ProviderConfig config);
+
+Future<WelcomeProviderProbeResult> defaultWelcomeProviderProbe(
+    ProviderConfig config) async {
   final service = FishAudioRealtimeService();
+  Timer? timeout;
+  VoidCallback? listener;
   try {
     await service.connect(
       apiKey: config.apiKey,
@@ -31,11 +42,37 @@ Future<String?> defaultWelcomeProviderProbe(ProviderConfig config) async {
       topP: config.topP,
       speed: config.speed,
     );
-    await service.disconnect();
-    return null;
+    final audio = Completer<Uint8List?>();
+    void finish() {
+      if (audio.isCompleted) return;
+      final chunks = service.takeAudioChunks();
+      if (chunks.isNotEmpty) {
+        final bytes = BytesBuilder(copy: false);
+        for (final chunk in chunks) {
+          bytes.add(chunk);
+        }
+        audio.complete(bytes.takeBytes());
+      }
+    }
+
+    listener = finish;
+    service.addListener(listener);
+    timeout = Timer(const Duration(seconds: 5), () {
+      if (!audio.isCompleted) audio.complete(null);
+    });
+    service.sendText('Hello, this is a Snail test.');
+    service.flush();
+    final pcm = await audio.future;
+    if (pcm == null || pcm.isEmpty) {
+      return const WelcomeProviderProbeResult(error: 'provider_audio');
+    }
+    return WelcomeProviderProbeResult(audio: pcm);
   } catch (_) {
+    return const WelcomeProviderProbeResult(error: 'provider_connection');
+  } finally {
+    if (listener != null) service.removeListener(listener);
+    timeout?.cancel();
     await service.disconnect();
-    return 'provider_connection';
   }
 }
 
@@ -364,6 +401,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     _ProviderKeyWelcome(
                       onContinue: () => _goToPage(2),
                       providerProbe: widget.providerProbe,
+                      playAudio: (bytes) => _audio.playPcm16(
+                        bytes,
+                        sampleRate: 24000,
+                        output: AudioOutput.speaker,
+                      ),
                     ),
                     // ── Page 1: Value proposition ──
                     Padding(
@@ -1133,10 +1175,12 @@ class _LanguageSplash extends StatelessWidget {
 class _ProviderKeyWelcome extends StatefulWidget {
   const _ProviderKeyWelcome({
     required this.onContinue,
+    required this.playAudio,
     this.providerProbe,
   });
 
   final VoidCallback onContinue;
+  final Future<void> Function(Uint8List bytes) playAudio;
   final WelcomeProviderProbe? providerProbe;
 
   @override
@@ -1196,15 +1240,18 @@ class _ProviderKeyWelcomeState extends State<_ProviderKeyWelcome> {
       // Keep onboarding functional when embedded without the app providers.
     }
     final probe = widget.providerProbe ?? defaultWelcomeProviderProbe;
-    final probeError = await probe(updated);
-    if (probeError != null) {
+    final probeResult = await probe(updated);
+    if (probeResult.error != null) {
       if (mounted) {
         setState(() {
           _saving = false;
-          _probeError = probeError;
+          _probeError = probeResult.error;
         });
       }
       return;
+    }
+    if (probeResult.audio != null) {
+      await widget.playAudio(probeResult.audio!);
     }
     if (mounted) {
       setState(() {
