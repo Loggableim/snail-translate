@@ -63,6 +63,16 @@ void main() {
     addTearDown(() => TestDefaultBinaryMessengerBinding
         .instance.defaultBinaryMessenger
         .setMockMethodCallHandler(storageChannel, null));
+    final audioChannel = const MethodChannel('com.snail.audio/method');
+    final audioCalls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(audioChannel, (call) async {
+      audioCalls.add(call);
+      return null;
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(audioChannel, null));
     ProviderConfig? probed;
     await _pumpWelcome(tester, providerProbe: (config) async {
       probed = config;
@@ -81,6 +91,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1000));
 
     expect(probed?.apiKey, 'test-key');
+    expect(audioCalls.map((call) => call.method), contains('playPcm16'));
+    final playback = audioCalls.firstWhere((call) => call.method == 'playPcm16');
+    expect((playback.arguments as Map)['bytes'], [0, 0]);
     expect(pageView.controller!.page, greaterThan(1));
   });
 
