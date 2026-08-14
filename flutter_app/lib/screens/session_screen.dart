@@ -1198,8 +1198,7 @@ class _SessionScreenState extends State<SessionScreen>
                                   true) ...[
                                 const SizedBox(height: 4),
                                 Text(
-                                  l10n.sessionConnectionDetail(
-                                      _openAi!.lastError!),
+                                  l10n.commonError,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context)
@@ -1209,6 +1208,12 @@ class _SessionScreenState extends State<SessionScreen>
                                         color:
                                             Theme.of(context).colorScheme.error,
                                       ),
+                                ),
+                                TextButton.icon(
+                                  onPressed: () => Navigator.pushNamed(
+                                      context, '/provider-settings'),
+                                  icon: const Icon(Icons.settings_outlined),
+                                  label: Text(l10n.commonSettings),
                                 ),
                               ],
                             ],
