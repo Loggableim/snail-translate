@@ -73,7 +73,7 @@ class AppShareService extends ChangeNotifier {
       final apk = File(path);
       if (!await apk.exists()) throw StateError('Die installierte APK konnte nicht gelesen werden.');
       _apk = apk;
-      _version = raw?['version'] as String? ?? 'Unbekannt';
+      _version = raw?['version'] as String? ?? 'unknown';
       _apkBytes = await apk.length();
       _token = _newToken();
       final identity = UserIdentityService();
