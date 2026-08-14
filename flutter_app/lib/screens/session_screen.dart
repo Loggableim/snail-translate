@@ -946,6 +946,12 @@ class _SessionScreenState extends State<SessionScreen>
                       style: Theme.of(context).textTheme.headlineSmall,
                       textAlign: TextAlign.center,
                     ),
+                    if (_microphoneError == 'permission')
+                      TextButton.icon(
+                        onPressed: _snailAudio.openAppSettings,
+                        icon: const Icon(Icons.settings_outlined),
+                        label: Text(l10n.commonSettings),
+                      ),
                     const SizedBox(height: 4),
                     Semantics(
                       label: l10n.sessionMicrophoneLabel,

@@ -143,6 +143,14 @@ class SnailAudio {
     }
   }
 
+  Future<void> openAppSettings() async {
+    try {
+      await _methodChannel.invokeMethod('openAppSettings');
+    } catch (e) {
+      debugPrint('SnailAudio open app settings error: $e');
+    }
+  }
+
   Future<bool> requestNotificationPermission() async {
     try {
       return await _methodChannel

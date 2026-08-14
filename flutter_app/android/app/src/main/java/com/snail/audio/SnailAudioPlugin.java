@@ -245,6 +245,18 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             case "requestMicrophonePermission":
                 requestMicrophonePermission(result);
                 break;
+            case "openAppSettings":
+                if (applicationContext == null) {
+                    result.error("SETTINGS_UNAVAILABLE", "Application context unavailable", null);
+                    break;
+                }
+                Intent settings = new Intent(
+                        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + applicationContext.getPackageName()));
+                settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                applicationContext.startActivity(settings);
+                result.success(null);
+                break;
             case "requestNotificationPermission":
                 requestNotificationPermission(result);
                 break;

@@ -45,4 +45,21 @@ void main() {
         calls.firstWhere((call) => call.method == 'initialize');
     expect(initializeCall.arguments['sampleRate'], 16000);
   });
+
+  test('opens application settings through the platform channel', () async {
+    final calls = <MethodCall>[];
+    final channel = const MethodChannel('com.snail.audio/method');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      return null;
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+
+    await SnailAudio().openAppSettings();
+
+    expect(calls.single.method, 'openAppSettings');
+  });
 }
