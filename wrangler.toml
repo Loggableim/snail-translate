@@ -4,6 +4,7 @@
 name = "snail-worker"
 main = "worker/src/index.ts"
 compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
 account_id = "6864275679754e2e98c4a76a6b1d66d2"
 workers_dev = true
 
