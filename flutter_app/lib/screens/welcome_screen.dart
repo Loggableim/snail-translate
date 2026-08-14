@@ -209,8 +209,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       _micState =
           _recordedBytes > 0 ? _MicTestState.recorded : _MicTestState.idle;
       if (_recordedBytes > 0) {
-        _micResult = l10n
-            .welcomeRecordingReceived((_recordedBytes / 1024).round());
+        _micResult =
+            l10n.welcomeRecordingReceived((_recordedBytes / 1024).round());
       }
       if (_recordedBytes == 0) {
         _micError = l10n.welcomeNoAudioReceived;
@@ -232,7 +232,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       return;
     }
     final bytes = BytesBuilder(copy: false);
-    for (final chunk in _recordedChunks) bytes.add(chunk);
+    for (final chunk in _recordedChunks) {
+      bytes.add(chunk);
+    }
     try {
       final transcript = await _fishAsr.transcribe(
         apiKey: apiKey,
@@ -248,8 +250,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() => _micResult =
-          l10n.welcomeTranscriptionFailed(_shortError(error)));
+      setState(() =>
+          _micResult = l10n.welcomeTranscriptionFailed(_shortError(error)));
     }
   }
 
@@ -263,7 +265,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     _playingBack = true;
     setState(() => _micState = _MicTestState.playing);
     final bytes = BytesBuilder(copy: false);
-    for (final chunk in _recordedChunks) bytes.add(chunk);
+    for (final chunk in _recordedChunks) {
+      bytes.add(chunk);
+    }
     final pcm = bytes.takeBytes();
     await _audio.playPcm16(pcm, sampleRate: 16000, output: AudioOutput.speaker);
     _playingBack = false;
@@ -322,11 +326,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         // just the live-translation target. setLocale
                         // notifies before it persists, so the whole screen
                         // re-renders in the new language on this tap.
-                        await context.read<AppLocaleService>().setLocale(code);
+                        final localeService = context.read<AppLocaleService>();
+                        final sessionService = context.read<SessionService>();
+                        await localeService.setLocale(code);
                         if (!mounted) return;
-                        await context
-                            .read<SessionService>()
-                            .setMyLanguage(code);
+                        await sessionService.setMyLanguage(code);
                         if (mounted) setState(() {});
                       },
                       selectedLanguage:

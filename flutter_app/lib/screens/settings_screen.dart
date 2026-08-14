@@ -163,7 +163,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         summary: _profileLabel(l10n, policy.profile),
         children: [
           DropdownButtonFormField<AudioPolicyProfile>(
-            value: policy.profile,
+            initialValue: policy.profile,
             isExpanded: true,
             decoration: InputDecoration(
               labelText: l10n.settingsAudioEchoProfile,
@@ -479,7 +479,7 @@ class _LanguageDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final known = _languages.any((l) => l.code == value);
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       isExpanded: true,
       decoration: InputDecoration(
         labelText: label,

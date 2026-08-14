@@ -91,7 +91,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
       appBar: AppBar(title: Text(l10n.providerSettingsTitle)),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         DropdownButtonFormField<TranslationProvider>(
-          value: _provider,
+          initialValue: _provider,
           decoration: InputDecoration(
               labelText: l10n.providerSettingsSessionOwnerProvider),
           items: [
@@ -126,7 +126,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
         if (_provider == TranslationProvider.fishAudio) ...[
           _fishParameterSliders(),
           DropdownButtonFormField<String>(
-              value: _fishLatency,
+              initialValue: _fishLatency,
               decoration: InputDecoration(
                   labelText: l10n.providerSettingsFishLatencyMode),
               items: [
@@ -392,7 +392,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
       Row(children: [
         Expanded(
             child: DropdownButtonFormField<String>(
-                value: languages.contains(_fishLanguage) ? _fishLanguage : '',
+                initialValue: languages.contains(_fishLanguage) ? _fishLanguage : '',
                 decoration:
                     InputDecoration(labelText: l10n.providerSettingsLanguage),
                 items: languages
@@ -403,7 +403,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
         const SizedBox(width: 8),
         Expanded(
             child: DropdownButtonFormField<String>(
-                value: tags.contains(_fishTag) ? _fishTag : '',
+                initialValue: tags.contains(_fishTag) ? _fishTag : '',
                 decoration:
                     InputDecoration(labelText: l10n.providerSettingsCategory),
                 items: tags
@@ -592,7 +592,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
     }
     if (!options.contains(_model.text)) _model.text = options.first;
     return DropdownButtonFormField<String>(
-      value: _model.text,
+      initialValue: _model.text,
       decoration: InputDecoration(labelText: l10n.providerSettingsModel),
       items: options
           .map((model) => DropdownMenuItem(
@@ -632,7 +632,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
   Widget _chatModelField() {
     final l10n = AppLocalizations.of(context);
     return DropdownButtonFormField<String>(
-      value: _chatModel.text,
+      initialValue: _chatModel.text,
       decoration: InputDecoration(
           labelText: l10n.providerSettingsMessengerModel),
       items: const [

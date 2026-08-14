@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
@@ -23,7 +22,7 @@ void main() {
 
     for (final event in events) {
       final decoded = msgpack.deserialize(
-          FishAudioRealtimeService.encodeEvent(event) as Uint8List);
+          FishAudioRealtimeService.encodeEvent(event));
       expect(decoded, event);
     }
   });

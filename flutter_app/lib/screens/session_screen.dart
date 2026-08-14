@@ -118,8 +118,9 @@ class _SessionScreenState extends State<SessionScreen>
   void _debugPlaybackDiagnostic(String message) {
     if (!kDebugMode) return;
     final now = DateTime.now();
-    if (now.difference(_lastPlaybackDiagnostic) < const Duration(seconds: 1))
+    if (now.difference(_lastPlaybackDiagnostic) < const Duration(seconds: 1)) {
       return;
+    }
     _lastPlaybackDiagnostic = now;
     debugPrint(message);
   }
@@ -937,7 +938,7 @@ class _SessionScreenState extends State<SessionScreen>
                     const SizedBox(height: 8),
 
                     DropdownButtonFormField<String>(
-                      value: _sessionTargetLanguage,
+                      initialValue: _sessionTargetLanguage,
                       isExpanded: true,
                       decoration: InputDecoration(
                         labelText: l10n.sessionOutputInLabel,
@@ -999,11 +1000,13 @@ class _SessionScreenState extends State<SessionScreen>
                               icon: const Icon(Icons.graphic_eq, size: 18),
                               label: Text(l10n.sessionLevelTestTone),
                               onPressed: () async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                final failureText = l10n.sessionTestToneFailed;
                                 final ok = await _snailAudio.playTestTone();
                                 if (!mounted || ok) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
+                                messenger.showSnackBar(
                                   SnackBar(
-                                    content: Text(l10n.sessionTestToneFailed),
+                                    content: Text(failureText),
                                   ),
                                 );
                               },
@@ -1036,7 +1039,7 @@ class _SessionScreenState extends State<SessionScreen>
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
                         isExpanded: true,
-                        value: _fishVoices.containsKey(context
+                        initialValue: _fishVoices.containsKey(context
                                 .watch<ProviderConfigService>()
                                 .config
                                 .voiceId)
@@ -1070,7 +1073,7 @@ class _SessionScreenState extends State<SessionScreen>
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<AudioOutput>(
-                            value: _audioPolicy.output,
+                            initialValue: _audioPolicy.output,
                             isExpanded: true,
                             decoration: InputDecoration(
                               labelText: l10n.sessionOutputLabel,
@@ -1099,7 +1102,7 @@ class _SessionScreenState extends State<SessionScreen>
                         const SizedBox(width: 10),
                         Expanded(
                           child: DropdownButtonFormField<AudioInput>(
-                            value: _audioPolicy.input,
+                            initialValue: _audioPolicy.input,
                             isExpanded: true,
                             decoration: InputDecoration(
                               labelText: l10n.sessionMicrophoneLabel,

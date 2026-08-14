@@ -472,7 +472,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
   Widget _language(
           String label, String value, ValueChanged<String?> onChanged) =>
       DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           decoration: InputDecoration(labelText: label),
           items: const [
             'Deutsch',
