@@ -15,13 +15,15 @@ class P2pAudioService {
   RTCDataChannel? _chatChannel;
   StreamSubscription? _signalSubscription;
   bool _isInitiator = false;
-  bool _connected = false;
+  bool _peerConnected = false;
+  bool _audioChannelOpen = false;
+  bool _chatChannelOpen = false;
   void Function(String type, dynamic signal)? onSignal;
   void Function(Uint8List bytes, int sampleRate)? onAudio;
   VoidCallback? onAudioEnd;
   void Function(Map<String, dynamic> message)? onChat;
 
-  bool get isConnected => _connected;
+  bool get isConnected => _peerConnected && _audioChannelOpen;
 
   Future<void> start(
       {required bool initiator,
@@ -45,7 +47,7 @@ class P2pAudioService {
       }
     };
     _peer!.onConnectionState = (state) {
-      _connected =
+      _peerConnected =
           state == RTCPeerConnectionState.RTCPeerConnectionStateConnected;
     };
     _peer!.onDataChannel = _acceptDataChannel;
@@ -66,7 +68,7 @@ class P2pAudioService {
   void _acceptAudioChannel(RTCDataChannel channel) {
     _audioChannel = channel;
     channel.onDataChannelState = (state) {
-      _connected = state == RTCDataChannelState.RTCDataChannelOpen;
+      _audioChannelOpen = state == RTCDataChannelState.RTCDataChannelOpen;
     };
     channel.onMessage = (message) {
       if (!message.isBinary) return;
@@ -92,6 +94,9 @@ class P2pAudioService {
 
   void _acceptChatChannel(RTCDataChannel channel) {
     _chatChannel = channel;
+    channel.onDataChannelState = (state) {
+      _chatChannelOpen = state == RTCDataChannelState.RTCDataChannelOpen;
+    };
     channel.onMessage = (message) {
       if (message.isBinary) return;
       try {
@@ -122,7 +127,7 @@ class P2pAudioService {
 
   void sendPcm16(Uint8List bytes, {int sampleRate = 24000}) {
     final channel = _audioChannel;
-    if (channel == null || bytes.isEmpty || !_connected) return;
+    if (channel == null || bytes.isEmpty || !isConnected || !_audioChannelOpen) return;
     final payload = Uint8List(4 + bytes.length);
     ByteData.sublistView(payload, 0, 4).setUint32(0, sampleRate, Endian.little);
     payload.setRange(4, payload.length, bytes);
@@ -133,7 +138,7 @@ class P2pAudioService {
   /// It lets the receiver play a short final chunk without using a timer.
   void sendPcmEnd() {
     final channel = _audioChannel;
-    if (channel == null || !_connected) return;
+    if (channel == null || !isConnected || !_audioChannelOpen) return;
     channel.send(RTCDataChannelMessage.fromBinary(Uint8List(4)));
   }
 
@@ -143,7 +148,7 @@ class P2pAudioService {
 
   void sendData(Map<String, dynamic> message) {
     final channel = _chatChannel;
-    if (channel == null || !_connected) return;
+    if (channel == null || !_peerConnected || !_chatChannelOpen) return;
     channel.send(RTCDataChannelMessage(jsonEncode(message)));
   }
 
@@ -155,6 +160,8 @@ class P2pAudioService {
     _audioChannel = null;
     _chatChannel = null;
     _peer = null;
-    _connected = false;
+    _peerConnected = false;
+    _audioChannelOpen = false;
+    _chatChannelOpen = false;
   }
 }
