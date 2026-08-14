@@ -52,6 +52,25 @@ class _SessionScreenState extends State<SessionScreen>
   String _levelDb(double level) =>
       AudioProcessor.levelToDbfs(level).toStringAsFixed(0);
 
+  String _providerStateLabel(AppLocalizations l10n, String state) {
+    switch (state) {
+      case 'ready':
+      case 'streaming':
+        return l10n.standaloneStatusActive;
+      case 'reconnecting':
+        return l10n.standaloneStatusReconnecting('Realtime');
+      case 'error':
+        return l10n.standaloneStatusConnectionFailed('Realtime');
+      case 'idle':
+      case 'connecting':
+      case 'draining':
+      case 'degraded':
+      case 'closed':
+      default:
+        return l10n.standaloneStatusConnectedWaiting;
+    }
+  }
+
 
   // Cache provider-owned services before the route starts unmounting. Reading
   // an inherited provider from dispose() can race with Provider's own teardown
@@ -1081,7 +1100,7 @@ class _SessionScreenState extends State<SessionScreen>
                                   ? l10n.sessionTranslationGenerating
                                   : _openAi!.outputTranscript),
                               const SizedBox(height: 4),
-                              Text(l10n.sessionRealtimeState(_openAi!.state),
+                              Text(_providerStateLabel(l10n, _openAi!.state),
                                   style:
                                       Theme.of(context).textTheme.labelSmall),
                               if (_openAi!.lastError?.trim().isNotEmpty ==
