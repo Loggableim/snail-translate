@@ -440,9 +440,23 @@ export default {
         method: "POST",
         body: JSON.stringify({ sessionSecret: env.SESSION_SECRET }),
       }));
-      // Keep the native WebSocket upgrade request intact. The DO was already
-      // initialized with the current secret immediately above.
-      return doStub.fetch(request);
+      // Never forward the client request wholesale: in particular, a client
+      // must not be able to provide a replacement X-Session-Secret header.
+      // The DO receives only headers needed for the WebSocket upgrade and
+      // device-request authentication.
+      const upgradeHeaders = new Headers();
+      for (const name of [
+        "Upgrade", "Connection", "Sec-WebSocket-Key", "Sec-WebSocket-Version",
+        "Sec-WebSocket-Protocol", "Origin", "X-Snail-Identity",
+        "X-Snail-Public-Key", "X-Snail-Signature", "X-Snail-Timestamp",
+      ]) {
+        const value = request.headers.get(name);
+        if (value) upgradeHeaders.set(name, value);
+      }
+      return doStub.fetch(new Request(request.url, {
+        method: request.method,
+        headers: upgradeHeaders,
+      }));
     }
 
     const path = url.pathname;

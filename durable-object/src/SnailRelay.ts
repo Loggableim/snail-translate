@@ -238,13 +238,6 @@ export class SnailRelay implements DurableObject {
 
     // WebSocket upgrade
     if (request.headers.get("Upgrade") === "websocket") {
-      // Read session secret from header (set by Worker)
-      const secretHeader = request.headers.get("X-Session-Secret");
-      if (secretHeader) {
-        this.secret = secretHeader;
-        await this.state.storage.put("secret", secretHeader);
-      }
-
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
       this.handleWebSocket(server);
