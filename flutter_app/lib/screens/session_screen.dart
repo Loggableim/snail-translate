@@ -1410,35 +1410,38 @@ class _LevelBar extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       height: 8,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(3),
-        child: Stack(
-          children: [
-            // Background
-            Container(
-              color: colors.onSurface.withValues(alpha: 0.1),
-            ),
-            // Active level
-            FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: fraction,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(3),
+      child: LayoutBuilder(
+        builder: (context, constraints) => ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: Stack(
+            children: [
+              // Background
+              Container(
+                color: colors.onSurface.withValues(alpha: 0.1),
+              ),
+              // Active level
+              FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: fraction,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              left: gateFraction * 120 - 1,
-              top: 0,
-              bottom: 0,
-              child: Container(
-                width: 2,
-                color: colors.onSurface.withValues(alpha: 0.65),
+              Positioned(
+                left: (gateFraction * constraints.maxWidth - 1)
+                    .clamp(0.0, constraints.maxWidth - 2),
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 2,
+                  color: colors.onSurface.withValues(alpha: 0.65),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
