@@ -7,8 +7,7 @@ import '../models/chat_message.dart';
 import 'chat_service.dart';
 import 'error_logger.dart';
 import 'chat_crypto_service.dart';
-
-const protocolVersion = 1;
+import '../generated/protocol.dart';
 
 /// Manages WebSocket connection to relay and audio streaming.
 /// Chat/messaging concerns are delegated to [ChatService].

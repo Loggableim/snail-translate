@@ -14,6 +14,7 @@ import {
   type SessionTokenPayload,
 } from "./auth";
 import { FishTtsConnection, framePcm, framePcmEnd } from "./fish-tts";
+import { PROTOCOL_VERSION } from "../../shared/dto/v1/generated/protocol";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -104,8 +105,6 @@ const ALLOWED_FISH_VOICES = new Set([
 ]);
 const ALLOWED_FISH_MODELS = new Set(["s2-pro", "s1"]);
 const SESSION_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1_000; // 30 minutes
-const PROTOCOL_VERSION = 1;
-
 function relayLog(event: string, fields: Record<string, string | number | boolean>): void {
   // Never include tokens, provider keys, or message text in operational logs.
   console.log(JSON.stringify({ service: "snail-relay", event, ...fields }));
