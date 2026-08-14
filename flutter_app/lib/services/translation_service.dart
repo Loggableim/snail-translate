@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/provider_config.dart';
+import '../l10n/app_localizations.dart';
+
+enum TranslationFailureCode { emptyInput, sameLanguage, providerUnavailable }
 
 /// Outcome of a translation attempt.
 ///
@@ -10,7 +13,7 @@ import '../models/provider_config.dart';
 /// them in their own language — indistinguishable from a working translation
 /// unless you understand both languages, and with no error anywhere.
 class TranslationResult {
-  const TranslationResult._(this.text, this.translated, this.reason);
+  const TranslationResult._(this.text, this.translated, this.reason, this.failureCode);
 
   /// Text produced. Equals the input when [translated] is false.
   final String text;
@@ -20,11 +23,20 @@ class TranslationResult {
 
   /// Why no translation happened. Null when [translated] is true.
   final String? reason;
+  final TranslationFailureCode? failureCode;
 
-  const TranslationResult.ok(String text) : this._(text, true, null);
+  const TranslationResult.ok(String text) : this._(text, true, null, null);
 
-  const TranslationResult.failed(String text, String reason)
-      : this._(text, false, reason);
+  const TranslationResult.failed(String text, String reason,
+      [TranslationFailureCode code = TranslationFailureCode.providerUnavailable])
+      : this._(text, false, reason, code);
+
+  String localizedReason(AppLocalizations l10n) => switch (failureCode) {
+        TranslationFailureCode.emptyInput => l10n.commonError,
+        TranslationFailureCode.sameLanguage => l10n.commonError,
+        TranslationFailureCode.providerUnavailable => l10n.commonError,
+        null => l10n.commonError,
+      };
 }
 
 class TranslationService {
@@ -38,11 +50,12 @@ class TranslationService {
       required String targetLang,
       required ProviderConfig config}) async {
     if (text.trim().isEmpty) {
-      return const TranslationResult.failed('', 'leerer Text');
+      return const TranslationResult.failed('', 'leerer Text', TranslationFailureCode.emptyInput);
     }
     if (sourceLang == targetLang) {
-      return TranslationResult.failed(
-          text, 'Quell- und Zielsprache sind identisch ($sourceLang)');
+      return TranslationResult.failed(text,
+          'Quell- und Zielsprache sind identisch ($sourceLang)',
+          TranslationFailureCode.sameLanguage);
     }
     final prompt =
         'Translate from $sourceLang to $targetLang. Return only the translation, no explanation:\n$text';

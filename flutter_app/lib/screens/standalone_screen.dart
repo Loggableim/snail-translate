@@ -352,8 +352,8 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
             // Never speak the source text back: it sounds like a working
             // translation while nothing was translated at all.
             if (mounted) {
-              setState(() =>
-                  _status = _StandaloneStatus.noTranslation(result.reason!));
+              setState(() => _status = _StandaloneStatus.noTranslation(
+                  result.localizedReason(AppLocalizations.of(context))));
             }
             continue;
           }
