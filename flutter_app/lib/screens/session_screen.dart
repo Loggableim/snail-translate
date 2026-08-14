@@ -83,6 +83,7 @@ class _SessionScreenState extends State<SessionScreen>
   StreamSubscription? _audioSubscription;
   StreamSubscription<String>? _sessionEventSubscription;
   final _micLevel = ValueNotifier<double>(0.0);
+  final _sessionUiRevision = ValueNotifier<int>(0);
   bool _clippingDetected = false;
   GeminiLiveService? _gemini;
   OpenAiRealtimeService? _openAi;
@@ -135,7 +136,9 @@ class _SessionScreenState extends State<SessionScreen>
     _sessionUiRefreshTimer ??= Timer(const Duration(milliseconds: 100), () {
       _sessionUiRefreshTimer = null;
       _sessionUiRefreshPending = false;
-      if (mounted) setState(() {});
+      if (mounted) {
+        _sessionUiRevision.value++;
+      }
     });
   }
 
@@ -628,6 +631,7 @@ class _SessionScreenState extends State<SessionScreen>
     _playbackBuffer.clear();
     _snailAudio.dispose();
     _micLevel.dispose();
+    _sessionUiRevision.dispose();
     _audioService.disconnect();
     super.dispose();
   }
@@ -850,7 +854,12 @@ class _SessionScreenState extends State<SessionScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+        valueListenable: _sessionUiRevision,
+        builder: (context, _, __) => _buildSession(context),
+      );
+
+  Widget _buildSession(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final audio = context.watch<AudioService>();
     final session = context.watch<SessionService>().currentSession;
