@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/snail_contact.dart';
 import '../services/contact_service.dart';
+import '../services/snail_audio.dart';
 import '../services/user_identity_service.dart';
+import 'scanner_error_view.dart';
 
 /// Status steps for the contact QR scan flow.
 enum _ContactScanStep {
@@ -221,22 +223,29 @@ class _ContactsScreenState extends State<ContactsScreen> {
               height: 260,
               child: Stack(children: [
                 if (_scanStep == _ContactScanStep.scanning)
-                  MobileScanner(onDetect: (capture) async {
-                    for (final barcode in capture.barcodes) {
-                      final value = barcode.rawValue;
-                      if (value == null) continue;
-                      setState(
-                          () => _scanStep = _ContactScanStep.detected);
-                      final ok = await contacts.addFromQr(value);
-                      if (ok && mounted) {
-                        setState(() => _scanStep = _ContactScanStep.idle);
-                      } else if (mounted) {
+                  MobileScanner(
+                    onDetect: (capture) async {
+                      for (final barcode in capture.barcodes) {
+                        final value = barcode.rawValue;
+                        if (value == null) continue;
                         setState(
-                            () => _scanStep = _ContactScanStep.error);
+                            () => _scanStep = _ContactScanStep.detected);
+                        final ok = await contacts.addFromQr(value);
+                        if (ok && mounted) {
+                          setState(() => _scanStep = _ContactScanStep.idle);
+                        } else if (mounted) {
+                          setState(
+                              () => _scanStep = _ContactScanStep.error);
+                        }
+                        if (ok) break;
                       }
-                      if (ok) break;
-                    }
-                  }),
+                    },
+                    errorBuilder: (context, error, _) => ScannerErrorView(
+                      error: error,
+                      onRetry: _startScanning,
+                      onOpenSettings: () => SnailAudio().openAppSettings(),
+                    ),
+                  ),
                 Center(
                     child: AnimatedContainer(
                   duration: const Duration(milliseconds: 400),

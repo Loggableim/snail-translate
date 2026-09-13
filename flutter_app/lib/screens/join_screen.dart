@@ -4,6 +4,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../l10n/app_localizations.dart';
 import '../services/session_service.dart';
 import '../services/contact_service.dart';
+import '../services/snail_audio.dart';
+import 'scanner_error_view.dart';
 
 /// Status steps for the QR scan → join flow.
 enum _JoinStep {
@@ -209,7 +211,16 @@ class _JoinScreenState extends State<JoinScreen> {
                             child: Stack(
                               children: [
                                 if (_step != _JoinStep.starting)
-                                  MobileScanner(onDetect: _onDetect),
+                                  MobileScanner(
+                                    onDetect: _onDetect,
+                                    errorBuilder: (context, error, _) =>
+                                        ScannerErrorView(
+                                      error: error,
+                                      onRetry: _retry,
+                                      onOpenSettings: () =>
+                                          SnailAudio().openAppSettings(),
+                                    ),
+                                  ),
                                 Center(
                                   child: AnimatedContainer(
                                     duration:

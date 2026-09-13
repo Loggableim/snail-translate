@@ -88,6 +88,21 @@ class UserIdentityService extends ChangeNotifier {
     );
   }
 
+  /// Deletes the local identity and starts a fresh one on the next init().
+  /// Part of the profile "reset data" flow; the device keypair itself stays
+  /// in the Android Keystore because it cannot be removed from Dart.
+  Future<void> resetIdentity() async {
+    _identity = null;
+    try {
+      await _secureStorage.delete(key: _secureStorageKey);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_legacyStorageKey);
+    } catch (_) {
+      // Best-effort: an in-memory reset is still better than failing.
+    }
+    notifyListeners();
+  }
+
   Future<String?> signDevicePayload(String payload) async {
     try {
       return await const MethodChannel('com.snail.audio/method')

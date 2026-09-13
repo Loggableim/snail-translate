@@ -6,6 +6,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../l10n/app_localizations.dart';
 import '../models/translation_languages.dart';
 import '../services/snail_audio.dart';
+import '../services/speech_turn_buffer.dart';
 import '../services/openai_realtime_service.dart';
 import '../services/gemini_live_service.dart';
 import '../services/fish_audio_realtime_service.dart';
@@ -32,7 +33,9 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
   final _headsetFish = FishAudioRealtimeService();
   final _fishAsr = FishAudioAsrService();
   final _translator = TranslationService();
-  final Map<String, BytesBuilder> _fishBuffers = <String, BytesBuilder>{};
+  // Turn-aware buffers per source: the gate decides where a turn starts and
+  // ends instead of slicing fixed 1 s windows that cut words in half.
+  final Map<String, SpeechTurnBuffer> _fishTurns = <String, SpeechTurnBuffer>{};
   final Map<String, bool> _fishBusy = <String, bool>{};
   Timer? _fishProcessTimer;
   StreamSubscription<Map<String, dynamic>>? _subscription;
@@ -68,6 +71,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       _fishProcessTimer?.cancel();
       _uiRefreshTimer?.cancel();
       _playbackQueue.clear();
+      _fishTurns.clear();
       await Future.wait([
         _phoneOpenAi.disconnect(),
         _headsetOpenAi.disconnect(),
@@ -204,7 +208,20 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       _audioDiagnostics = await _audio.getAudioDiagnostics();
       if (config.provider == TranslationProvider.fishAudio) {
         _fishPlaybackPrebuffer = true;
-        _fishProcessTimer = Timer.periodic(const Duration(milliseconds: 1200),
+        _fishTurns.clear();
+        _fishTurns['phone'] = SpeechTurnBuffer(
+          gateThreshold: audioPolicy.noiseGateThreshold,
+          // Match the session screen: partial turns keep a long sentence
+          // translating while the speaker is still talking.
+          maxTurn: const Duration(seconds: 4),
+        );
+        if (_hasHeadset) {
+          _fishTurns['headset'] = SpeechTurnBuffer(
+            gateThreshold: audioPolicy.noiseGateThreshold,
+            maxTurn: const Duration(seconds: 4),
+          );
+        }
+        _fishProcessTimer = Timer.periodic(const Duration(milliseconds: 250),
             (_) => _processFishAudio(config));
       }
       _subscription = _audio.standaloneStream?.listen((frame) {
@@ -222,7 +239,8 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
               .sendPcm16(bytes);
         } else {
           final source = frame['source'] as String;
-          (_fishBuffers[source] ??= BytesBuilder(copy: false)).add(bytes);
+          final turns = _fishTurns[source];
+          if (turns != null) turns.add(bytes, DateTime.now());
         }
       });
       _playbackTimer = Timer.periodic(const Duration(milliseconds: 40), (_) {
@@ -317,14 +335,12 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
 
   Future<void> _processFishAudio(ProviderConfig config) async {
     for (final source in const ['phone', 'headset']) {
-      final buffer = _fishBuffers[source];
-      if (buffer == null ||
-          buffer.length < 16000 * 2 ||
-          _fishBusy[source] == true) {
-        continue;
-      }
+      final turns = _fishTurns[source];
+      if (turns == null || _fishBusy[source] == true) continue;
+      if (!turns.isTurnComplete(DateTime.now())) continue;
+      final pcm = turns.takeTurn();
+      if (pcm == null) continue;
       _fishBusy[source] = true;
-      final pcm = buffer.takeBytes();
       try {
         final sourceLanguage = source == 'phone'
             ? _phoneLanguage

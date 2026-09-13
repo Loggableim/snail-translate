@@ -19,6 +19,9 @@ class _ChatScreenState extends State<ChatScreen> {
   final _translator = TranslationService();
   bool _translating = false;
   final Set<String> _translatedIncoming = {};
+  // Incoming messages translated locally for display only. Keyed by message
+  // id; rendered as an annotation under the original bubble.
+  final Map<String, String> _incomingTranslations = {};
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +90,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 final textColor = message.outgoing
                     ? Theme.of(context).colorScheme.onPrimary
                     : Theme.of(context).colorScheme.onSurface;
+                final translation = !message.outgoing
+                    ? _incomingTranslations[message.id]
+                    : null;
                 return Align(
                   alignment: message.outgoing
                       ? Alignment.centerRight
@@ -106,32 +112,48 @@ class _ChatScreenState extends State<ChatScreen> {
                                 Radius.circular(message.outgoing ? 18 : 4),
                             bottomRight:
                                 Radius.circular(message.outgoing ? 4 : 18))),
-                    child: Row(
+                    child: Column(
                         mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                        crossAxisAlignment: message.outgoing
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
                         children: [
-                          Flexible(
-                              child: Text(message.text,
-                                  style: TextStyle(
-                                      color: textColor, fontSize: 15))),
-                          const SizedBox(width: 8),
-                          Text(_time(message.timestamp),
-                              style: TextStyle(
-                                  color: textColor.withAlpha(170),
-                                  fontSize: 10)),
-                          if (message.outgoing) ...[
-                            const SizedBox(width: 3),
-                            Icon(
-                              switch (message.status) {
-                                MessageStatus.queued => Icons.schedule,
-                                MessageStatus.delivered ||
-                                MessageStatus.read =>
-                                  Icons.done_all,
-                                MessageStatus.sent => Icons.done,
-                              },
-                              size: 14,
-                              color: textColor.withAlpha(170),
-                            ),
+                          Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Flexible(
+                                    child: Text(message.text,
+                                        style: TextStyle(
+                                            color: textColor, fontSize: 15))),
+                                const SizedBox(width: 8),
+                                Text(_time(message.timestamp),
+                                    style: TextStyle(
+                                        color: textColor.withAlpha(170),
+                                        fontSize: 10)),
+                                if (message.outgoing) ...[
+                                  const SizedBox(width: 3),
+                                  Icon(
+                                    switch (message.status) {
+                                      MessageStatus.queued => Icons.schedule,
+                                      MessageStatus.delivered ||
+                                      MessageStatus.read =>
+                                        Icons.done_all,
+                                      MessageStatus.sent => Icons.done,
+                                    },
+                                    size: 14,
+                                    color: textColor.withAlpha(170),
+                                  ),
+                                ],
+                              ]),
+                          if (translation != null &&
+                              translation.trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(translation,
+                                style: TextStyle(
+                                    color: textColor.withAlpha(200),
+                                    fontSize: 14,
+                                    fontStyle: FontStyle.italic)),
                           ],
                         ]),
                   ),
@@ -185,10 +207,18 @@ class _ChatScreenState extends State<ChatScreen> {
             sourceLang: message.sourceLang,
             targetLang: message.targetLang,
             config: provider);
-        // Chat keeps the original readable on screen when translation is
-        // unavailable, unlike the audio path where TTS would speak it aloud.
-        audio.sendChat(result.text,
-            sourceLang: message.sourceLang, targetLang: message.targetLang);
+        if (!mounted) return;
+        if (!result.translated) {
+          // Chat keeps the original readable on screen when translation is
+          // unavailable, unlike the audio path where TTS would speak it aloud.
+          _translatedIncoming.remove(message.id);
+          continue;
+        }
+        // Show the translation as an annotation on the original bubble
+        // instead of sending it back over the wire: echoing it as an
+        // outgoing message made the host's own chat fill with bubbles it
+        // never typed.
+        setState(() => _incomingTranslations[message.id] = result.text);
       } catch (_) {
         _translatedIncoming.remove(message.id);
       }

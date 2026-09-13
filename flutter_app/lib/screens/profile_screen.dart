@@ -3,10 +3,11 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../services/session_service.dart';
 import '../models/session.dart';
+import '../models/provider_config.dart';
 import '../services/user_identity_service.dart';
+import '../services/contact_service.dart';
 import '../services/transcript_history.dart';
 import '../services/provider_config_service.dart';
-import '../models/provider_config.dart';
 
 /// Profile screen — user info, stats, logout.
 class ProfileScreen extends StatefulWidget {
@@ -136,13 +137,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 32),
 
-          // Logout
+          // Reset data (the closest thing to "logout" in a BYOK app with no
+          // server account): wipes identity, contacts, history and the
+          // provider key after an explicit confirmation.
           OutlinedButton.icon(
-            onPressed: () async {
-              if (mounted) {
-                Navigator.popUntil(context, (route) => route.isFirst);
-              }
-            },
+            onPressed: () => _confirmResetData(context),
             icon: const Icon(Icons.logout, color: Colors.red),
             label: Text(l10n.profileLogout),
             style: OutlinedButton.styleFrom(
@@ -154,5 +153,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmResetData(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.profileLogoutConfirmTitle),
+        content: Text(l10n.profileLogoutConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: Text(l10n.profileLogoutAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final identity = context.read<UserIdentityService>();
+    final contacts = context.read<ContactService>();
+    final history = context.read<TranscriptHistory>();
+    final providerConfig = context.read<ProviderConfigService>();
+    await identity.resetIdentity();
+    await contacts.clearAll();
+    await history.clearHistory();
+    // Re-create the provider default config (wipes the stored BYOK key).
+    await providerConfig.save(const ProviderConfig(
+      provider: TranslationProvider.fishAudio,
+      endpoint: 'wss://api.fish.audio/v1/tts/live',
+      model: 's2-pro',
+    ));
+    if (!context.mounted) return;
+    Navigator.popUntil(context, (route) => route.isFirst);
   }
 }

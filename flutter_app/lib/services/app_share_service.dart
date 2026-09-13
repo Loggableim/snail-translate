@@ -52,7 +52,12 @@ class AppShareService extends ChangeNotifier {
   AppShareStatus get status => _status;
   String? get error => _error;
   AppShareErrorCode? get errorCode => _errorCode;
-  String localizedError(AppLocalizations l10n) => l10n.commonError;
+  String localizedError(AppLocalizations l10n) => switch (_errorCode) {
+        AppShareErrorCode.tunnel => l10n.appShareTunnel,
+        AppShareErrorCode.transfer => l10n.appShareTransfer,
+        AppShareErrorCode.unavailable => l10n.appShareUnavailable,
+        null => l10n.appShareUnavailable,
+      };
   double get progress => _apkBytes == null || _apkBytes == 0
       ? 0
       : (_transferredBytes / _apkBytes!).clamp(0, 1);

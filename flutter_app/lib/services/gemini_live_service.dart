@@ -5,6 +5,23 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'live_translation_provider.dart';
 import 'error_logger.dart';
 
+/// Immutable, completed section of one Gemini Live translation stream.
+class GeminiTurn {
+  const GeminiTurn({
+    required this.id,
+    required this.startedAt,
+    required this.endedAt,
+    required this.sourceText,
+    required this.targetText,
+  });
+
+  final String id;
+  final DateTime startedAt;
+  final DateTime endedAt;
+  final String sourceText;
+  final String targetText;
+}
+
 /// Low-level Gemini Live Translation transport.
 ///
 /// The session owner supplies the BYOK key. This service accepts 16 kHz mono
@@ -33,6 +50,20 @@ class GeminiLiveService extends ChangeNotifier
   String _inputTranscript = '';
   String _outputTranscript = '';
   final List<Uint8List> _audioChunks = [];
+  // Completed source/target transcript pairs, exposed for history
+  // persistence. Gemini Live marks a turn with `turnComplete`.
+  final List<GeminiTurn> _completedTurns = <GeminiTurn>[];
+  int _turnSequence = 0;
+  int? _turnInputOffset;
+  int? _turnOutputOffset;
+  DateTime? _turnStartedAt;
+
+  /// Completed, non-empty turns exactly once for persistence/UI.
+  List<GeminiTurn> takeCompletedTurns() {
+    final result = List<GeminiTurn>.from(_completedTurns);
+    _completedTurns.clear();
+    return result;
+  }
 
   bool get isConnected => _connected;
   @override
@@ -59,6 +90,13 @@ class GeminiLiveService extends ChangeNotifier
     _apiKey = apiKey.trim();
     _targetLanguage = targetLanguage;
     _model = model;
+    _inputTranscript = '';
+    _outputTranscript = '';
+    _completedTurns.clear();
+    _turnSequence = 0;
+    _turnInputOffset = null;
+    _turnOutputOffset = null;
+    _turnStartedAt = null;
     await _connectInternal();
   }
 
@@ -149,10 +187,37 @@ class GeminiLiveService extends ChangeNotifier
           _audioChunks.add(Uint8List.fromList(base64Decode(data)));
         }
       }
+      if (content['turnComplete'] == true) _finalizeTurn();
       notifyListeners();
     } catch (error) {
       debugPrint('[Snail] Gemini event error: $error');
     }
+  }
+
+  /// Slices the completed turn out of the running transcripts. Offsets are
+  /// captured lazily so a turn that started before this listener ran still
+  /// produces a sensible slice.
+  void _finalizeTurn() {
+    final inputStart = _turnInputOffset ?? 0;
+    final outputStart = _turnOutputOffset ?? 0;
+    final sourceText = _inputTranscript
+        .substring(inputStart.clamp(0, _inputTranscript.length))
+        .trim();
+    final targetText = _outputTranscript
+        .substring(outputStart.clamp(0, _outputTranscript.length))
+        .trim();
+    _turnInputOffset = _inputTranscript.length;
+    _turnOutputOffset = _outputTranscript.length;
+    if (sourceText.isEmpty && targetText.isEmpty) return;
+    _completedTurns.add(GeminiTurn(
+      id: 'gemini-${++_turnSequence}',
+      startedAt: _turnStartedAt ?? DateTime.now(),
+      endedAt: DateTime.now(),
+      sourceText: sourceText,
+      targetText: targetText,
+    ));
+    _turnStartedAt = DateTime.now();
+    if (_completedTurns.length > 64) _completedTurns.removeAt(0);
   }
 
   void _onError(Object error) {

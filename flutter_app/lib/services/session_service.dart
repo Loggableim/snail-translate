@@ -10,7 +10,13 @@ import 'error_logger.dart';
 import 'retry.dart';
 import 'user_identity_service.dart';
 
-enum SessionFailureCode { invalidRoomCode, network, requestFailed }
+enum SessionFailureCode {
+  invalidRoomCode,
+  roomNotFound,
+  rateLimited,
+  network,
+  requestFailed,
+}
 
 /// Manages session lifecycle: create room, join room.
 /// Also handles first-run language detection.
@@ -62,7 +68,9 @@ class SessionService extends ChangeNotifier {
   SessionFailureCode? get errorCode => _errorCode;
 
   String localizedError(AppLocalizations l10n) => switch (_errorCode) {
-        SessionFailureCode.invalidRoomCode => l10n.commonError,
+        SessionFailureCode.invalidRoomCode => l10n.sessionInvalidCode,
+        SessionFailureCode.roomNotFound => l10n.sessionRoomNotFound,
+        SessionFailureCode.rateLimited => l10n.sessionRateLimited,
         SessionFailureCode.network => l10n.homeJoinFailed,
         SessionFailureCode.requestFailed => l10n.homeJoinFailed,
         null => l10n.homeJoinFailed,
@@ -249,8 +257,10 @@ class SessionService extends ChangeNotifier {
         notifyListeners();
         return _currentSession;
       } else {
-        _errorCode = SessionFailureCode.requestFailed;
-        _error = 'session_request_failed';
+        _errorCode = response.statusCode == 429
+            ? SessionFailureCode.rateLimited
+            : SessionFailureCode.requestFailed;
+        _error = 'session_request_failed_${response.statusCode}';
       }
     } catch (e, st) {
       _errorCode = SessionFailureCode.network;
@@ -309,8 +319,14 @@ class SessionService extends ChangeNotifier {
         notifyListeners();
         return _currentSession;
       } else {
-        _errorCode = SessionFailureCode.requestFailed;
-        _error = 'session_request_failed';
+        // Map the status codes the Worker actually returns so the user sees
+        // why a join failed instead of a generic "failed".
+        _errorCode = switch (response.statusCode) {
+          404 => SessionFailureCode.roomNotFound,
+          429 => SessionFailureCode.rateLimited,
+          _ => SessionFailureCode.requestFailed,
+        };
+        _error = 'session_request_failed_${response.statusCode}';
       }
     } catch (e, st) {
       _errorCode = SessionFailureCode.network;

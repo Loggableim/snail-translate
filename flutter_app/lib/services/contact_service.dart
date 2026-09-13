@@ -99,6 +99,13 @@ class ContactService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Deletes every contact. Part of the profile "reset data" flow.
+  Future<void> clearAll() async {
+    _contacts.clear();
+    await _persist();
+    notifyListeners();
+  }
+
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_storageKey,

@@ -51,6 +51,15 @@ class SessionScreen extends StatefulWidget {
 
 class _SessionScreenState extends State<SessionScreen>
     with WidgetsBindingObserver {
+  // System-Back must tear the session down exactly like the End-session
+  // button: dispose() alone leaves SessionService.isInSession true and the
+  // native keep-alive foreground service running.
+  Future<bool> _onWillPop() async {
+    _audioService.disconnect();
+    _sessionService.endSession();
+    unawaited(_snailAudio.stopSessionKeepAlive());
+    return true;
+  }
   String _levelDb(double level) =>
       AudioProcessor.levelToDbfs(level).toStringAsFixed(0);
 
@@ -465,6 +474,17 @@ class _SessionScreenState extends State<SessionScreen>
                 _p2p.sendPcm16(chunk, sampleRate: 24000);
                 relayAudio.sendPcmAudio(chunk, sampleRate: 24000);
               }
+              // Persist completed turns so history covers Gemini sessions too.
+              for (final turn in _gemini!.takeCompletedTurns()) {
+                unawaited(_transcriptHistory.addEntry(
+                  sessionId: session.roomId,
+                  sourceLang: session.sourceLang,
+                  targetLang: session.targetLang,
+                  originalText: turn.sourceText,
+                  translatedText: turn.targetText,
+                  provider: provider.provider.displayName,
+                ));
+              }
             };
             _gemini!.addListener(_geminiListener!);
             _audioSubscription = _snailAudio.audioStream?.listen((chunk) {
@@ -560,6 +580,20 @@ class _SessionScreenState extends State<SessionScreen>
             context.read<ProviderConfigService>().config.provider.displayName,
       ));
     }
+  }
+
+  /// Persists one completed Fish turn so the history screen and the profile
+  /// statistics cover every provider, not only OpenAI realtime.
+  void _persistFishTurn(Session session, String sourceLang, String targetLang,
+      String originalText, String translatedText, ProviderConfig config) {
+    unawaited(_transcriptHistory.addEntry(
+      sessionId: session.roomId,
+      sourceLang: sourceLang,
+      targetLang: targetLang,
+      originalText: originalText,
+      translatedText: translatedText,
+      provider: config.provider.displayName,
+    ));
   }
 
   Future<void> _confirmEndSession(BuildContext context) async {
@@ -684,6 +718,11 @@ class _SessionScreenState extends State<SessionScreen>
         }
         _audioService.sendFishTtsText(result.text);
         _audioService.flushFishTts();
+        final session = _sessionService.currentSession;
+        if (session != null) {
+          _persistFishTurn(session, detectedSource, target, transcript,
+              result.text, config);
+        }
         debugPrint(
             '[Snail][Fish] TTS submitted $detectedSource->$target chars=${result.text.length}');
       }
@@ -878,7 +917,14 @@ class _SessionScreenState extends State<SessionScreen>
       AudioOutput.auto => l10n.audioRouteAuto,
     };
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final pop = await _onWillPop();
+        if (pop && context.mounted) Navigator.of(context).pop();
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(session?.roomId ?? l10n.sessionDefaultTitle),
         actions: [
@@ -1190,7 +1236,8 @@ class _SessionScreenState extends State<SessionScreen>
                                   true) ...[
                                 const SizedBox(height: 4),
                                 Text(
-                                  l10n.commonError,
+                                  l10n.providerErrorDetail(
+                                      _openAi!.lastError!.trim()),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context)
@@ -1317,6 +1364,7 @@ class _SessionScreenState extends State<SessionScreen>
           },
         ),
       ),
+    ),
     );
   }
 }
