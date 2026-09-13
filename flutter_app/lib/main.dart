@@ -32,6 +32,7 @@ import 'screens/contacts_screen.dart';
 import 'screens/standalone_screen.dart';
 import 'screens/app_share_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/paywall_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -147,6 +148,7 @@ class SnailApp extends StatelessWidget {
               '/standalone': (_) => const StandaloneScreen(),
               '/app-share': (_) => const AppShareScreen(),
               '/profile': (_) => const ProfileScreen(),
+              '/paywall': (_) => const PaywallScreen(),
             },
           );
         },

@@ -11,6 +11,7 @@ import '../services/gemini_live_service.dart';
 import '../services/provider_config_service.dart';
 import '../models/provider_config.dart';
 import '../models/session.dart';
+import '../models/translation_languages.dart';
 import '../services/openai_realtime_service.dart';
 import '../services/fish_audio_asr_service.dart';
 import '../services/translation_service.dart';
@@ -142,26 +143,9 @@ class _SessionScreenState extends State<SessionScreen>
     });
   }
 
-  static const _languageLabels = <String, String>{
-    'de': 'Deutsch',
-    'en': 'English',
-    'fr': 'Français',
-    'es': 'Español',
-    'it': 'Italiano',
-    'ja': '日本語',
-    'ko': '한국어',
-    'zh': '中文',
-    'uk': 'Українська',
-    'ar': 'العربية',
-    'pt': 'Português',
-    'ru': 'Русский',
-    'nl': 'Nederlands',
-    'tr': 'Türkçe',
-    'hi': 'हिन्दी',
-    'vi': 'Tiếng Việt',
-    'pl': 'Polski',
-    'sv': 'Svenska',
-  };
+  // Shared with the quick translator and the settings screen so every
+  // language dropdown offers the same set.
+  static const _languageLabels = translationLanguages;
 
   static const _fishVoices = <String, String>{
     '802e3bc2b27e49c2995d23ef70e6ac89': 'Standard Snail',
@@ -313,8 +297,10 @@ class _SessionScreenState extends State<SessionScreen>
           (bytes, sampleRate) => _enqueueSessionPlayback(bytes, sampleRate);
       _p2p.onAudioEnd = _flushSessionPlayback;
       _p2p.onChat = relayAudio.receiveP2pData;
-      relayAudio.isP2pConnected = () => _p2p.isConnected;
-      relayAudio.onP2pChatSend = _p2p.sendChat;
+      // Chat uses its own data channel, so its readiness must be checked
+      // separately from the audio channel (`isP2pConnected`).
+      relayAudio.isP2pChatConnected = () => _p2p.isChatConnected;
+      relayAudio.p2pChatSend = _p2p.sendChat;
       relayAudio.onSignal = (type, signal) => _p2p.acceptSignal(type, signal);
       relayAudio.onPcmAudio = (bytes, sampleRate) {
         // Relay PCM is a fallback while ICE is negotiating.
@@ -456,7 +442,8 @@ class _SessionScreenState extends State<SessionScreen>
               }
               // Do not feed the phone speaker's translated output back into
               // the realtime translator when devices are close together.
-              if (!echoGuardEnabled || !_snailAudio.isPlaybackActive) {
+              if (!_audioService.isMuted &&
+                  (!echoGuardEnabled || !_snailAudio.isPlaybackActive)) {
                 // Skip silent chunks to save bandwidth and API costs
                 if (!AudioProcessor.detectSilence(chunk,
                     threshold: _audioPolicy.noiseGateThreshold)) {
@@ -481,7 +468,8 @@ class _SessionScreenState extends State<SessionScreen>
             };
             _gemini!.addListener(_geminiListener!);
             _audioSubscription = _snailAudio.audioStream?.listen((chunk) {
-              if (!echoGuardEnabled || !_snailAudio.isPlaybackActive) {
+              if (!_audioService.isMuted &&
+                  (!echoGuardEnabled || !_snailAudio.isPlaybackActive)) {
                 _gemini!.sendPcm16(chunk);
               }
             });
@@ -986,10 +974,10 @@ class _SessionScreenState extends State<SessionScreen>
                         prefixIcon: const Icon(Icons.translate),
                         border: const OutlineInputBorder(),
                       ),
-                      items: _languageLabels.entries
-                          .map((entry) => DropdownMenuItem<String>(
-                                value: entry.key,
-                                child: Text(entry.value),
+                      items: _languageLabels
+                          .map((language) => DropdownMenuItem<String>(
+                                value: language.code,
+                                child: Text(language.native),
                               ))
                           .toList(),
                       onChanged: _setSessionTargetLanguage,

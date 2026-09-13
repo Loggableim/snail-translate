@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
+import '../models/message_status.dart';
 import '../services/audio_service.dart';
 import '../services/session_service.dart';
 import '../services/provider_config_service.dart';
@@ -120,8 +121,17 @@ class _ChatScreenState extends State<ChatScreen> {
                                   fontSize: 10)),
                           if (message.outgoing) ...[
                             const SizedBox(width: 3),
-                            Icon(Icons.done_all,
-                                size: 14, color: Colors.white70)
+                            Icon(
+                              switch (message.status) {
+                                MessageStatus.queued => Icons.schedule,
+                                MessageStatus.delivered ||
+                                MessageStatus.read =>
+                                  Icons.done_all,
+                                MessageStatus.sent => Icons.done,
+                              },
+                              size: 14,
+                              color: textColor.withAlpha(170),
+                            ),
                           ],
                         ]),
                   ),
@@ -213,11 +223,21 @@ class _ChatScreenState extends State<ChatScreen> {
       }
       audio.sendChat(
         outgoing,
-        sourceLang: alreadyTranslated ? session.myLanguage : session.myLanguage,
+        sourceLang: session.myLanguage,
         targetLang: alreadyTranslated ? session.myLanguage : target,
       );
       _controller.clear();
     } catch (_) {
+      // A failed translation must never swallow the message: Gemini chat
+      // translation is unsupported and Ollama may simply be unreachable.
+      // Send the original text so the peer-side fallback can still do its
+      // job, and tell the user what happened.
+      audio.sendChat(
+        text,
+        sourceLang: session.myLanguage,
+        targetLang: session.currentSession?.targetLang ?? session.targetLanguage,
+      );
+      _controller.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(AppLocalizations.of(context)

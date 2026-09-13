@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../l10n/app_localizations.dart';
+import '../models/translation_languages.dart';
 import '../services/snail_audio.dart';
 import '../services/openai_realtime_service.dart';
 import '../services/gemini_live_service.dart';
@@ -22,15 +23,6 @@ class StandaloneScreen extends StatefulWidget {
 }
 
 class _StandaloneScreenState extends State<StandaloneScreen> {
-  static const _languageCodes = <String, String>{
-    'Deutsch': 'de',
-    'English': 'en',
-    'Français': 'fr',
-    'Español': 'es',
-    'Italiano': 'it',
-    'Türkçe': 'tr',
-    'Українська': 'uk',
-  };
   final _audio = SnailAudio();
   final _phoneOpenAi = OpenAiRealtimeService();
   final _headsetOpenAi = OpenAiRealtimeService();
@@ -52,8 +44,11 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
   bool _fishPlaybackPrebuffer = false;
   static const _maxPlaybackQueue = 24;
   bool _running = false;
-  String _phoneLanguage = 'Deutsch';
-  String _headsetLanguage = 'English';
+  // Languages are stored as ISO codes and resolved through the shared
+  // translationLanguages list, so the quick translator offers exactly the
+  // same set as the session screen.
+  String _phoneLanguage = 'de';
+  String _headsetLanguage = 'en';
   // Raw state rather than pre-translated text, so the locale can change
   // (or the widget can simply be localized) without stale strings sticking
   // around in State fields declared before a BuildContext exists.
@@ -125,7 +120,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         final usesClientSecret = config.apiKey.trim().isEmpty;
         final openAiCredential = usesClientSecret
             ? await sessionService
-                .fetchOpenAiClientSecret(_languageCodes[_headsetLanguage]!)
+                .fetchOpenAiClientSecret(_headsetLanguage)
             : config.apiKey.trim();
         if (openAiCredential == null || openAiCredential.isEmpty) {
           throw StateError(l10n.standaloneClientSecretFailed);
@@ -133,19 +128,19 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         final openAiConnections = <Future<void>>[
           _phoneOpenAi.connect(
               apiKey: openAiCredential,
-              targetLanguage: _languageCodes[_headsetLanguage]!,
+              targetLanguage: _headsetLanguage,
               credentialRefresher: usesClientSecret
                   ? () => sessionService.fetchOpenAiClientSecret(
-                      _languageCodes[_headsetLanguage]!)
+                      _headsetLanguage)
                   : null),
         ];
         if (_hasHeadset) {
           openAiConnections.add(_headsetOpenAi.connect(
               apiKey: openAiCredential,
-              targetLanguage: _languageCodes[_phoneLanguage]!,
+              targetLanguage: _phoneLanguage,
               credentialRefresher: usesClientSecret
                   ? () => sessionService
-                      .fetchOpenAiClientSecret(_languageCodes[_phoneLanguage]!)
+                      .fetchOpenAiClientSecret(_phoneLanguage)
                   : null));
         }
         await Future.wait(openAiConnections);
@@ -153,13 +148,13 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         final geminiConnections = <Future<void>>[
           _phoneGemini.connect(
               apiKey: config.apiKey,
-              targetLanguage: _languageCodes[_headsetLanguage]!,
+              targetLanguage: _headsetLanguage,
               model: config.model),
         ];
         if (_hasHeadset) {
           geminiConnections.add(_headsetGemini.connect(
               apiKey: config.apiKey,
-              targetLanguage: _languageCodes[_phoneLanguage]!,
+              targetLanguage: _phoneLanguage,
               model: config.model));
         }
         await Future.wait(geminiConnections);
@@ -332,11 +327,11 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       final pcm = buffer.takeBytes();
       try {
         final sourceLanguage = source == 'phone'
-            ? _languageCodes[_phoneLanguage]!
-            : _languageCodes[_headsetLanguage]!;
+            ? _phoneLanguage
+            : _headsetLanguage;
         final targetLanguage = source == 'phone'
-            ? _languageCodes[_headsetLanguage]!
-            : _languageCodes[_phoneLanguage]!;
+            ? _headsetLanguage
+            : _phoneLanguage;
         final transcript = await _fishAsr.transcribe(
             apiKey: config.apiKey,
             pcm16: pcm,
@@ -475,15 +470,11 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       DropdownButtonFormField<String>(
           initialValue: value,
           decoration: InputDecoration(labelText: label),
-          items: const [
-            'Deutsch',
-            'English',
-            'Français',
-            'Español',
-            'Italiano',
-            'Türkçe',
-            'Українська'
-          ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+          items: translationLanguages
+              .map((language) => DropdownMenuItem(
+                  value: language.code,
+                  child: Text(language.native)))
+              .toList(),
           onChanged: onChanged);
 }
 

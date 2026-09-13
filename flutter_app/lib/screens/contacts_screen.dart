@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
+import '../models/snail_contact.dart';
 import '../services/contact_service.dart';
 import '../services/user_identity_service.dart';
 
@@ -109,6 +110,18 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final contacts = context.watch<ContactService>();
     final identity = context.watch<UserIdentityService>();
     final colors = Theme.of(context).colorScheme;
+    final all = contacts.contacts;
+    final active = all
+        .where((c) => !c.isBlocked)
+        .toList()
+      ..sort((a, b) {
+        // Pending requests first so they cannot hide below accepted contacts.
+        int rank(SnailContact c) => c.isPending ? 0 : 1;
+        final byStatus = rank(a).compareTo(rank(b));
+        if (byStatus != 0) return byStatus;
+        return a.username.toLowerCase().compareTo(b.username.toLowerCase());
+      });
+    final blocked = all.where((c) => c.isBlocked).toList();
     return Scaffold(
       appBar: AppBar(title: Text(l10n.contactsTitle), actions: [
         IconButton(
@@ -248,36 +261,107 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   icon: const Icon(Icons.qr_code_scanner),
                   label: Text(l10n.contactsScanId))),
         Expanded(
-            child: contacts.contacts.isEmpty
+            child: active.isEmpty && blocked.isEmpty
                 ? Center(child: Text(l10n.contactsNoneYet))
-                : ListView.builder(
-                    itemCount: contacts.contacts.length,
-                    itemBuilder: (_, index) {
-                      final contact = contacts.contacts[index];
-                      return ListTile(
-                        leading: const CircleAvatar(child: Icon(Icons.person)),
-                        title: Text(contact.username),
-                        subtitle: Text(contact.userId),
-                        onTap: () => Navigator.pushNamed(context, '/qr-host',
-                            arguments: contact),
-                        trailing: PopupMenuButton<String>(
-                          onSelected: (value) {
-                            if (value == 'start') {
-                              Navigator.pushNamed(context, '/qr-host',
-                                  arguments: contact);
-                            }
-                            if (value == 'delete') contacts.remove(contact);
-                          },
-                          itemBuilder: (_) => [
-                            PopupMenuItem(
-                                value: 'start',
-                                child: Text(l10n.homeStartSession)),
-                            PopupMenuItem(
-                                value: 'delete', child: Text(l10n.commonDelete)),
-                          ],
+                : ListView(
+                    children: [
+                      for (final contact in active)
+                        _ContactTile(contact: contact),
+                      if (blocked.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                          child: Text(l10n.contactsBlockedSection,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(
+                                      color: colors.onSurface
+                                          .withValues(alpha: 0.6))),
                         ),
-                      );
-                    })),
+                        for (final contact in blocked)
+                          _ContactTile(contact: contact),
+                      ],
+                    ],
+                  )),
+      ]),
+    );
+  }
+}
+
+/// One contact row. Pending requests surface Accept/Reject inline; accepted
+/// contacts start a session; blocked contacts offer Unblock/Delete.
+class _ContactTile extends StatelessWidget {
+  const _ContactTile({required this.contact});
+
+  final SnailContact contact;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colors = Theme.of(context).colorScheme;
+    final canStart = contact.isAccepted;
+    final statusLabel = switch (contact.status) {
+      ContactStatus.pending => l10n.contactsPendingLabel,
+      ContactStatus.rejected => l10n.contactsRejectedLabel,
+      ContactStatus.blocked => l10n.contactsBlockedLabel,
+      ContactStatus.accepted => null,
+    };
+    return ListTile(
+      leading: CircleAvatar(
+        child: Icon(
+          contact.isBlocked ? Icons.block : Icons.person,
+          color: contact.isBlocked ? colors.error : null,
+        ),
+      ),
+      title: Text(contact.username),
+      subtitle: Text(statusLabel ?? contact.userId),
+      onTap: canStart
+          ? () => Navigator.pushNamed(context, '/qr-host', arguments: contact)
+          : null,
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (contact.isPending) ...[
+          IconButton(
+            tooltip: l10n.contactsAccept,
+            icon: const Icon(Icons.check_rounded),
+            color: Colors.green,
+            onPressed: () => context.read<ContactService>().accept(contact),
+          ),
+          IconButton(
+            tooltip: l10n.contactsReject,
+            icon: const Icon(Icons.close_rounded),
+            onPressed: () => context.read<ContactService>().reject(contact),
+          ),
+        ] else if (contact.isBlocked) ...[
+          IconButton(
+            tooltip: l10n.contactsUnblock,
+            icon: const Icon(Icons.lock_open_rounded),
+            onPressed: () => context.read<ContactService>().unblock(contact),
+          ),
+          IconButton(
+            tooltip: l10n.commonDelete,
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => context.read<ContactService>().remove(contact),
+          ),
+        ] else ...[
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              final service = context.read<ContactService>();
+              if (value == 'start') {
+                Navigator.pushNamed(context, '/qr-host', arguments: contact);
+              }
+              if (value == 'block') service.block(contact);
+              if (value == 'delete') service.remove(contact);
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                  value: 'start', child: Text(l10n.homeStartSession)),
+              PopupMenuItem(
+                  value: 'block', child: Text(l10n.contactsBlock)),
+              PopupMenuItem(
+                  value: 'delete', child: Text(l10n.commonDelete)),
+            ],
+          ),
+        ],
       ]),
     );
   }

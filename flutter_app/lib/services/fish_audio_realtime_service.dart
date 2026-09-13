@@ -55,7 +55,10 @@ class FishAudioRealtimeService extends ChangeNotifier
     await disconnect();
     _apiKey = apiKey.trim();
     _voiceId = voiceId.trim();
-    _latency = 'low';
+    // Fish only documents 'low' and 'normal' latency modes; the UI's
+    // 'balanced' maps onto 'low' so the user's choice is honoured rather
+    // than silently replaced.
+    _latency = latency == 'normal' ? 'normal' : 'low';
     _model = model.trim().isEmpty ? 's2-pro' : model.trim();
     _temperature = temperature.clamp(0.0, 1.0);
     _topP = topP.clamp(0.0, 1.0);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
+import '../models/translation_languages.dart';
 import '../services/error_logger.dart';
 import '../services/session_service.dart';
 import '../services/user_identity_service.dart';
@@ -10,30 +11,13 @@ import '../services/audio_policy.dart';
 import 'error_log_screen.dart';
 
 /// The languages Snail translates between, in the order the chip row shows
-/// them. One list feeds both dropdowns and the chips, which used to carry
-/// three copies of it.
-const _languages = <({String code, String native})>[
-  (code: 'de', native: 'Deutsch'),
-  (code: 'en', native: 'English'),
-  (code: 'fr', native: 'Français'),
-  (code: 'es', native: 'Español'),
-  (code: 'it', native: 'Italiano'),
-  (code: 'ja', native: '日本語'),
-  (code: 'ko', native: '한국어'),
-  (code: 'zh', native: '中文'),
-  (code: 'uk', native: 'Українська'),
-];
+/// them. One shared list feeds both dropdowns and the chips.
+const _languages = translationLanguages;
 
-/// SessionService accepts more codes than the list above documents (a Russian
-/// or Turkish phone resolves to one of them on first start), so a value can
-/// legitimately arrive that has no chip. Fall back to the bare code instead of
-/// leaving the dropdown without a matching item.
-String _languageLabel(String code) {
-  for (final language in _languages) {
-    if (language.code == code) return language.native;
-  }
-  return code.toUpperCase();
-}
+/// SessionService accepts more codes than the list above documents, so a
+/// value can legitimately arrive that has no chip. Fall back to the bare
+/// code instead of leaving the dropdown without a matching item.
+String _languageLabel(String code) => languageLabel(code);
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

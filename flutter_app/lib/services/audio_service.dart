@@ -34,7 +34,6 @@ class AudioService extends ChangeNotifier {
   Future<String?> Function()? sessionTokenRefresher;
   String? localAgreementPublicKey;
   Future<String?> Function(String peerPublicKey)? sharedSecretDeriver;
-  void Function(Map<String, dynamic> message)? onP2pChatSend;
   bool Function()? isP2pConnected;
   int _reconnectAttempt = 0;
   Timer? _reconnectTimer;
@@ -68,7 +67,7 @@ class AudioService extends ChangeNotifier {
     chat.sendChat(text, sourceLang: sourceLang, targetLang: targetLang);
   }
 
-  void receiveP2pData(Map<String, dynamic> message) =>
+  Future<void> receiveP2pData(Map<String, dynamic> message) =>
       chat.receiveP2pData(message);
 
   // ── Connection ─────────────────────────────────────────────────────
@@ -91,9 +90,9 @@ class AudioService extends ChangeNotifier {
     };
     chat.canSend = () => _isConnected && _isAuthenticated;
     chat.onP2pSend = (message) {
-      if (isP2pConnected?.call() == true) onP2pChatSend?.call(message);
+      if (isP2pChatConnected?.call() == true) p2pChatSend?.call(message);
     };
-    chat.isP2pConnected = isP2pConnected;
+    chat.isP2pConnected = isP2pChatConnected;
   }
 
   Future<bool> _doConnect() async {
@@ -323,6 +322,11 @@ class AudioService extends ChangeNotifier {
     _isMuted = !_isMuted;
     notifyListeners();
   }
+
+  /// Chat uses its own data channel, so its readiness is checked separately
+  /// from the audio channel (`isP2pConnected`).
+  bool Function()? isP2pChatConnected;
+  void Function(Map<String, dynamic> message)? p2pChatSend;
 
   void sendPcmAudio(Uint8List pcm16, {int sampleRate = 24000}) {
     if (!_isConnected || _isMuted || pcm16.isEmpty) return;
