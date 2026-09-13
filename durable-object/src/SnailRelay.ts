@@ -328,6 +328,12 @@ export class SnailRelay implements DurableObject {
 
       let msg: ClientMessage;
       if (message instanceof ArrayBuffer || message instanceof Uint8Array) {
+        // Binary PCM frames are relayed to the peer, so they must never be
+        // accepted from a socket that has not completed the auth handshake.
+        if (!authenticated) {
+          this.send(ws, { type: "error", error: "Not authenticated" });
+          return;
+        }
         const frame = message instanceof Uint8Array ? message : new Uint8Array(message);
         if (frame.length < 5 || frame[0] < 2 || frame[0] > 3) {
           this.send(ws, { type: "error", error: "Invalid binary PCM frame" });
@@ -676,6 +682,12 @@ export class SnailRelay implements DurableObject {
         }
 
         case "end": {
+          // Ending a session tears down both sockets and deletes the stored
+          // history, so it must stay restricted to authenticated peers.
+          if (!authenticated) {
+            this.send(ws, { type: "error", error: "Not authenticated" });
+            return;
+          }
           this.broadcast({ type: "session_end", reason: "Session ended" });
           await this.cleanup();
           break;

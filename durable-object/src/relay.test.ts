@@ -189,6 +189,25 @@ describe("SnailRelay lifecycle and limits", () => {
     expect(errors).toContain("Fish TTS quota exceeded");
   });
 
+  it("rejects binary PCM and end messages before authentication", async () => {
+    const { relay, storage } = await initializedRelay();
+    const response = await relay.fetch(new Request("https://internal/ws", { headers: { Upgrade: "websocket" } }));
+    const socket = response.webSocket!;
+    socket.accept();
+    const messages: unknown[] = [];
+    socket.addEventListener("message", (event) => {
+      messages.push(JSON.parse(String(event.data)));
+    });
+    socket.send(framePcm(new Uint8Array(960), 24_000, "peer_pcm"));
+    socket.send(JSON.stringify({ type: "end" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const errors = messages
+      .filter((message) => (message as { type: string }).type === "error")
+      .map((message) => (message as { error: string }).error);
+    expect(errors.join(" ")).toContain("Not authenticated");
+    expect(storage.values.size).toBeGreaterThan(0);
+  });
+
   it("alarm cleanup removes persisted session data", async () => {
     const { relay, storage } = await initializedRelay();
     (relay as unknown as { session: { lastActivity: number } }).session.lastActivity = Date.now() - 31 * 60 * 1000;

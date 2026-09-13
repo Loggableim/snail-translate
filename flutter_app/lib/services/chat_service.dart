@@ -416,9 +416,11 @@ class ChatService extends ChangeNotifier {
 
   // ── P2P ────────────────────────────────────────────────────────────
 
-  void receiveP2pData(Map<String, dynamic> message) {
+  Future<void> receiveP2pData(Map<String, dynamic> message) async {
     if (message['type'] == 'chat') {
-      addIncomingChat(message);
+      // Outgoing P2P messages are encrypted by the same wire preparation as
+      // relay messages, so the incoming side must decrypt here as well.
+      await addIncomingChatSecure(message);
       _scheduleConversationPersist();
       notifyListeners();
     }

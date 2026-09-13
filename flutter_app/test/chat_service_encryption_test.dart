@@ -67,8 +67,7 @@ void main() {
     expect(wire['text'], isNot('queued secret'));
   });
 
-  test('round trips one chat message through an opaque relay payload',
-      () async {
+  test('round trips one chat message through an opaque relay payload', () async {
     final key = List<int>.filled(32, 10);
     final sender = ChatService()
       ..setConversationCrypto(ChatCryptoService.fromSharedSecret(key));
@@ -84,5 +83,23 @@ void main() {
     await receiver.addIncomingChatSecure(
         jsonDecode(relayPayloads.single) as Map<String, dynamic>);
     expect(receiver.messages.single.text, 'end to end message');
+  });
+
+  test('decrypts P2P chat messages that were encrypted on the wire', () async {
+    final key = List<int>.filled(32, 11);
+    final sender = ChatService()
+      ..setConversationCrypto(ChatCryptoService.fromSharedSecret(key))
+      ..isP2pConnected = () => true;
+    final receiver = ChatService()
+      ..setConversationCrypto(ChatCryptoService.fromSharedSecret(key));
+    final p2pPayloads = <Map<String, dynamic>>[];
+    sender.onP2pSend = p2pPayloads.add;
+
+    await sender.sendChat('p2p secret');
+    expect(p2pPayloads, hasLength(1));
+    expect(jsonEncode(p2pPayloads.single), isNot(contains('p2p secret')));
+
+    await receiver.receiveP2pData(p2pPayloads.single);
+    expect(receiver.messages.single.text, 'p2p secret');
   });
 }
