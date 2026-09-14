@@ -135,6 +135,7 @@
   "sessionOpenChatTooltip": "在会话中打开聊天",
   "sessionConnectedSpeakNow": "已连接 — 现在说话!",
   "sessionWaitingForConnection": "等待连接中…",
+  "sessionConnectionLost": "连接已丢失。请结束当前会话并重新开始。",
   "sessionOutputInLabel": "输出语言",
   "sessionLevelTestTone": "音平测试音",
   "sessionTestToneFailed": "无法启动测试音",

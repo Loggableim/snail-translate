@@ -135,6 +135,7 @@
   "sessionOpenChatTooltip": "Відкрити чат у сесії",
   "sessionConnectedSpeakNow": "З'єднано — говоріть зараз!",
   "sessionWaitingForConnection": "Очікування з'єднання...",
+  "sessionConnectionLost": "З'єднання втрачено. Завершіть сесію та почніть нову.",
   "sessionOutputInLabel": "Вивід мовою",
   "sessionLevelTestTone": "Тестовий сигнал для рівня",
   "sessionTestToneFailed": "Не вдалося відтворити тестовий сигнал",

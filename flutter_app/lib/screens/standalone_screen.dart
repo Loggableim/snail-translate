@@ -324,6 +324,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
     _playbackQueue.clear();
     _fishPlaybackPrebuffer = false;
     _audio.stopStandaloneCapture();
+    unawaited(_audio.dispose());
     _phoneOpenAi.dispose();
     _headsetOpenAi.dispose();
     _phoneGemini.dispose();

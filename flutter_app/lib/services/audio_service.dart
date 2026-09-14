@@ -18,6 +18,7 @@ class AudioService extends ChangeNotifier {
   bool _isPeerConnected = false;
   bool _isMuted = false;
   bool _isReconnecting = false;
+  bool _reconnectExhausted = false;
   bool _isAuthenticated = false;
   bool _terminalAuthError = false;
   String? _connectionError;
@@ -46,6 +47,7 @@ class AudioService extends ChangeNotifier {
   bool get isPeerConnected => _isPeerConnected;
   bool get isMuted => _isMuted;
   bool get isReconnecting => _isReconnecting;
+  bool get isReconnectExhausted => _reconnectExhausted;
   bool get isAuthenticated => _isAuthenticated;
   bool get hasTerminalAuthError => _terminalAuthError;
   String? get connectionError => _connectionError;
@@ -77,6 +79,7 @@ class AudioService extends ChangeNotifier {
     _terminalAuthError = false;
     _connectionError = null;
     _reconnectAttempt = 0;
+    _reconnectExhausted = false;
     await chat.init(session.inviteeId ?? session.roomId, session.roomId);
     _wireChatService();
     return _doConnect();
@@ -108,6 +111,7 @@ class AudioService extends ChangeNotifier {
       _isConnected = true;
       _isAuthenticated = false;
       _isReconnecting = false;
+      _reconnectExhausted = false;
       _reconnectAttempt = 0;
       _reconnectTimer?.cancel();
       _reconnectTimer = null;
@@ -300,6 +304,9 @@ class AudioService extends ChangeNotifier {
     if (_isConnected || _reconnectTimer != null || _terminalAuthError) return;
     if (_reconnectAttempt >= _reconnectDelays.length) {
       _isReconnecting = false;
+      // All retries failed: surface this to the UI so the user is not left
+      // staring at "waiting for connection" forever.
+      _reconnectExhausted = true;
       notifyListeners();
       return;
     }

@@ -135,6 +135,7 @@
   "sessionOpenChatTooltip": "세션에서 채팅 열기",
   "sessionConnectedSpeakNow": "연결됨 — 지금 말씀하세요!",
   "sessionWaitingForConnection": "연결 대기 중…",
+  "sessionConnectionLost": "연결이 끊겼습니다. 세션을 종료하고 새로 시작해 주세요.",
   "sessionOutputInLabel": "출력",
   "sessionLevelTestTone": "레벨 테스트 톤",
   "sessionTestToneFailed": "테스트 톤을 시작할 수 없음",

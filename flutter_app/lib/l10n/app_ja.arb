@@ -135,6 +135,7 @@
   "sessionOpenChatTooltip": "セッション内のチャットを開く",
   "sessionConnectedSpeakNow": "接続済み — 話してください!",
   "sessionWaitingForConnection": "接続を待機中…",
+  "sessionConnectionLost": "接続が切断されました。セッションを終了して新しく開始してください。",
   "sessionOutputInLabel": "出力先",
   "sessionLevelTestTone": "レベルテストトーン",
   "sessionTestToneFailed": "テストトーンを開始できませんでした",

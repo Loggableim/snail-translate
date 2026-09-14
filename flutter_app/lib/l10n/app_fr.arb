@@ -135,6 +135,7 @@
   "sessionOpenChatTooltip": "Ouvrir le chat dans la session",
   "sessionConnectedSpeakNow": "Connecté — parlez maintenant !",
   "sessionWaitingForConnection": "En attente de connexion…",
+  "sessionConnectionLost": "Connexion perdue. Veuillez terminer la session et en démarrer une nouvelle.",
   "sessionOutputInLabel": "Sortie en",
   "sessionLevelTestTone": "Tonalité de test de niveau",
   "sessionTestToneFailed": "La tonalité de test n'a pas pu être lancée",

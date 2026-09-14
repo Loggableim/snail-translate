@@ -285,7 +285,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   Future<void> _transcribeRecording() async {
     final l10n = AppLocalizations.of(context);
-    final apiKey = context.read<ProviderConfigService>().config.apiKey.trim();
+    final config = context.read<ProviderConfigService>().config;
+    // Fish ASR only understands Fish keys. Sending an OpenAI or Gemini key
+    // would leak it to the wrong provider and fail with 401.
+    final apiKey =
+        config.provider == TranslationProvider.fishAudio
+            ? config.apiKey.trim()
+            : '';
     if (apiKey.isEmpty || _recordedChunks.isEmpty) {
       if (mounted) {
         setState(() => _micResult = l10n.welcomeNeedKeyForTranscription);
@@ -1228,6 +1234,22 @@ class _ProviderKeyWelcomeState extends State<_ProviderKeyWelcome> {
       translationModel: current.translationModel,
     );
     _config = updated;
+    // An empty key is a legitimate choice: the user can set up any provider
+    // later from the provider settings. Only probe when a key was entered so
+    // onboarding is never blocked on external services.
+    if (updated.apiKey.isEmpty) {
+      try {
+        await Provider.of<ProviderConfigService>(context, listen: false)
+            .save(updated);
+      } catch (_) {
+        // Keep onboarding functional when embedded without the app providers.
+      }
+      if (mounted) {
+        setState(() => _saving = false);
+        widget.onContinue();
+      }
+      return;
+    }
     try {
       await Provider.of<ProviderConfigService>(context, listen: false)
           .save(updated);

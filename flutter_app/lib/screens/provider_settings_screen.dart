@@ -39,6 +39,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
   bool _testing = false;
   String? _testResult;
   bool _testOk = false;
+  bool _keyVisible = false;
   Map<String, String>? _diagnostics;
   String _fishVoiceId = '802e3bc2b27e49c2995d23ef70e6ac89';
   final _fishSearch = TextEditingController();
@@ -119,9 +120,16 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
         if (_provider != TranslationProvider.ollama)
           TextField(
               controller: _key,
-              obscureText: true,
+              obscureText: !_keyVisible,
               decoration: InputDecoration(
-                  labelText: l10n.providerSettingsProviderKey)),
+                  labelText: l10n.providerSettingsProviderKey,
+                  suffixIcon: IconButton(
+                    onPressed: () =>
+                        setState(() => _keyVisible = !_keyVisible),
+                    icon: Icon(_keyVisible
+                        ? Icons.visibility_off
+                        : Icons.visibility),
+                  ))),
         if (_provider == TranslationProvider.fishAudio) _fishVoiceField(),
         if (_provider == TranslationProvider.fishAudio) ...[
           _fishParameterSliders(),
@@ -684,6 +692,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
     _fishManualVoice.dispose();
     _previewTimer?.cancel();
     _previewFish.dispose();
+    unawaited(_previewAudio.dispose());
     super.dispose();
   }
 }

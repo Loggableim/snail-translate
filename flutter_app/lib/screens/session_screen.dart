@@ -907,7 +907,9 @@ class _SessionScreenState extends State<SessionScreen>
         ? l10n.standaloneStatusReconnecting('Session')
         : audio.isAuthenticated
             ? l10n.standaloneStatusActive
-            : l10n.sessionWaitingForConnection;
+            : audio.isReconnectExhausted
+                ? l10n.sessionConnectionLost
+                : l10n.sessionWaitingForConnection;
     final peerLabel = audio.isPeerConnected
         ? l10n.sessionConnectedSpeakNow
         : l10n.sessionWaitingForConnection;
@@ -1112,30 +1114,42 @@ class _SessionScreenState extends State<SessionScreen>
                             .provider ==
                         TranslationProvider.fishAudio) ...[
                       const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
+                      Builder(builder: (context) {
+                        // A voice ID configured outside the curated list (set
+                        // in provider settings) must appear as its own entry
+                        // instead of silently displaying "Standard Snail".
+                        final config =
+                            context.watch<ProviderConfigService>().config;
+                        final items = <MapEntry<String, String>>[
+                          ..._fishVoices.entries,
+                          if (!_fishVoices.containsKey(config.voiceId) &&
+                              config.voiceId.trim().isNotEmpty)
+                            MapEntry(
+                                config.voiceId, config.voiceId),
+                        ];
+                        return DropdownButtonFormField<String>(
                         isExpanded: true,
-                        initialValue: _fishVoices.containsKey(context
-                                .watch<ProviderConfigService>()
-                                .config
-                                .voiceId)
-                            ? context
-                                .watch<ProviderConfigService>()
-                                .config
-                                .voiceId
-                            : _fishVoices.keys.first,
+                        initialValue: _fishVoices.containsKey(config.voiceId)
+                            ? config.voiceId
+                            : items
+                                .firstWhere((entry) =>
+                                    entry.key == config.voiceId,
+                                    orElse: () => items.first)
+                                .key,
                         decoration: InputDecoration(
                           labelText: l10n.sessionMyFishVoiceLabel,
                           prefixIcon: const Icon(Icons.record_voice_over),
                           border: const OutlineInputBorder(),
                         ),
-                        items: _fishVoices.entries
+                        items: items
                             .map((entry) => DropdownMenuItem<String>(
                                   value: entry.key,
                                   child: Text(entry.value),
                                 ))
                             .toList(),
                         onChanged: _selectFishVoice,
-                      ),
+                      );
+                      }),
                       const SizedBox(height: 4),
                       Text(
                         l10n.sessionVoiceHint,
@@ -1403,16 +1417,20 @@ class _LatencyPanel extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
+                // timeToFirstAudio measures mic-in → first translated audio
+                // out (the full pipeline); timeToFirstTranscript measures
+                // mic-in → first transcript delta. Label them accordingly —
+                // the old mapping had them swapped.
                 _LatencyChip(
-                  label: l10n.sessionLatencyInput,
+                  label: l10n.sessionLatencyOutput,
                   value: _fmt(tfa),
-                  icon: Icons.mic_rounded,
+                  icon: Icons.headphones_rounded,
                   colors: colors,
                 ),
                 _LatencyChip(
-                  label: l10n.sessionLatencyOutput,
+                  label: l10n.sessionLatencyInput,
                   value: _fmt(tft),
-                  icon: Icons.headphones_rounded,
+                  icon: Icons.mic_rounded,
                   colors: colors,
                 ),
                 _LatencyChip(
