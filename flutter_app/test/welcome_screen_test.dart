@@ -86,9 +86,24 @@ void main() {
     await tester.enterText(keyField, 'test-key');
     await tester.pump();
     expect(tester.widget<TextField>(keyField).controller!.text, 'test-key');
-    await tester.ensureVisible(find.text('Weiter'));
-    await tester.tap(find.text('Weiter'));
-    await tester.pump(const Duration(milliseconds: 1000));
+    // Scope to the key page: the language and value pages also render a
+    // 'Weiter' button. The key page is the only one with the API-key field,
+    // so walk up from the TextField's page content to its Next button.
+    final keyPageNext = find
+        .descendant(
+          of: find.ancestor(
+            of: find.byType(TextField),
+            matching: find.byType(SingleChildScrollView),
+          ),
+          matching: find.text('Weiter'),
+        )
+        .first;
+    await tester.ensureVisible(keyPageNext);
+    await tester.tap(keyPageNext);
+    // The probe callback is async and the PageView animates to the next
+    // page afterwards; settle both.
+    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(probed?.apiKey, 'test-key');
     expect(audioCalls.map((call) => call.method), contains('playPcm16'));

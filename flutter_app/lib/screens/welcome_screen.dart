@@ -550,15 +550,21 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       ),
                     ),
                     // ── Page 2: Microphone test ──
+                    // ── Page 2: Microphone test ──
+                    // LayoutBuilder + scroll fallback: the Spacer keeps the
+                    // content centred on normal screens, but on very short
+                    // windows with large system fonts the fixed icon and
+                    // card can exceed the viewport — then the page scrolls
+                    // instead of clipping the Skip button off-screen.
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox.shrink(),
-                          // ── Mic icon with state ──
-                          _MicIcon(state: _micState, colors: colors),
-                          const SizedBox(height: 24),
+                      child: LayoutBuilder(builder: (context, constraints) {
+                        final content = Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // ── Mic icon with state ──
+                            _MicIcon(state: _micState, colors: colors),
+                            const SizedBox(height: 24),
                           Text(
                             l10n.welcomeMicTestTitle,
                             style: Theme.of(context)
@@ -651,9 +657,21 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               ),
                             ],
                           ),
-                          const Spacer(),
                         ],
-                      ),
+                        );
+                        // Fits: centre it; otherwise let it scroll.
+                        // SingleChildScrollView + Center child behaves like
+                        // plain Center when the content fits and scrolls
+                        // only when it does not — no measurement needed.
+                        return SingleChildScrollView(
+                          child: Center(
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: content,
+                            ),
+                          ),
+                        );
+                      }),
                     ),
                     // ── Page 3: Speaking direction tutorial ──
                     Padding(
@@ -1283,66 +1301,78 @@ class _ProviderKeyWelcomeState extends State<_ProviderKeyWelcome> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.key_rounded, size: 64, color: colors.primary),
-        const SizedBox(height: 20),
-        Text(l10n.welcomeFishSetupTitle,
-            textAlign: TextAlign.center,
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 10),
-        Text(l10n.welcomeFishSetupBody, textAlign: TextAlign.center),
-        if (_probeError != null) ...[
-          const SizedBox(height: 12),
-          Text(
-            l10n.welcomeTranscriptionFailed(l10n.commonError),
-            style: TextStyle(color: colors.error),
-            textAlign: TextAlign.center,
-          ),
-        ],
-        const SizedBox(height: 22),
-        TextField(
-          controller: _key,
-          obscureText: _obscure,
-          decoration: InputDecoration(
-            labelText: l10n.welcomeFishApiKeyLabel,
-            hintText: 'sk-fish-…',
-            prefixIcon: const Icon(Icons.lock_outline_rounded),
-            suffixIcon: IconButton(
-              onPressed: () => setState(() => _obscure = !_obscure),
-              icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+    // Scroll fallback: behaves like a centred column when the content fits
+    // and scrolls on very short windows with large system fonts.
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: 0,
+          maxHeight: double.infinity,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.key_rounded, size: 64, color: colors.primary),
+            const SizedBox(height: 20),
+            Text(l10n.welcomeFishSetupTitle,
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 10),
+            Text(l10n.welcomeFishSetupBody, textAlign: TextAlign.center),
+            if (_probeError != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                l10n.welcomeTranscriptionFailed(l10n.commonError),
+                style: TextStyle(color: colors.error),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 22),
+            TextField(
+              controller: _key,
+              obscureText: _obscure,
+              decoration: InputDecoration(
+                labelText: l10n.welcomeFishApiKeyLabel,
+                hintText: 'sk-fish-…',
+                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+              ),
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-          ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () =>
+                  Navigator.of(context).pushNamed('/provider-settings'),
+              icon: const Icon(Icons.tune_rounded),
+              label: Text(l10n.welcomeUseOtherProvider),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: FilledButton(
+                onPressed: _saving ? null : _saveAndContinue,
+                child: _saving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(l10n.commonNext,
+                        style: const TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        TextButton.icon(
-          onPressed: () =>
-              Navigator.of(context).pushNamed('/provider-settings'),
-          icon: const Icon(Icons.tune_rounded),
-          label: Text(l10n.welcomeUseOtherProvider),
-        ),
-        const SizedBox(height: 18),
-        SizedBox(
-          width: double.infinity,
-          height: 54,
-          child: FilledButton(
-            onPressed: _saving ? null : _saveAndContinue,
-            child: _saving
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : Text(l10n.commonNext,
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w700)),
-          ),
-        ),
-      ]),
+      ),
     );
   }
 }
