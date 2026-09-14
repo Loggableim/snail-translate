@@ -358,6 +358,7 @@
   "chatJoinSession": "セッションに参加",
   "chatLiveTranslationActive": "ライブ翻訳アクティブ",
   "chatPendingCount": "{count}件保留中",
+  "chatSendTooltip": "送信",
   "@chatPendingCount": {
     "placeholders": { "count": { "type": "int" } }
   },

@@ -358,6 +358,7 @@
   "chatJoinSession": "加入会话",
   "chatLiveTranslationActive": "实时翻译活跃",
   "chatPendingCount": "{count}件待处理",
+  "chatSendTooltip": "发送",
   "@chatPendingCount": {
     "placeholders": { "count": { "type": "int" } }
   },

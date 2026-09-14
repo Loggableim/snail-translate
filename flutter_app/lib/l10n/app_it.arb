@@ -358,6 +358,7 @@
   "chatJoinSession": "Unisciti alla sessione",
   "chatLiveTranslationActive": "Traduzione dal vivo attiva",
   "chatPendingCount": "{count} in sospeso",
+  "chatSendTooltip": "Invia",
   "@chatPendingCount": {
     "placeholders": { "count": { "type": "int" } }
   },

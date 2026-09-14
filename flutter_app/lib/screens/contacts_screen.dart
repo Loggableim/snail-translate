@@ -322,8 +322,10 @@ class _ContactTile extends StatelessWidget {
           color: contact.isBlocked ? colors.error : null,
         ),
       ),
-      title: Text(contact.username),
-      subtitle: Text(statusLabel ?? contact.userId),
+      title: Text(contact.username,
+          maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(statusLabel ?? contact.userId,
+          maxLines: 1, overflow: TextOverflow.ellipsis),
       onTap: canStart
           ? () => Navigator.pushNamed(context, '/qr-host', arguments: contact)
           : null,

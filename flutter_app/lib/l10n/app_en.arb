@@ -358,6 +358,7 @@
   "chatJoinSession": "Join session",
   "chatLiveTranslationActive": "Live translation active",
   "chatPendingCount": "{count} pending",
+  "chatSendTooltip": "Send",
   "@chatPendingCount": {
     "placeholders": { "count": { "type": "int" } }
   },

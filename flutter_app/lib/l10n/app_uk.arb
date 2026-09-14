@@ -358,6 +358,7 @@
   "chatJoinSession": "Приєднатися до сесії",
   "chatLiveTranslationActive": "Переклад наживо активний",
   "chatPendingCount": "{count} очікує",
+  "chatSendTooltip": "Надіслати",
   "@chatPendingCount": {
     "placeholders": { "count": { "type": "int" } }
   },

@@ -358,6 +358,7 @@
   "chatJoinSession": "세션 참가",
   "chatLiveTranslationActive": "라이브 번역 활성",
   "chatPendingCount": "{count}개 대기 중",
+  "chatSendTooltip": "보내기",
   "@chatPendingCount": {
     "placeholders": { "count": { "type": "int" } }
   },

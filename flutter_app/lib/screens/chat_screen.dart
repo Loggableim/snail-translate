@@ -17,11 +17,26 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _translator = TranslationService();
+  final _scrollController = ScrollController();
   bool _translating = false;
   final Set<String> _translatedIncoming = {};
   // Incoming messages translated locally for display only. Keyed by message
   // id; rendered as an annotation under the original bubble.
   final Map<String, String> _incomingTranslations = {};
+  int _lastMessageCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // New messages append at the bottom of the list; keep the viewport on the
+    // newest bubble whenever the message count grows.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToBottom());
+  }
+
+  void _jumpToBottom() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +71,12 @@ class _ChatScreenState extends State<ChatScreen> {
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _translateIncoming(audio, session));
     }
+    // Keep the newest message visible as the conversation grows.
+    final messageCount = audio.messages.length;
+    if (messageCount != _lastMessageCount) {
+      _lastMessageCount = messageCount;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToBottom());
+    }
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -80,6 +101,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.all(12),
               itemCount: audio.messages.length,
               itemBuilder: (_, index) {
@@ -173,6 +195,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           textInputAction: TextInputAction.send,
                           onSubmitted: (_) => _send(audio, session))),
                   IconButton(
+                      tooltip: l10n.chatSendTooltip,
                       icon: _translating
                           ? const SizedBox(
                               width: 18,
@@ -282,6 +305,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 }
