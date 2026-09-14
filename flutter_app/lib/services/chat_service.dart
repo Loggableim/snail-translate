@@ -417,13 +417,61 @@ class ChatService extends ChangeNotifier {
   // ── P2P ────────────────────────────────────────────────────────────
 
   Future<void> receiveP2pData(Map<String, dynamic> message) async {
-    if (message['type'] == 'chat') {
-      // Outgoing P2P messages are encrypted by the same wire preparation as
-      // relay messages, so the incoming side must decrypt here as well.
-      await addIncomingChatSecure(message);
-      _scheduleConversationPersist();
-      notifyListeners();
+    switch (message['type']) {
+      case 'chat':
+        // Outgoing P2P messages are encrypted by the same wire preparation as
+        // relay messages, so the incoming side must decrypt here as well.
+        await addIncomingChatSecure(message);
+        _scheduleConversationPersist();
+        notifyListeners();
+        break;
+      case 'edit':
+        applyRemoteEdit(message);
+        break;
+      case 'delete':
+        applyRemoteDelete(message);
+        break;
     }
+  }
+
+  // ── Remote edit/delete ─────────────────────────────────────────────
+
+  /// Applies an edit the peer made to their own message. The relay already
+  /// enforces ownership; the senderId guard here is defence in depth for the
+  /// P2P path, where messages arrive without a server in between.
+  void applyRemoteEdit(Map<String, dynamic> message) {
+    final messageId = message['messageId'];
+    final text = message['text'];
+    if (messageId is! String || messageId.isEmpty) return;
+    if (text is! String || text.trim().isEmpty) return;
+    final index = _messages.indexWhere((m) => m.id == messageId);
+    if (index == -1) return;
+    final existing = _messages[index];
+    if (existing.outgoing) return;
+    _messages[index] = ChatMessage(
+      id: existing.id,
+      text: text.trim(),
+      senderId: existing.senderId,
+      sourceLang: existing.sourceLang,
+      targetLang: existing.targetLang,
+      timestamp: existing.timestamp,
+      outgoing: existing.outgoing,
+      status: existing.status,
+    );
+    _scheduleConversationPersist();
+    notifyListeners();
+  }
+
+  /// Applies a delete the peer made to their own message.
+  void applyRemoteDelete(Map<String, dynamic> message) {
+    final messageId = message['messageId'];
+    if (messageId is! String || messageId.isEmpty) return;
+    final index = _messages.indexWhere((m) => m.id == messageId);
+    if (index == -1) return;
+    if (_messages[index].outgoing) return;
+    _messages.removeAt(index);
+    _scheduleConversationPersist();
+    notifyListeners();
   }
 
   // ── Delivery ack ───────────────────────────────────────────────────

@@ -231,6 +231,19 @@ class AudioService extends ChangeNotifier {
                   .toList();
           unawaited(chat.replaceHistorySecure(history));
           break;
+        case 'edit':
+          // The peer edited their own message; the relay already checked
+          // ownership before forwarding.
+          chat.applyRemoteEdit(Map<String, dynamic>.from(msg));
+          chat.persistConversation();
+          notifyListeners();
+          break;
+        case 'delete':
+          // The peer deleted their own message.
+          chat.applyRemoteDelete(Map<String, dynamic>.from(msg));
+          chat.persistConversation();
+          notifyListeners();
+          break;
         case 'signal':
           if (_signals.length >= _maxSignals) _signals.removeAt(0);
           _signals
