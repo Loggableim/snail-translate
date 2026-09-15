@@ -266,12 +266,18 @@ class GeminiLiveService extends ChangeNotifier
     _channel = null;
     _connected = false;
     _state = 'idle';
-    notifyListeners();
+    // dispose() may already have marked this ChangeNotifier disposed; a
+    // pending reconnect timer or caller can still invoke disconnect after
+    // that, and notifyListeners on a disposed notifier throws.
+    if (!_disposed) notifyListeners();
   }
+
+  bool _disposed = false;
 
   @override
   void dispose() {
-    disconnect();
+    _disposed = true;
+    unawaited(disconnect());
     super.dispose();
   }
 }

@@ -138,7 +138,13 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             stopCapture();
             stopPlayback();
             stopSessionKeepAlive();
-            if (sessionEventSink != null) sessionEventSink.success("ended");
+            // EventSink.success is @UiThread; broadcast receivers may run on
+            // any thread, so hop to the main looper before notifying Dart.
+            if (sessionEventSink != null) {
+                mainHandler.post(() -> {
+                    if (sessionEventSink != null) sessionEventSink.success("ended");
+                });
+            }
         }
     };
     private AudioFocusRequest playbackFocusRequest;
@@ -1277,7 +1283,10 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
             event.put("source", source);
             event.put("bytes", frameSnapshot);
             event.put("sampleRate", rate);
-            sink.success(event);
+            // EventSink.success is @UiThread: dispatching from this capture
+            // thread crashes with "Methods marked with @UiThread must be
+            // executed on the main thread". Hop to the main looper.
+            mainHandler.post(() -> sink.success(event));
         }
     }
 
@@ -1366,7 +1375,9 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                     byte[] data = new byte[read];
                     System.arraycopy(bytes, 0, data, 0, read);
                     EventChannel.EventSink sink = eventSink;
-                    if (sink != null) sink.success(data);
+                    // EventSink.success is @UiThread; hop to the main looper
+                    // like the standalone capture loop does.
+                    if (sink != null) mainHandler.post(() -> sink.success(data));
                 }
             } else if (read == AudioRecord.ERROR_INVALID_OPERATION) {
                 Log.e(TAG, "AudioRecord ERROR_INVALID_OPERATION");
