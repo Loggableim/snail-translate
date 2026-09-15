@@ -380,6 +380,10 @@
   "joinUnknownError": "Errore sconosciuto",
 
   "standaloneTitle": "Traduttore rapido",
+  "standaloneSplitPartner": "Partner",
+  "standaloneSplitUser": "Io",
+  "standaloneSplitListening": "In ascolto…",
+  "standaloneSplitNoSpeech": "Pronto",
   "standaloneHeadline": "Un dispositivo, due microfoni",
   "standaloneExplanation": "Il microfono del telefono sente l'altra persona. Il microfono della cuffia cattura l'utente. Entrambe le fonti rimangono separate in modo che la direzione, l'altoparlante e la soppressione del rumore possano essere assegnati in modo pulito.",
   "standaloneTranslationProvider": "Provider di traduzione",

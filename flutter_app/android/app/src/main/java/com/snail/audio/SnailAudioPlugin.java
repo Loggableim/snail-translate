@@ -565,12 +565,12 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         }
         final String output = requested;
         long durationMs = Math.max(20L, (bytes.length * 1000L) / (outputRate * 2L));
-        // With a headset microphone capture must remain fully duplex while
-        // translated audio is playing. The acoustic guard is only relevant
-        // to the handset microphone and speaker combination.
-        if (!"headset".equals(preferredInput) && findInputHeadset() == null) {
+        // Echo guard: suppress the phone microphone while the speaker plays
+        // translated audio. The headset microphone is physically isolated
+        // from the phone speaker, so it keeps capturing.
+        if ("speaker".equals(output)) {
             suppressCaptureUntilMs = Math.max(suppressCaptureUntilMs,
-                    System.currentTimeMillis() + durationMs + 100L);
+                    System.currentTimeMillis() + durationMs + 150L);
         }
 
         // WRITE_BLOCKING parks the calling thread until the AudioTrack has
@@ -1273,6 +1273,14 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         while (standaloneCapturing && record != null) {
             int bytesRead = record.read(frame, 0, frame.length);
             if (bytesRead <= 0 || standaloneEventSink == null) continue;
+            // Echo guard: while translated audio plays through the phone
+            // speaker, the near-field handset microphone picks it up and the
+            // translator would feed its own output back in — an endless
+            // echo-translation loop. Drop frames from the mic that sits next
+            // to the active output until playback has finished.
+            if (phoneSource && System.currentTimeMillis() < suppressCaptureUntilMs) {
+                continue;
+            }
             // Copy before posting to the Flutter thread. The capture loop
             // reuses this buffer on the next iteration.
             final byte[] frameSnapshot = java.util.Arrays.copyOf(frame, bytesRead);

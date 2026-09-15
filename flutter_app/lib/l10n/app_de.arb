@@ -380,6 +380,10 @@
   "joinUnknownError": "Unbekannter Fehler",
 
   "standaloneTitle": "Schnellübersetzer",
+  "standaloneSplitPartner": "Partner",
+  "standaloneSplitUser": "Ich",
+  "standaloneSplitListening": "Hört zu…",
+  "standaloneSplitNoSpeech": "Bereit",
   "standaloneHeadline": "Ein Gerät, zwei Mikrofone",
   "standaloneExplanation": "Das Handy-Mikrofon hört die Gesprächsperson. Das Headset-Mikrofon nimmt den Nutzer auf. Beide Quellen bleiben getrennt, damit Richtung, Sprecher und Noise Suppression sauber zugeordnet werden können.",
   "standaloneTranslationProvider": "Übersetzungs-Provider",

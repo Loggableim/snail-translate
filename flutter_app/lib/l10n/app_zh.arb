@@ -380,6 +380,10 @@
   "joinUnknownError": "未知错误",
 
   "standaloneTitle": "快速翻译器",
+  "standaloneSplitPartner": "伙伴",
+  "standaloneSplitUser": "我",
+  "standaloneSplitListening": "正在聆听…",
+  "standaloneSplitNoSpeech": "就绪",
   "standaloneHeadline": "一台设备，两个麦克风",
   "standaloneExplanation": "电话麦克风听到另一个人。耳机麦克风捕获用户。两个源保持分离，以便方向、扬声器和噪声抑制可以被干净地分配。",
   "standaloneTranslationProvider": "翻译提供商",

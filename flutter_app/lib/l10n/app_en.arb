@@ -380,6 +380,10 @@
   "joinUnknownError": "Unknown error",
 
   "standaloneTitle": "Quick translator",
+  "standaloneSplitPartner": "Partner",
+  "standaloneSplitUser": "Me",
+  "standaloneSplitListening": "Listening…",
+  "standaloneSplitNoSpeech": "Ready",
   "standaloneHeadline": "One device, two microphones",
   "standaloneExplanation": "The phone microphone hears the other person. The headset microphone captures the user. Both sources stay separate so direction, speaker and noise suppression can be cleanly assigned.",
   "standaloneTranslationProvider": "Translation provider",

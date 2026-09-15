@@ -380,6 +380,10 @@
   "joinUnknownError": "Невідома помилка",
 
   "standaloneTitle": "Швидкий перекладач",
+  "standaloneSplitPartner": "Співрозмовник",
+  "standaloneSplitUser": "Я",
+  "standaloneSplitListening": "Слухаю…",
+  "standaloneSplitNoSpeech": "Готово",
   "standaloneHeadline": "Один пристрій, два мікрофони",
   "standaloneExplanation": "Мікрофон телефону чує співрозмовника. Мікрофон гарнітури записує користувача. Обидва джерела залишаються окремими, щоб напрямок, мовця та шумозаглушення можна було чітко розрізнити.",
   "standaloneTranslationProvider": "Провайдер перекладу",

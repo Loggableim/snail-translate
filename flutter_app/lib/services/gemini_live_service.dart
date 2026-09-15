@@ -70,7 +70,9 @@ class GeminiLiveService extends ChangeNotifier
   String get state => _state;
   @override
   String? get lastError => _lastError;
+  @override
   String get inputTranscript => _inputTranscript;
+  @override
   String get outputTranscript => _outputTranscript;
   List<Uint8List> takeAudioChunks() {
     final chunks = List<Uint8List>.from(_audioChunks);

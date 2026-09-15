@@ -7,6 +7,7 @@ import '../l10n/app_localizations.dart';
 import '../models/translation_languages.dart';
 import '../services/snail_audio.dart';
 import '../services/speech_turn_buffer.dart';
+import '../services/live_translation_provider.dart';
 import '../services/openai_realtime_service.dart';
 import '../services/gemini_live_service.dart';
 import '../services/fish_audio_realtime_service.dart';
@@ -61,6 +62,49 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
   DateTime? _lastFrameAt;
   bool _hasHeadset = false;
   Map<String, dynamic> _audioDiagnostics = const <String, dynamic>{};
+  // Live transcripts per side, for the split conversation view. Keyed by
+  // 'phone' (partner side) and 'headset' (user side); each entry holds the
+  // last source text and its translation.
+  final Map<String, _LiveTranscript> _liveTranscripts =
+      <String, _LiveTranscript>{};
+
+  // Live transcript listeners for the split conversation view. The same
+  // listener instance must be passed to addListener and removeListener.
+  void _phoneTranscriptListener() {
+    final config = context.read<ProviderConfigService>().config;
+    if (config.provider == TranslationProvider.openAi) {
+      _updateLiveTranscript('phone', _phoneOpenAi);
+    } else {
+      _updateLiveTranscript('phone', _phoneGemini);
+    }
+  }
+
+  void _headsetTranscriptListener() {
+    final config = context.read<ProviderConfigService>().config;
+    if (config.provider == TranslationProvider.openAi) {
+      _updateLiveTranscript('headset', _headsetOpenAi);
+    } else {
+      _updateLiveTranscript('headset', _headsetGemini);
+    }
+  }
+
+  void _updateLiveTranscript(String source, LiveTranslationProvider provider) {
+    if (!mounted) return;
+    final input = provider.inputTranscript.trim();
+    final output = provider.outputTranscript.trim();
+    final current = _liveTranscripts[source];
+    if (current != null &&
+        current.source == input &&
+        current.translation == output) {
+      return;
+    }
+    setState(() {
+      _liveTranscripts[source] = _LiveTranscript(
+        source: input,
+        translation: output,
+      );
+    });
+  }
 
   Future<void> _toggle() async {
     if (_running) {
@@ -72,6 +116,11 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       _uiRefreshTimer?.cancel();
       _playbackQueue.clear();
       _fishTurns.clear();
+      _liveTranscripts.clear();
+      _phoneOpenAi.removeListener(_phoneTranscriptListener);
+      _headsetOpenAi.removeListener(_headsetTranscriptListener);
+      _phoneGemini.removeListener(_phoneTranscriptListener);
+      _headsetGemini.removeListener(_headsetTranscriptListener);
       await Future.wait([
         _phoneOpenAi.disconnect(),
         _headsetOpenAi.disconnect(),
@@ -148,6 +197,11 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
                   : null));
         }
         await Future.wait(openAiConnections);
+        // Live transcript listeners for the split conversation view.
+        _phoneOpenAi.addListener(_phoneTranscriptListener);
+        if (_hasHeadset) {
+          _headsetOpenAi.addListener(_headsetTranscriptListener);
+        }
       } else if (config.provider == TranslationProvider.geminiLive) {
         final geminiConnections = <Future<void>>[
           _phoneGemini.connect(
@@ -162,6 +216,10 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
               model: config.model));
         }
         await Future.wait(geminiConnections);
+        _phoneGemini.addListener(_phoneTranscriptListener);
+        if (_hasHeadset) {
+          _headsetGemini.addListener(_headsetTranscriptListener);
+        }
       } else {
         final fishConnections = <Future<void>>[
           _phoneFish.connect(
@@ -244,22 +302,28 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         }
       });
       _playbackTimer = Timer.periodic(const Duration(milliseconds: 40), (_) {
-        final ownerHeadphoneChunks =
+        // Channel routing, the core of the two-person quick translator:
+        //   phone mic (partner)   -> translated audio to the HEADSET wearer
+        //   headset mic (user)    -> translated audio to the SPEAKER (partner)
+        // Each person hears only the other's translation on their own output,
+        // never their own voice echoed back.
+        final phoneMicTranslationChunks =
             config.provider == TranslationProvider.openAi
                 ? _phoneOpenAi.takeAudioChunks()
                 : config.provider == TranslationProvider.geminiLive
                     ? _phoneGemini.takeAudioChunks()
                     : _phoneFish.takeAudioChunks();
-        final otherSpeakerChunks = config.provider == TranslationProvider.openAi
-            ? _headsetOpenAi.takeAudioChunks()
-            : config.provider == TranslationProvider.geminiLive
-                ? _headsetGemini.takeAudioChunks()
-                : _headsetFish.takeAudioChunks();
-        for (final chunk in ownerHeadphoneChunks) {
+        final headsetMicTranslationChunks =
+            config.provider == TranslationProvider.openAi
+                ? _headsetOpenAi.takeAudioChunks()
+                : config.provider == TranslationProvider.geminiLive
+                    ? _headsetGemini.takeAudioChunks()
+                    : _headsetFish.takeAudioChunks();
+        for (final chunk in phoneMicTranslationChunks) {
           _enqueuePlayback(
               chunk, _hasHeadset ? AudioOutput.headset : AudioOutput.speaker);
         }
-        for (final chunk in otherSpeakerChunks) {
+        for (final chunk in headsetMicTranslationChunks) {
           _enqueuePlayback(chunk, AudioOutput.speaker);
         }
       });
@@ -372,6 +436,11 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
           final output = source == 'phone' ? _phoneFish : _headsetFish;
           output.sendText(result.text);
           output.flush();
+          // Feed the split conversation view: source text + translation.
+          if (mounted) {
+            setState(() => _liveTranscripts[source] = _LiveTranscript(
+                source: transcript, translation: result.text));
+          }
         }
       } catch (error) {
         if (mounted) {
@@ -420,6 +489,31 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.standaloneTitle),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Center(
+              child: Text(
+                _status.text(l10n),
+                style: const TextStyle(fontSize: 12),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+      ),
+      // While translating, the screen becomes the conversation table: the
+      // top half faces the partner (rotated 180°), the bottom half faces
+      // the user, each showing the other side's live translation.
+      body: _running ? _buildConversationView(context, l10n) : _buildSetupView(context, l10n),
+    );
+  }
+
+  /// Setup view: languages, provider, start button (the previous layout).
+  Widget _buildSetupView(BuildContext context, AppLocalizations l10n) {
     final active = _audioDiagnostics['aecActive'] == true
         ? l10n.standaloneActive
         : l10n.standaloneInactive;
@@ -431,9 +525,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
       'headset' => l10n.standaloneHeadsetMic,
       _ => l10n.standaloneNoSourceYet,
     };
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.standaloneTitle)),
-      body: ListView(padding: const EdgeInsets.all(20), children: [
+    return ListView(padding: const EdgeInsets.all(20), children: [
         Text(l10n.standaloneHeadline,
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
@@ -478,7 +570,112 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         const SizedBox(height: 12),
         Text(l10n.standaloneSingleAudioRecordHint,
             style: const TextStyle(fontSize: 12)),
-      ]),
+      ],
+    );
+  }
+
+  /// The conversation view: top half rotated 180° for the partner sitting
+  /// across the table, bottom half for the headset user. Each half shows the
+  /// other person's live translation to read along.
+  Widget _buildConversationView(BuildContext context, AppLocalizations l10n) {
+    final colors = Theme.of(context).colorScheme;
+    final partner = _liveTranscripts['phone'];
+    final user = _liveTranscripts['headset'];
+    Widget half({
+      required String title,
+      required String languageCode,
+      required _LiveTranscript? transcript,
+      required bool flipped,
+    }) {
+      final translation =
+          transcript == null || transcript.translation.isEmpty
+              ? l10n.standaloneSplitNoSpeech
+              : transcript.translation;
+      final original = (transcript == null || transcript.source.isEmpty)
+          ? null
+          : transcript.source;
+      return Expanded(
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          child: RotatedBox(
+            quarterTurns: flipped ? 2 : 0,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: colors.primary,
+                        )),
+                    Text(languageCode.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.onSurface.withValues(alpha: .5),
+                        )),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  translation,
+                  style: TextStyle(
+                    fontSize: 22,
+                    height: 1.25,
+                    fontWeight: FontWeight.w700,
+                    color: colors.onSurface,
+                  ),
+                ),
+                if (original != null && original != translation) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    original,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colors.onSurface.withValues(alpha: .45),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Partner half — faces the person across the table, upside down.
+        half(
+          title: l10n.standaloneSplitPartner,
+          languageCode: _headsetLanguage,
+          transcript: partner,
+          flipped: true,
+        ),
+        Divider(height: 1, color: colors.outline.withValues(alpha: .3)),
+        // User half — faces the headset wearer.
+        half(
+          title: l10n.standaloneSplitUser,
+          languageCode: _phoneLanguage,
+          transcript: user,
+          flipped: false,
+        ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: FilledButton.icon(
+              onPressed: _toggle,
+              icon: const Icon(Icons.stop),
+              label: Text(l10n.standaloneStopTranslation),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -500,6 +697,14 @@ class _PlaybackChunk {
 
   final Uint8List bytes;
   final AudioOutput output;
+}
+
+/// One side's latest live transcript pair for the split conversation view.
+class _LiveTranscript {
+  const _LiveTranscript({required this.source, required this.translation});
+
+  final String source;
+  final String translation;
 }
 
 /// The status line's semantic state, translated at display time in build().

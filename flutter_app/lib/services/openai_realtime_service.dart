@@ -75,7 +75,9 @@ class OpenAiRealtimeService extends ChangeNotifier
   bool get isConnected => _connected;
   @override
   String get state => _state;
+  @override
   String get inputTranscript => _inputTranscript;
+  @override
   String get outputTranscript => _outputTranscript;
   @override
   String? get lastError => _lastError;

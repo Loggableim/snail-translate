@@ -380,6 +380,10 @@
   "joinUnknownError": "不明なエラー",
 
   "standaloneTitle": "クイック翻訳者",
+  "standaloneSplitPartner": "パートナー",
+  "standaloneSplitUser": "自分",
+  "standaloneSplitListening": "聞いています…",
+  "standaloneSplitNoSpeech": "準備完了",
   "standaloneHeadline": "1台のデバイス、2つのマイク",
   "standaloneExplanation": "電話マイクは相手の人を聞きます。ヘッドセットマイクはユーザーをキャプチャします。両方のソースは分離されたままなので、方向、スピーカー、ノイズ抑制がきれいに割り当てられます。",
   "standaloneTranslationProvider": "翻訳プロバイダー",

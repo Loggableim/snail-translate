@@ -38,6 +38,13 @@ class FishAudioRealtimeService extends ChangeNotifier
   String get state => _state;
   @override
   String? get lastError => _lastError;
+  // Fish is TTS-only: the ASR/MT stages run outside this service, so there
+  // is no transcript to expose here. The standalone screen feeds the split
+  // conversation view directly from its Fish pipeline results.
+  @override
+  String get inputTranscript => '';
+  @override
+  String get outputTranscript => '';
   bool get hasPendingAudio => _audioChunks.isNotEmpty;
   int get pendingTextWords => _wordCount(_textBuffer.toString());
   String get voiceId => _voiceId;
