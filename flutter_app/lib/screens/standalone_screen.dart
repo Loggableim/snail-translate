@@ -106,6 +106,102 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
     });
   }
 
+  /// Changes a side's language while the session is running. The live
+  /// providers bind the target language to their websocket session, so the
+  /// affected connections must be re-established; the native microphone
+  /// capture keeps running throughout, so no audio is lost.
+  Future<void> _changeLanguageLive(String side, String newLanguage) async {
+    final previous = side == 'phone' ? _phoneLanguage : _headsetLanguage;
+    if (previous == newLanguage) return;
+    setState(() {
+      if (side == 'phone') {
+        _phoneLanguage = newLanguage;
+      } else {
+        _headsetLanguage = newLanguage;
+      }
+      _status = const _StandaloneStatus.connecting();
+    });
+    final config = context.read<ProviderConfigService>().config;
+    final sessionService = context.read<SessionService>();
+    try {
+      if (config.provider == TranslationProvider.openAi) {
+        final usesClientSecret = config.apiKey.trim().isEmpty;
+        if (side == 'phone') {
+          await _phoneOpenAi.disconnect();
+          _phoneOpenAi.removeListener(_phoneTranscriptListener);
+          final credential = usesClientSecret
+              ? await sessionService.fetchOpenAiClientSecret(_headsetLanguage)
+              : config.apiKey.trim();
+          if (credential == null || credential.isEmpty) {
+            throw StateError('credential');
+          }
+          await _phoneOpenAi.connect(
+              apiKey: credential,
+              targetLanguage: _headsetLanguage,
+              credentialRefresher: usesClientSecret
+                  ? () => sessionService
+                      .fetchOpenAiClientSecret(_headsetLanguage)
+                  : null);
+          _phoneOpenAi.addListener(_phoneTranscriptListener);
+        } else if (_hasHeadset) {
+          await _headsetOpenAi.disconnect();
+          _headsetOpenAi.removeListener(_headsetTranscriptListener);
+          final credential = usesClientSecret
+              ? await sessionService.fetchOpenAiClientSecret(_phoneLanguage)
+              : config.apiKey.trim();
+          if (credential == null || credential.isEmpty) {
+            throw StateError('credential');
+          }
+          await _headsetOpenAi.connect(
+              apiKey: credential,
+              targetLanguage: _phoneLanguage,
+              credentialRefresher: usesClientSecret
+                  ? () => sessionService
+                      .fetchOpenAiClientSecret(_phoneLanguage)
+                  : null);
+          _headsetOpenAi.addListener(_headsetTranscriptListener);
+        }
+      } else if (config.provider == TranslationProvider.geminiLive) {
+        if (side == 'phone') {
+          await _phoneGemini.disconnect();
+          _phoneGemini.removeListener(_phoneTranscriptListener);
+          await _phoneGemini.connect(
+              apiKey: config.apiKey,
+              targetLanguage: _headsetLanguage,
+              model: config.model);
+          _phoneGemini.addListener(_phoneTranscriptListener);
+        } else if (_hasHeadset) {
+          await _headsetGemini.disconnect();
+          _headsetGemini.removeListener(_headsetTranscriptListener);
+          await _headsetGemini.connect(
+              apiKey: config.apiKey,
+              targetLanguage: _phoneLanguage,
+              model: config.model);
+          _headsetGemini.addListener(_headsetTranscriptListener);
+        }
+      }
+      // Fish has no per-connection language: the pipeline reads the
+      // current _phoneLanguage/_headsetLanguage on every turn, so nothing
+      // needs reconnecting.
+      if (mounted) {
+        setState(() => _status =
+            _StandaloneStatus.active(singleMic: !_hasHeadset));
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          if (side == 'phone') {
+            _phoneLanguage = previous;
+          } else {
+            _headsetLanguage = previous;
+          }
+          _status = _StandaloneStatus.connectionFailed(
+              config.provider.displayName);
+        });
+      }
+    }
+  }
+
   Future<void> _toggle() async {
     if (_running) {
       await _audio.stopStandaloneCapture();
@@ -489,10 +585,22 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.standaloneTitle),
         actions: [
+          // Device status: which microphone pair is active. Tapping opens the
+          // audio diagnostics from the setup view (via stop/restart is not
+          // needed — the icon only reports the current capture state).
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Icon(
+              _hasHeadset ? Icons.headset_rounded : Icons.phone_in_talk_rounded,
+              size: 20,
+              color: _hasHeadset ? Colors.green : colors.primary,
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: Center(
@@ -576,13 +684,15 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
 
   /// The conversation view: top half rotated 180° for the partner sitting
   /// across the table, bottom half for the headset user. Each half shows the
-  /// other person's live translation to read along.
+  /// other person's live translation to read along, with an inline language
+  /// picker so the pair can switch languages without stopping.
   Widget _buildConversationView(BuildContext context, AppLocalizations l10n) {
     final colors = Theme.of(context).colorScheme;
     final partner = _liveTranscripts['phone'];
     final user = _liveTranscripts['headset'];
     Widget half({
       required String title,
+      required String side,
       required String languageCode,
       required _LiveTranscript? transcript,
       required bool flipped,
@@ -605,7 +715,6 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(title,
                         style: TextStyle(
@@ -613,11 +722,37 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
                           fontSize: 13,
                           color: colors.primary,
                         )),
-                    Text(languageCode.toUpperCase(),
+                    const Spacer(),
+                    // Inline language picker: switching reconnects only the
+                    // affected provider session; the mic capture keeps
+                    // running, so the conversation can continue mid-sentence.
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: languageCode,
+                        isDense: true,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: colors.onSurface.withValues(alpha: .5),
-                        )),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: colors.onSurface,
+                        ),
+                        icon: Icon(Icons.arrow_drop_down,
+                            size: 20,
+                            color: colors.onSurface.withValues(alpha: .5)),
+                        items: translationLanguages
+                            .map((language) => DropdownMenuItem(
+                                  value: language.code,
+                                  child: Text(language.native),
+                                ))
+                            .toList(),
+                        onChanged: _running
+                            ? (value) {
+                                if (value != null) {
+                                  _changeLanguageLive(side, value);
+                                }
+                              }
+                            : null,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -653,6 +788,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         // Partner half — faces the person across the table, upside down.
         half(
           title: l10n.standaloneSplitPartner,
+          side: 'phone',
           languageCode: _headsetLanguage,
           transcript: partner,
           flipped: true,
@@ -661,6 +797,7 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
         // User half — faces the headset wearer.
         half(
           title: l10n.standaloneSplitUser,
+          side: 'headset',
           languageCode: _phoneLanguage,
           transcript: user,
           flipped: false,
