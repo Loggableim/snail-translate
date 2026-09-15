@@ -98,7 +98,7 @@ interface SocketAttachment {
 
 const MAX_QUOTA_SECONDS = 30 * 60;
 const MAX_PCM_SAMPLES_PER_MESSAGE = 16_000; // max 1 s mono PCM at 16 kHz
-const MAX_CHAT_TEXT_LENGTH = 10_000;         // max chars per chat message
+const MAX_CHAT_TEXT_LENGTH = 16_384;         // max chars per chat message
 const MAX_VOICE_AUDIO_DATA_LENGTH = 64 * 1024; // keeps one voice entry below a history page
 const MAX_HISTORY_PAGE_BYTES = 96 * 1024;
 const MAX_FISH_TTS_CHARS = 10_000;
