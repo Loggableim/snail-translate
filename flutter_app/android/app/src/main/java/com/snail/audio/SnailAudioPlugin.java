@@ -116,9 +116,17 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     private AcousticEchoCanceler standaloneHeadsetAec;
     private NoiseSuppressor standalonePhoneNs;
     private NoiseSuppressor standaloneHeadsetNs;
-    private AudioTrack playbackTrack;
-    private int playbackRate = 24000;
-    private String playbackOutput = "default";
+    /// One persistent AudioTrack per output route ("speaker"/"headset").
+    /// Rebuilding a single shared track on every route switch destroyed the
+    /// buffered audio and left an audible gap: on-device logs showed 53 track
+    /// rebuilds and repeated route flips in ~2 minutes while both sides of
+    /// the table mode alternated between the speaker and the headset.
+    private static final class PlaybackTrackSlot {
+        AudioTrack track;
+        int rate;
+    }
+    private final java.util.Map<String, PlaybackTrackSlot> playbackTracks =
+            new java.util.concurrent.ConcurrentHashMap<>();
     private AudioManager audioManager;
     private volatile Boolean cachedHeadsetConnected;
     private volatile android.media.AudioDeviceInfo cachedInputHeadset;
@@ -294,7 +302,10 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                         ? "default" : (String) call.argument("output");
                 ensureCommunicationMode();
                 applyPlaybackRoute(requestedOutput);
-                if (playbackTrack != null && !"default".equals(requestedOutput)) {
+                // A changed output route invalidates the cached tracks: the
+                // next playPcm16 rebuilds the affected track against the new
+                // physical device.
+                if (!playbackTracks.isEmpty() && !"default".equals(requestedOutput)) {
                     stopPlayback();
                 }
                 Log.i(TAG, "Output selection applied: " + requestedOutput
@@ -586,8 +597,8 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 applyPlaybackRoute(output);
                 if ("speaker".equals(output)) PcmPreamp.amplifyInPlace(bytes, 1.3, bytes.length);
                 synchronized (this) {
-                    ensurePlaybackTrack(outputRate, output);
-                    writePcmFully(bytes);
+                    AudioTrack track = ensurePlaybackTrack(outputRate, output);
+                    writePcmFully(track, bytes);
                 }
                 mainHandler.post(() -> result.success(null));
             } catch (Exception e) {
@@ -617,9 +628,9 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 }
                 ensureCommunicationMode();
                 synchronized (this) {
-                    ensurePlaybackTrack(rate, "speaker");
+                    AudioTrack toneTrack = ensurePlaybackTrack(rate, "speaker");
                     Log.d(TAG, "Playing local speaker test tone; route=" + activeOutputRoute());
-                    playbackTrack.write(tone, 0, tone.length, AudioTrack.WRITE_BLOCKING);
+                    toneTrack.write(tone, 0, tone.length, AudioTrack.WRITE_BLOCKING);
                 }
                 byte[] captured = new byte[captureRate / 2];
                 int read = loopback.read(captured, 0, captured.length);
@@ -782,9 +793,7 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         diagnostics.put("playbackWriteFailures", playbackWriteFailures.get());
         diagnostics.put("playbackBytesWritten", playbackBytesWritten.get());
         diagnostics.put("playbackMaxWriteMs", playbackMaxWriteMs.get());
-        diagnostics.put("playbackUnderruns", playbackTrack != null
-                && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N
-                ? playbackTrack.getUnderrunCount() : 0);
+        diagnostics.put("playbackUnderruns", playbackUnderrunTotal());
         return diagnostics;
     }
 
@@ -856,11 +865,11 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     }
 
     /** Writes every PCM byte or fails explicitly; AudioTrack may short-write. */
-    private void writePcmFully(byte[] bytes) {
+    private void writePcmFully(AudioTrack track, byte[] bytes) {
         int offset = 0;
         long startedAt = System.currentTimeMillis();
         while (offset < bytes.length) {
-            int written = playbackTrack.write(bytes, offset, bytes.length - offset,
+            int written = track.write(bytes, offset, bytes.length - offset,
                     AudioTrack.WRITE_BLOCKING);
             playbackWriteCalls.incrementAndGet();
             if (written <= 0) {
@@ -897,12 +906,21 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
                 & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
     }
 
-    private synchronized void ensurePlaybackTrack(int rate, String output) {
-        if (playbackTrack != null && playbackRate == rate && playbackOutput.equals(output)
-                && playbackTrack.getState() == AudioTrack.STATE_INITIALIZED) return;
-        stopPlayback();
-        playbackRate = rate;
-        playbackOutput = output;
+    /// Returns the persistent track for [output], creating it on first use.
+    /// Tracks are kept per route so alternating speaker/headset playback does
+    /// not tear down and rebuild the AudioTrack (and its buffered audio) on
+    /// every chunk.
+    private synchronized AudioTrack ensurePlaybackTrack(int rate, String output) {
+        PlaybackTrackSlot slot = playbackTracks.get(output);
+        if (slot != null && slot.track != null && slot.rate == rate
+                && slot.track.getState() == AudioTrack.STATE_INITIALIZED) {
+            return slot.track;
+        }
+        if (slot != null && slot.track != null) {
+            try { slot.track.pause(); } catch (Exception ignored) {}
+            try { slot.track.flush(); } catch (Exception ignored) {}
+            try { slot.track.release(); } catch (Exception ignored) {}
+        }
         // Translated speech must be audible through wired, USB and Bluetooth
         // headphones. STREAM_VOICE_CALL commonly stays on the earpiece when a
         // Bluetooth A2DP device is connected; media audio follows the user's
@@ -934,17 +952,24 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             builder.setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY);
         }
-        playbackTrack = builder.build();
-        if (playbackTrack.getState() != AudioTrack.STATE_INITIALIZED) {
-            stopPlayback();
+        AudioTrack track = builder.build();
+        if (track.getState() != AudioTrack.STATE_INITIALIZED) {
+            try { track.release(); } catch (Exception ignored) {}
             throw new IllegalStateException("Voice communication playback unavailable");
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             android.media.AudioDeviceInfo preferred = findOutputDevice(output);
-            if (preferred != null) playbackTrack.setPreferredDevice(preferred);
+            if (preferred != null) track.setPreferredDevice(preferred);
         }
-        playbackTrack.setVolume(1.0f);
-        playbackTrack.play();
+        track.setVolume(1.0f);
+        track.play();
+        if (slot == null) {
+            slot = new PlaybackTrackSlot();
+            playbackTracks.put(output, slot);
+        }
+        slot.track = track;
+        slot.rate = rate;
+        return track;
     }
 
     /** Applies the route only when the selected physical output changed. */
@@ -1033,12 +1058,26 @@ public class SnailAudioPlugin implements FlutterPlugin, ActivityAware, MethodCal
     }
 
     private synchronized void stopPlayback() {
-        if (playbackTrack != null) {
-            try { playbackTrack.pause(); } catch (Exception ignored) {}
-            try { playbackTrack.flush(); } catch (Exception ignored) {}
-            try { playbackTrack.release(); } catch (Exception ignored) {}
-            playbackTrack = null;
+        for (PlaybackTrackSlot slot : playbackTracks.values()) {
+            if (slot.track == null) continue;
+            try { slot.track.pause(); } catch (Exception ignored) {}
+            try { slot.track.flush(); } catch (Exception ignored) {}
+            try { slot.track.release(); } catch (Exception ignored) {}
+            slot.track = null;
         }
+        playbackTracks.clear();
+    }
+
+    /** Sums underrun counts across the persistent per-route tracks. */
+    private int playbackUnderrunTotal() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.N) return 0;
+        int total = 0;
+        for (PlaybackTrackSlot slot : playbackTracks.values()) {
+            if (slot.track != null) {
+                try { total += slot.track.getUnderrunCount(); } catch (Exception ignored) {}
+            }
+        }
+        return total;
     }
 
     private void restoreAudioMode() {

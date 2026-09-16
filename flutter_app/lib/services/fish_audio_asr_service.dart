@@ -111,6 +111,32 @@ class FishAudioAsrService {
     return base.isEmpty ? null : base;
   }
 
+  /// True when [text] cannot plausibly be a transcript of [expectedLanguage].
+  ///
+  /// Fish ASR invents text when it receives echo, noise or silence — on-device
+  /// it produced Chinese lyrics during a German/English conversation, which
+  /// the pipeline then translated and spoke. The script check rejects such
+  /// inventions before they reach the translator, without touching legitimate
+  /// transcripts: a German or English turn stays Latin-script, so CJK,
+  /// Cyrillic or Arabic output is a hallucination by construction.
+  static bool isImplausibleTranscript(String text, String expectedLanguage) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return true;
+    // Nothing but punctuation/symbols ("...", "♪") is never a real turn.
+    if (!RegExp(r'[\p{L}\p{N}]', unicode: true).hasMatch(trimmed)) return true;
+    final hasCjk = RegExp(r'[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]')
+        .hasMatch(trimmed);
+    final hasCyrillic = RegExp(r'[\u0400-\u04ff]').hasMatch(trimmed);
+    final hasArabic = RegExp(r'[\u0600-\u06ff]').hasMatch(trimmed);
+    const cjkLanguages = {'zh', 'ja', 'ko'};
+    const cyrillicLanguages = {'ru', 'uk'};
+    const arabicLanguages = {'ar'};
+    if (hasCjk && !cjkLanguages.contains(expectedLanguage)) return true;
+    if (hasCyrillic && !cyrillicLanguages.contains(expectedLanguage)) return true;
+    if (hasArabic && !arabicLanguages.contains(expectedLanguage)) return true;
+    return false;
+  }
+
   String _normalizeToken(String value) {
     var token = value.trim();
     if (token.toLowerCase().startsWith('bearer ')) {

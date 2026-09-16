@@ -110,6 +110,11 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
   /// providers bind the target language to their websocket session, so the
   /// affected connections must be re-established; the native microphone
   /// capture keeps running throughout, so no audio is lost.
+  ///
+  /// Direction mapping: each side's provider session translates INTO the
+  /// other side's language, so changing side X's language reconnects side
+  /// Y's session — a partner (phone) language change reconnects the HEADSET
+  /// session, a user (headset) language change reconnects the PHONE session.
   Future<void> _changeLanguageLive(String side, String newLanguage) async {
     final previous = side == 'phone' ? _phoneLanguage : _headsetLanguage;
     if (previous == newLanguage) return;
@@ -123,27 +128,14 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
     });
     final config = context.read<ProviderConfigService>().config;
     final sessionService = context.read<SessionService>();
+    final reconnectHeadset = side == 'phone';
     try {
       if (config.provider == TranslationProvider.openAi) {
         final usesClientSecret = config.apiKey.trim().isEmpty;
-        if (side == 'phone') {
-          await _phoneOpenAi.disconnect();
-          _phoneOpenAi.removeListener(_phoneTranscriptListener);
-          final credential = usesClientSecret
-              ? await sessionService.fetchOpenAiClientSecret(_headsetLanguage)
-              : config.apiKey.trim();
-          if (credential == null || credential.isEmpty) {
-            throw StateError('credential');
-          }
-          await _phoneOpenAi.connect(
-              apiKey: credential,
-              targetLanguage: _headsetLanguage,
-              credentialRefresher: usesClientSecret
-                  ? () => sessionService
-                      .fetchOpenAiClientSecret(_headsetLanguage)
-                  : null);
-          _phoneOpenAi.addListener(_phoneTranscriptListener);
-        } else if (_hasHeadset) {
+        if (reconnectHeadset && _hasHeadset) {
+          // The partner's language changed: the HEADSET session translates
+          // the user's speech INTO the partner's language, so it is the one
+          // that must be re-established with the new target.
           await _headsetOpenAi.disconnect();
           _headsetOpenAi.removeListener(_headsetTranscriptListener);
           final credential = usesClientSecret
@@ -160,17 +152,30 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
                       .fetchOpenAiClientSecret(_phoneLanguage)
                   : null);
           _headsetOpenAi.addListener(_headsetTranscriptListener);
+        } else if (!reconnectHeadset) {
+          // The user's language changed: the PHONE session translates the
+          // partner's speech INTO the user's language. It is the only
+          // session in single-mic mode, so it reconnects with or without a
+          // headset.
+          await _phoneOpenAi.disconnect();
+          _phoneOpenAi.removeListener(_phoneTranscriptListener);
+          final credential = usesClientSecret
+              ? await sessionService.fetchOpenAiClientSecret(_headsetLanguage)
+              : config.apiKey.trim();
+          if (credential == null || credential.isEmpty) {
+            throw StateError('credential');
+          }
+          await _phoneOpenAi.connect(
+              apiKey: credential,
+              targetLanguage: _headsetLanguage,
+              credentialRefresher: usesClientSecret
+                  ? () => sessionService
+                      .fetchOpenAiClientSecret(_headsetLanguage)
+                  : null);
+          _phoneOpenAi.addListener(_phoneTranscriptListener);
         }
       } else if (config.provider == TranslationProvider.geminiLive) {
-        if (side == 'phone') {
-          await _phoneGemini.disconnect();
-          _phoneGemini.removeListener(_phoneTranscriptListener);
-          await _phoneGemini.connect(
-              apiKey: config.apiKey,
-              targetLanguage: _headsetLanguage,
-              model: config.model);
-          _phoneGemini.addListener(_phoneTranscriptListener);
-        } else if (_hasHeadset) {
+        if (reconnectHeadset && _hasHeadset) {
           await _headsetGemini.disconnect();
           _headsetGemini.removeListener(_headsetTranscriptListener);
           await _headsetGemini.connect(
@@ -178,6 +183,14 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
               targetLanguage: _phoneLanguage,
               model: config.model);
           _headsetGemini.addListener(_headsetTranscriptListener);
+        } else if (!reconnectHeadset) {
+          await _phoneGemini.disconnect();
+          _phoneGemini.removeListener(_phoneTranscriptListener);
+          await _phoneGemini.connect(
+              apiKey: config.apiKey,
+              targetLanguage: _headsetLanguage,
+              model: config.model);
+          _phoneGemini.addListener(_phoneTranscriptListener);
         }
       }
       // Fish has no per-connection language: the pipeline reads the
@@ -514,6 +527,15 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
             pcm16: pcm,
             sampleRate: 16000,
             language: sourceLanguage);
+        // Fish ASR hallucinates whole sentences when it receives echo, noise
+        // or silence (on-device: Chinese lyrics in a German/English
+        // conversation). Reject implausible scripts before translating and
+        // speaking them — a wrong-language invention is worse than silence.
+        if (transcript.isNotEmpty &&
+            FishAudioAsrService.isImplausibleTranscript(
+                transcript, sourceLanguage)) {
+          continue;
+        }
         if (transcript.isNotEmpty) {
           final result = await _translator.translate(
               text: transcript,
@@ -688,8 +710,13 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
   /// picker so the pair can switch languages without stopping.
   Widget _buildConversationView(BuildContext context, AppLocalizations l10n) {
     final colors = Theme.of(context).colorScheme;
-    final partner = _liveTranscripts['phone'];
-    final user = _liveTranscripts['headset'];
+    // Each person reads the OTHER side's speech, translated into their own
+    // language: the partner reads the user's turns (translated into
+    // _phoneLanguage), the user reads the partner's turns (translated into
+    // _headsetLanguage). Showing a side its own speech would make both
+    // halves echo the speaker instead of the conversation partner.
+    final partnerReads = _liveTranscripts['headset'];
+    final userReads = _liveTranscripts['phone'];
     Widget half({
       required String title,
       required String side,
@@ -786,20 +813,23 @@ class _StandaloneScreenState extends State<StandaloneScreen> {
     return Column(
       children: [
         // Partner half — faces the person across the table, upside down.
+        // The partner reads the USER's speech (headset mic) translated into
+        // the partner's language, and their picker changes that language.
         half(
           title: l10n.standaloneSplitPartner,
           side: 'phone',
-          languageCode: _headsetLanguage,
-          transcript: partner,
+          languageCode: _phoneLanguage,
+          transcript: partnerReads,
           flipped: true,
         ),
         Divider(height: 1, color: colors.outline.withValues(alpha: .3)),
-        // User half — faces the headset wearer.
+        // User half — faces the headset wearer. The user reads the PARTNER's
+        // speech (phone mic) translated into the user's language.
         half(
           title: l10n.standaloneSplitUser,
           side: 'headset',
-          languageCode: _phoneLanguage,
-          transcript: user,
+          languageCode: _headsetLanguage,
+          transcript: userReads,
           flipped: false,
         ),
         SafeArea(
