@@ -682,6 +682,33 @@ class _SessionScreenState extends State<SessionScreen>
       final asrResult = await _fishAsr.transcribeDetected(
           apiKey: config.apiKey, pcm16: pcm, sampleRate: 16000, language: null);
       final transcript = asrResult.text;
+      // Language gate for the two-device session: this device's microphone
+      // also hears the partner's translated speaker output. A turn that ASR
+      // detects in the language this device TRANSLATES INTO is the partner's
+      // voice (or an echo of it) and must be dropped before translation,
+      // otherwise the partner's speech bounces back and forth between the
+      // devices. The user's own speech is always in the source language, so
+      // it passes through.
+      final sessionLangs = _sessionService.currentSession;
+      if (asrResult.language != null &&
+          asrResult.language == sessionLangs?.targetLang) {
+        debugPrint(
+            '[Snail][Fish] SKIPPED foreign turn: detected=${asrResult.language} target=$target');
+        return;
+      }
+      // Fish ASR hallucination guard (mirrors the standalone pipeline): a
+      // transcript whose script cannot belong to this side's source language
+      // is noise or echo invention, never the user's speech. Without it a
+      // hum like "嗯嗯。" gets translated and spoken in a loop.
+      final expectedSource = sessionLangs?.sourceLang;
+      if (expectedSource != null &&
+          expectedSource != 'auto' &&
+          FishAudioAsrService.isImplausibleTranscript(
+              transcript, expectedSource)) {
+        debugPrint(
+            '[Snail][Fish] SKIPPED implausible turn: detected=${asrResult.language} expected=$expectedSource');
+        return;
+      }
       // Fish ASR may omit the detected language for short clips. Do not pass
       // `auto` to the fallback translator; infer the opposite language for
       // the supported DE/EN session direction until detection is available.
