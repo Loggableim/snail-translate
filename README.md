@@ -43,7 +43,26 @@ Entwicklungsreferenz; sie ist kein Produkt-Fallback.
 | WebRTC-Audio/DataChannel mit Relay-Fallback | implementiert |
 | QR-Identität, Kontakte und gezielte Einladungen | implementiert |
 | Verschlüsselte Conversation-Historie und Offline-Outbox | implementiert |
+| Zuhör-Modus (1 Sprecher, N Zuhörer) | implementiert; Gerätetest offen |
 | Provider-Live-E2E-/Latenzbenchmark | offen, benötigt reale Provider-Konfiguration |
+
+### Modi
+
+| Modus | Sprecher | Empfänger | Übersetzung | Audio |
+|---|---|---|---|---|
+| Session (duo) | 2 (beide) | 2 | je Gerät, bidirektional | Live-PCM/P2P |
+| Schnellübersetzer | 1 Gerät, 2 Mikros | 2 (am Tisch) | lokal | lokal |
+| Zuhör-Modus (guide) | 1 (Guide) | bis zu 50 | Guide-Gerät, MT × N | Untertitel + lokales TTS |
+
+Im **Zuhör-Modus** spricht der Guide in seiner Sprache. Sein Gerät transkribiert
+(ASR), übersetzt den Text in jede angebotene Zuhörer-Sprache und sendet die
+Ergebnisse als `subtitle`-Nachrichten über den Relay an alle Zuhörer. Zuhörer
+sind reine Displays: Sie brauchen keinen Provider-Key, wählen ihre Sprache aus
+den angebotenen und können sich die Übersetzung optional lokal vorlesen lassen
+(`flutter_tts`). Fragen laufen über den vorhandenen Chat-Kanal zum Guide. Der
+Modus wird bei der Raum-Erstellung festgelegt (`mode: "guide"`); Duo- und
+Guide-Räume routen unterschiedlich und lassen sich nicht mischen. Untertitel und
+Chat sind in v1 Relay-Klartext (keine E2E), weil der Inhalt öffentliche Rede ist.
 
 Snail unterstützt im Zielbild einen Messenger-Modus. Die Nutzer
 werden über User-ID und Conversation- bzw. Room-ID verbunden und können sich
@@ -129,8 +148,9 @@ wrangler deploy
 | Endpoint | Methode | Beschreibung |
 |----------|---------|-------------|
 | `/api/health` | GET | Health-Check |
-| `/api/rooms` | POST | Raum erstellen (Host) |
-| `/api/rooms/:id/join` | POST | Raum beitreten (Guest) |
+| `/api/rooms` | POST | Raum erstellen (Host); `mode: "guide"` + `listenerLanguages` für den Zuhör-Modus |
+| `/api/rooms/:id/join` | POST | Raum beitreten (Guest); auf einem Guide-Raum 409 mit `code: "guide_room_use_listen"` |
+| `/api/rooms/:id/listen` | POST | Guide-Raum als Zuhörer beitreten (kein Quota-Verbrauch) |
 | `/ws?room=<id>` | WS | WebSocket-Relay |
 
 ## Historischer Provider-Benchmark
@@ -150,6 +170,7 @@ nicht der BYOK-Produktpfad.
 - [x] Acoustic Echo Cancellation (Android AudioFX)
 - [x] Multi-Provider-Fallback (Groq → Deepgram → OpenAI)
 - [x] QR-Code Session-Sharing
+- [x] Zuhör-Modus: ein Sprecher, bis zu 50 Zuhörer, Untertitel + lokales Vorlesen
 - [x] Transkript-History
 - [x] Strukturiertes Error-Logging
 - [x] Graceful WebSocket-Reconnect

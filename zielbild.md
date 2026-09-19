@@ -95,6 +95,12 @@ nächsten offenen Punkt.
 - [x] 40. Fehlerklassen statt freier Fehlermeldungen verwenden.
 - [x] 41. Historische Pipeline eindeutig als Legacy markieren.
 - [x] 42. Lifecycle- und Dispose-Verhalten aller Services testen.
+- [x] 60. Zuhör-Modus (1 Sprecher, N Zuhörer) als eigenen Relay-Modus implementieren.
+- [x] 61. Guide-Gerät übersetzt ASR → MT × N und fächert Untertitel an alle Zuhörer.
+- [x] 62. Zuhörer-Ansicht mit Sprachwahl, Auto-Scroll-Untertiteln und lokalem Vorlesen (flutter_tts).
+- [x] 63. Zuhörer-Fragen über den Chat-Kanal an den Guide leiten.
+- [x] 64. Guide-Räume per QR (`snail://guide/<room>`) und Code beitreten, mit sichtbarem Hinweis beim Fallback.
+- [ ] 65. Zuhör-Modus auf zwei Geräten testen (Guide + Zuhörer, Untertitel-Latenz, Sprachwechsel, TTS, Frage, Stop).
 
 ## Kurzer Persistent-Goal-Prompt für andere Agenten
 
