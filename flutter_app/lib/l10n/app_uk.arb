@@ -1,9 +1,7 @@
 {
   "@@locale": "uk",
-
   "sessionNoiseGateLevel": "Ð¨ÑƒÐ¼Ð¾Ð²Ð¸Ð¹ Ð¿Ð¾Ñ€Ñ–Ð³: {level} dBFS",
   "sessionMicrophoneLevel": "ÐœÑ–ÐºÑ€Ð¾Ñ„Ð¾Ð½: {level} dBFS",
-
   "commonCancel": "Скасувати",
   "commonJoin": "Приєднатися",
   "commonSave": "Зберегти",
@@ -30,7 +28,6 @@
   "commonLoading": "Завантаження…",
   "commonUnknown": "Невідомо",
   "commonSettings": "Налаштування",
-
   "homeCodeDialogTitle": "Введіть код сесії",
   "homeCodeDialogBody": "Введіть код сесії вашого співрозмовника.",
   "homeCodeDialogHint": "snail-XXXXXXXX",
@@ -56,14 +53,17 @@
   "homeQuickTranslator": "Швидкий перекладач",
   "homeQuickTranslatorSubtitle": "Один пристрій. Два мікрофони. Миттєве розуміння.",
   "homeStartNow": "Почати зараз",
-
   "welcomeMicPermissionDenied": "Snail потребує доступу до мікрофона для тестового запису та живого перекладу. Будь ласка, дозвольте це в системному діалозі або в налаштуваннях Android.",
   "welcomeMicUnavailable": "Не вдалося запустити мікрофон на цьому пристрої.",
   "welcomeMicPrepareFailed": "Не вдалося підготувати мікрофон. Перевірте дозвіл у налаштуваннях Android.",
   "welcomeMicStartFailed": "Не вдалося почати запис. Перевірте, чи не використовує мікрофон інша програма.",
   "welcomeRecordingReceived": "Запис отримано: {kb} КБ PCM. Відтворення розпочинається …",
   "@welcomeRecordingReceived": {
-    "placeholders": { "kb": { "type": "int" } }
+    "placeholders": {
+      "kb": {
+        "type": "int"
+      }
+    }
   },
   "welcomeNoAudioReceived": "Аудіодані не отримано. Перевірте дозвіл на мікрофон і спробуйте ще раз.",
   "welcomeNeedKeyForTranscription": "Запис успішний. Щоб увімкнути транскрипцію, спершу збережіть ключ Fish Audio.",
@@ -71,11 +71,19 @@
   "welcomeTranscriptionSuccess": "Запис і транскрипція успішні.",
   "welcomeTranscriptionFailed": "Запис відтворено, транскрипція не вдалася: {error}",
   "@welcomeTranscriptionFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "welcomePlaybackSuccess": "Запис успішно відтворено ({kb} КБ).",
   "@welcomePlaybackSuccess": {
-    "placeholders": { "kb": { "type": "int" } }
+    "placeholders": {
+      "kb": {
+        "type": "int"
+      }
+    }
   },
   "welcomeAppTagline": "Переклад мовлення в реальному часі\nдля двох людей.",
   "welcomeFeatureSpeak": "Говори своєю мовою",
@@ -87,7 +95,11 @@
   "welcomeMicExplanation": "Snail потребує ваш мікрофон, щоб перекладати вашу мову наживо. Ваш голос записується лише під час активної сесії. Нічого не зберігається постійно.",
   "welcomeTranscriptLabel": "Транскрипція: «{text}»",
   "@welcomeTranscriptLabel": {
-    "placeholders": { "text": { "type": "String" } }
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
   },
   "welcomeHowItWorksTitle": "Як працює Snail",
   "welcomeHowItWorksSubtitle": "Дві людини, дві мови — Snail перекладає в обидва боки.",
@@ -118,15 +130,17 @@
   "welcomeAutoDetected": "визначено автоматично",
   "welcomeChange": "Змінити",
   "welcomeChooseLanguage": "Обрати мову",
-
   "audioRouteAuto": "Авто",
   "audioRouteSpeaker": "Динамік",
   "audioRouteHeadset": "Гарнітура",
   "audioRoutePhone": "Телефон",
-
   "sessionFishVoiceSelected": "Голос Fish для вашого виводу: {voice}",
   "@sessionFishVoiceSelected": {
-    "placeholders": { "voice": { "type": "String" } }
+    "placeholders": {
+      "voice": {
+        "type": "String"
+      }
+    }
   },
   "sessionMicClipping": "Перевантаження мікрофона! Говоріть трохи тихіше або збільште відстань до мікрофона.",
   "sessionEndConfirmTitle": "Завершити сесію?",
@@ -141,11 +155,19 @@
   "sessionTestToneFailed": "Не вдалося відтворити тестовий сигнал",
   "sessionInputOutputSummary": "Мова введення: визначається автоматично · Вивід: {lang}",
   "@sessionInputOutputSummary": {
-    "placeholders": { "lang": { "type": "String" } }
+    "placeholders": {
+      "lang": {
+        "type": "String"
+      }
+    }
   },
   "sessionNoTranslation": "Немає перекладу: {reason}",
   "@sessionNoTranslation": {
-    "placeholders": { "reason": { "type": "String" } }
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
   },
   "sessionMyFishVoiceLabel": "Мій голос Fish Audio",
   "sessionVoiceHint": "Цей голос використовується лише для вашого перекладеного виводу.",
@@ -157,15 +179,27 @@
   "sessionTranslationGenerating": "Створення перекладу …",
   "sessionRealtimeState": "Реальний час: {state}",
   "@sessionRealtimeState": {
-    "placeholders": { "state": { "type": "String" } }
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
   },
   "sessionConnectionDetail": "Деталі з'єднання: {detail}",
   "@sessionConnectionDetail": {
-    "placeholders": { "detail": { "type": "String" } }
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   },
   "sessionRoomCode": "Код: {code}",
   "@sessionRoomCode": {
-    "placeholders": { "code": { "type": "String" } }
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
   },
   "sessionLetPartnerScan": "Дайте співрозмовнику відсканувати код",
   "sessionMuted": "Вимкнено",
@@ -174,10 +208,8 @@
   "sessionLatencyInput": "Вхід",
   "sessionLatencyOutput": "Вихід",
   "sessionLatencyTotal": "Загалом",
-
   "identityQrTitle": "Мій ID Snail",
   "identityQrScanHint": "Скануйте, щоб додати мене як контакт",
-
   "appShareTitle": "Поділитися застосунком напряму",
   "appShareDirectTitle": "Напряму з цього пристрою",
   "appShareDirectBody": "HTTPS-посилання передається через Cloudflare. APK залишається на цьому пристрої й передається напряму лише під час завантаження.",
@@ -187,23 +219,39 @@
   "appShareDownloadReady": "Завантаження готове",
   "appShareExpiresInfo": "Доступно до {time} • {downloads} завантажень",
   "@appShareExpiresInfo": {
-    "placeholders": { "time": { "type": "String" }, "downloads": { "type": "int" } }
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "downloads": {
+        "type": "int"
+      }
+    }
   },
   "appShareTransferProgress": "{transferred} з {total} • {rate}",
   "@appShareTransferProgress": {
     "placeholders": {
-      "transferred": { "type": "String" },
-      "total": { "type": "String" },
-      "rate": { "type": "String" }
+      "transferred": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      }
     }
   },
   "appShareCopyLink": "Копіювати посилання",
   "appShareStopDownload": "Зупинити завантаження",
-
   "profileTitle": "Профіль",
   "profileQrId": "QR-ID: {id}",
   "@profileQrId": {
-    "placeholders": { "id": { "type": "String" } }
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
   },
   "profileTierPro": "Pro",
   "profileTierFree": "Free",
@@ -215,7 +263,6 @@
   "profileLogoutConfirmTitle": "Скинути дані?",
   "profileLogoutConfirmBody": "Ідентичність, контакти, історію перекладів і збережений ключ провайдера буде видалено з цього пристрою. Дію не можна скасувати.",
   "profileLogoutAction": "Скинути",
-
   "paywallPreviewBadge": "Попередній перегляд",
   "paywallUpgradeTitle": "Перейти на Snail Pro",
   "paywallUpgradeBody": "Необмежений переклад, усі мови, найкраща якість.",
@@ -238,7 +285,6 @@
   "paywallCancelAnytime": "Скасувати можна будь-коли. 7 днів безкоштовно.",
   "paywallFree": "Free",
   "paywallPro": "Pro",
-
   "errorLogTitle": "Журнал помилок",
   "errorLogCopyLogsTooltip": "Копіювати журнал",
   "errorLogCopied": "Журнал помилок скопійовано",
@@ -249,7 +295,6 @@
   "errorLogEmpty": "Немає помилок — усе чисто!",
   "errorLogCopyLogs": "Копіювати журнал помилок",
   "errorLogCopiedToClipboard": "Журнал помилок скопійовано в буфер обміну",
-
   "historyTitle": "Історія",
   "historyClearAllTooltip": "Очистити все",
   "historyEmpty": "Немає транскрипцій",
@@ -257,7 +302,6 @@
   "historyClearAllConfirmBody": "Ви дійсно хочете видалити всі транскрипції?",
   "historyDeleteConfirmTitle": "Видалити?",
   "historyDeleteConfirmBody": "Видалити цей запис?",
-
   "contactsAddIdTitle": "Додати Snail-ID",
   "contactsAddButton": "Додати",
   "contactsInvalidId": "Недійсний Snail-ID",
@@ -287,11 +331,14 @@
   "contactsBlock": "Заблокувати",
   "contactsUnblock": "Розблокувати",
   "contactsBlockedSection": "Заблоковані",
-
   "qrHostNoServerResponse": "Немає відповіді від сервера",
   "qrHostConnectionError": "Помилка з'єднання: {error}",
   "@qrHostConnectionError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "qrHostCreateFailed": "Не вдалося створити сесію",
   "qrHostTestConnection": "Перевірити з'єднання",
@@ -302,11 +349,14 @@
   "qrHostNoHeadsetWarning": "Гарнітуру не виявлено. Для найкращої якості звуку та придушення луни рекомендуємо гарнітуру.",
   "qrHostStartSessionWith": "Почати сесію з {name}",
   "@qrHostStartSessionWith": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "qrHostCheckingAudio": "Перевірка аудіо …",
   "qrHostHeadsetDetected": "Гарнітуру виявлено",
-
   "settingsByokProviderTooltip": "BYOK-провайдер",
   "settingsMyLanguageSection": "Моя мова",
   "settingsISpeak": "Я говорю",
@@ -334,15 +384,27 @@
   "settingsClearLog": "Очистити журнал",
   "settingsClearLogWithCount": "Очистити журнал ({count} записів)",
   "@settingsClearLogWithCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsClearLogConfirmBody": "Остаточно видалити {count} записів?",
   "@settingsClearLogConfirmBody": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsErrorLogEntryCount": "{count, plural, one{{count} запис} few{{count} записи} many{{count} записів} other{{count} запису}}",
   "@settingsErrorLogEntryCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsDiagnosticsTitle": "Діагностика",
   "settingsDiagnosticsBody": "Надсилати лише очищені коди помилок провайдера для покращення надійності. Вміст розмов і ключі не надсилаються.",
@@ -351,7 +413,6 @@
   "settingsAppSubtitle": "Перекладач розмов у реальному часі",
   "settingsChangeUsernameTitle": "Змінити ім'я користувача",
   "settingsUsernameLabel": "Ім'я користувача",
-
   "chatMessengerTitle": "Snail Messenger",
   "chatNeedsSessionHint": "Спершу відкрийте або приєднайтеся до сесії, щоб користуватися месенджером.",
   "chatStartChatSession": "Почати чат-сесію",
@@ -360,13 +421,20 @@
   "chatPendingCount": "{count} очікує",
   "chatSendTooltip": "Надіслати",
   "@chatPendingCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "chatTranslationFailed": "Переклад не вдався: {error}",
   "@chatTranslationFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "joinContactDetected": "Контакт",
   "joinInvalidIdentity": "Недійсна ідентичність Snail",
   "joinTitle": "Приєднатися до сесії",
@@ -378,7 +446,6 @@
   "joinProcessing": "Обробка …",
   "joinConnecting": "Встановлення з'єднання",
   "joinUnknownError": "Невідома помилка",
-
   "standaloneTitle": "Швидкий перекладач",
   "standaloneSplitPartner": "Співрозмовник",
   "standaloneSplitUser": "Я",
@@ -395,9 +462,15 @@
   "standaloneFrameSummary": "{source} · {frames} аудіокадрів{headsetSuffix}",
   "@standaloneFrameSummary": {
     "placeholders": {
-      "source": { "type": "String" },
-      "frames": { "type": "int" },
-      "headsetSuffix": { "type": "String" }
+      "source": {
+        "type": "String"
+      },
+      "frames": {
+        "type": "int"
+      },
+      "headsetSuffix": {
+        "type": "String"
+      }
     }
   },
   "standaloneNoHeadsetSuffix": " · без гарнітури",
@@ -406,7 +479,14 @@
   "standaloneInactive": "неактивний",
   "standaloneAecNsSummary": "AEC: {aec} · NS: {ns}",
   "@standaloneAecNsSummary": {
-    "placeholders": { "aec": { "type": "String" }, "ns": { "type": "String" } }
+    "placeholders": {
+      "aec": {
+        "type": "String"
+      },
+      "ns": {
+        "type": "String"
+      }
+    }
   },
   "standaloneStopTranslation": "Зупинити переклад",
   "standaloneStartTranslation": "Почати переклад",
@@ -422,18 +502,29 @@
   "standaloneStatusActiveSingleMic": "Переклад наживо активний – один мікрофон",
   "standaloneStatusReconnecting": "{provider}: повторне з'єднання",
   "@standaloneStatusReconnecting": {
-    "placeholders": { "provider": { "type": "String" } }
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
   },
   "standaloneStatusConnectedWaiting": "З'єднано – очікування мовлення",
   "standaloneStatusConnectionFailed": "{provider}: з'єднання не вдалося",
   "@standaloneStatusConnectionFailed": {
-    "placeholders": { "provider": { "type": "String" } }
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
   },
   "standaloneStatusFishError": "Помилка конвеєра Fish: {error}",
   "@standaloneStatusFishError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "providerSettingsTitle": "BYOK-провайдер",
   "providerSettingsSessionOwnerProvider": "Провайдер власника сесії",
   "providerSettingsOpenAiRealtime": "Переклад OpenAI Realtime",
@@ -452,18 +543,20 @@
   "providerSettingsTestConnection": "Перевірити з'єднання",
   "providerSettingsDiagnosticsTitle": "Діагностичний звіт",
   "providerSettingsKeyOwnerHint": "Ключ належить власнику сесії. Запрошений учасник не потребує власного ключа провайдера.",
-
   "providerSettingsFilterAll": "Усі",
   "providerSettingsSearchVoice": "Пошук голосу",
   "providerSettingsLanguage": "Мова",
   "providerSettingsCategory": "Категорія",
   "providerSettingsVoicesLoaded": "Завантажено голосів Fish: {count}",
   "@providerSettingsVoicesLoaded": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsPreview": "Прослухати",
   "providerSettingsFavorite": "Обране",
-
   "providerSettingsDiagLatency": "Затримка",
   "providerSettingsDiagHttpStatus": "HTTP-статус",
   "providerSettingsDiagEndpoint": "Кінцева точка",
@@ -480,29 +573,48 @@
   "providerSettingsDiagInvalidCheckKey": "недійсний (перевірте ключ)",
   "providerSettingsDiagErrorHttp": "Помилка (HTTP {status})",
   "@providerSettingsDiagErrorHttp": {
-    "placeholders": { "status": { "type": "int" } }
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsDiagError": "Помилка",
   "providerSettingsDiagLatencyTimeout": "{ms} мс (тайм-аут/помилка)",
   "@providerSettingsDiagLatencyTimeout": {
-    "placeholders": { "ms": { "type": "int" } }
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsResultOk": "OK – провайдер доступний",
   "providerSettingsResultErrorHttp": "Помилка – HTTP {status}",
   "@providerSettingsResultErrorHttp": {
-    "placeholders": { "status": { "type": "int" } }
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsResultError": "Помилка – {error}",
   "@providerSettingsResultError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "providerSettingsOllamaModel": "Модель Ollama",
   "providerSettingsOllamaModelHint": "напр. llama3.2:3b",
   "providerSettingsModel": "Модель",
   "providerSettingsModelFreeSuffix": "{model} (безкоштовно)",
   "@providerSettingsModelFreeSuffix": {
-    "placeholders": { "model": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "providerSettingsFishAudioVoice": "Голос Fish Audio",
   "providerSettingsManualVoiceId": "Ручний ID голосу",
@@ -512,9 +624,12 @@
   "providerSettingsVoicePreviewSample": "Привіт, це короткий зразок голосу Fish Audio.",
   "providerSettingsVoicePreviewFailed": "Не вдалося відтворити зразок голосу Fish: {error}",
   "@providerSettingsVoicePreviewFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "providerInfoOpenAiSubtitle": "Хмара · найнижча затримка · потрібен API-ключ",
   "providerInfoOpenAiBody": "OpenAI перекладає розмовну мову напряму в реальному часі — без проміжного тексту. Це найшвидший спосіб і рекомендований вибір для живих розмов. Потрібен API-ключ OpenAI (sk-...). Вартість: приблизно $0,034 за хвилину аудіо.",
   "providerInfoGeminiTitle": "Gemini Live",
@@ -525,5 +640,30 @@
   "providerInfoOllamaBody": "Ollama працює на вашому власному комп'ютері. Ваші дані не залишають вашу мережу. Ідеально, якщо у вас вже є сервер Ollama. Не рекомендується для живих розмов — затримка помітно вища, ніж у хмарних провайдерів. API-ключ не потрібен.",
   "providerInfoFishTitle": "Fish Audio Realtime",
   "providerInfoFishSubtitle": "Realtime TTS · недорого · власний ключ голосу",
-  "providerInfoFishBody": "Fish Audio передає перекладені фрагменти тексту через WebSocket у природні аудіофрагменти. Сам переклад залишається окремим етапом STT/MT. Оберіть ID голосу та режим затримки balanced."
+  "providerInfoFishBody": "Fish Audio передає перекладені фрагменти тексту через WebSocket у природні аудіофрагменти. Сам переклад залишається окремим етапом STT/MT. Оберіть ID голосу та режим затримки balanced.",
+  "homeGuideMode": "Режим слухача",
+  "guideTitle": "Режим слухача",
+  "guideHeadline": "Один мовець, багато слухачів",
+  "guideExplanation": "Ви говорите своєю мовою. Ваш пристрій перекладає кожне речення всіма вибраними мовами й надсилає його кожному слухачеві. Слухачам не потрібен власний ключ.",
+  "guideListenerLanguages": "Мови для слухачів",
+  "guideNoLanguages": "Виберіть принаймні одну мову для слухачів.",
+  "guideProviderUnsupported": "{provider} не може перекладати в режимі слухача. Використовуйте Fish Audio або OpenAI.",
+  "guideStart": "Запустити режим слухача",
+  "guideStarting": "Запуск …",
+  "guideStop": "Завершити",
+  "guideListenerCount": "{count} слухачів підключено",
+  "guideYouSaid": "Ви сказали",
+  "guideWaitingForSpeech": "Очікування мовлення …",
+  "guideQuestions": "Питання слухачів",
+  "guideNoQuestions": "Ще немає питань.",
+  "guideConnectionFailed": "Не вдалося підключитися до релею.",
+  "guideCaptureFailed": "Не вдалося запустити мікрофон.",
+  "listenerTitle": "Режим слухача",
+  "listenerYourLanguage": "Ваша мова",
+  "listenerTtsToggle": "Читати вголос",
+  "listenerTtsUnavailable": "Читання вголос недоступне для цієї мови — субтитри працюють далі.",
+  "listenerGuideSpeaking": "Гід говорить",
+  "listenerGuideGone": "Гід не підключений",
+  "listenerWaiting": "Очікування першого перекладу …",
+  "joinGuideListenerNotice": "Це сеанс слухання — тепер ви слухаєте."
 }

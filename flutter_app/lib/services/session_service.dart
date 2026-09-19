@@ -16,6 +16,9 @@ enum SessionFailureCode {
   rateLimited,
   network,
   requestFailed,
+  /// The room exists but is a guide room: the caller must use the listener
+  /// flow instead of a guest join.
+  guideRoomUseListen,
 }
 
 /// Manages session lifecycle: create room, join room.
@@ -46,6 +49,7 @@ class SessionService extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   SessionFailureCode? _errorCode;
+  String? _lastErrorCode;
   String _myLanguage = 'de';
   String _targetLanguage = 'en';
   String? _identityId;
@@ -66,6 +70,9 @@ class SessionService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   SessionFailureCode? get errorCode => _errorCode;
+  /// Raw error token from the Worker (e.g. `guide_room_use_listen`), used by
+  /// the join screen to route into the listener flow.
+  String? get lastErrorCode => _lastErrorCode;
 
   String localizedError(AppLocalizations l10n) => switch (_errorCode) {
         SessionFailureCode.invalidRoomCode => l10n.sessionInvalidCode,
@@ -73,6 +80,7 @@ class SessionService extends ChangeNotifier {
         SessionFailureCode.rateLimited => l10n.sessionRateLimited,
         SessionFailureCode.network => l10n.homeJoinFailed,
         SessionFailureCode.requestFailed => l10n.homeJoinFailed,
+        SessionFailureCode.guideRoomUseListen => l10n.joinGuideListenerNotice,
         null => l10n.homeJoinFailed,
       };
   bool get isInSession => _currentSession != null;
@@ -321,6 +329,127 @@ class SessionService extends ChangeNotifier {
       } else {
         // Map the status codes the Worker actually returns so the user sees
         // why a join failed instead of a generic "failed".
+        _lastErrorCode = _errorCodeFromBody(response.body);
+        _errorCode = switch (response.statusCode) {
+          404 => SessionFailureCode.roomNotFound,
+          429 => SessionFailureCode.rateLimited,
+          409 when _lastErrorCode == 'guide_room_use_listen' =>
+            SessionFailureCode.guideRoomUseListen,
+          _ => SessionFailureCode.requestFailed,
+        };
+        _error = 'session_request_failed_${response.statusCode}';
+      }
+    } catch (e, st) {
+      _errorCode = SessionFailureCode.network;
+      _error = 'session_network';
+      ErrorLogger.I.log(
+          provider: 'api', context: 'session.join', error: e, stackTrace: st);
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return null;
+  }
+
+  /// Creates a guide room: one speaker, up to 50 listeners.
+  ///
+  /// [listenerLanguages] are the languages the guide offers; the guide's own
+  /// language is the source every listener reads from.
+  Future<Session?> createGuideRoom({
+    required List<String> listenerLanguages,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    _errorCode = null;
+    notifyListeners();
+
+    try {
+      final requestBody = jsonEncode({
+        'mode': 'guide',
+        'sourceLang': _myLanguage,
+        'listenerLanguages': listenerLanguages,
+      });
+      // Room creation is not idempotent: a timeout may occur after the
+      // Worker has already allocated the room. Do not repeat this POST.
+      final response = await withTimeout(
+        _httpClient.post(
+          Uri.parse('${ApiKeys.workerUrl}/api/rooms'),
+          headers: await _authHeaders(
+              json: true,
+              method: 'POST',
+              path: '/api/rooms',
+              body: requestBody),
+          body: requestBody,
+        ),
+        _requestTimeout,
+      );
+
+      if (response.statusCode == 201) {
+        _currentSession =
+            Session.fromJson(jsonDecode(response.body), role: 'host');
+        _isLoading = false;
+        notifyListeners();
+        return _currentSession;
+      } else {
+        _errorCode = response.statusCode == 429
+            ? SessionFailureCode.rateLimited
+            : SessionFailureCode.requestFailed;
+        _error = 'session_request_failed_${response.statusCode}';
+      }
+    } catch (e, st) {
+      _errorCode = SessionFailureCode.network;
+      _error = 'session_network';
+      ErrorLogger.I.log(
+          provider: 'api', context: 'session.createGuide', error: e, stackTrace: st);
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return null;
+  }
+
+  /// Joins a guide room as a listener.
+  ///
+  /// Returns `null` with [errorCode] set when the room is not a guide room
+  /// (409) or does not exist (404).
+  Future<Session?> joinAsListener(String roomId) async {
+    _isLoading = true;
+    _error = null;
+    _errorCode = null;
+    notifyListeners();
+
+    try {
+      final match = RegExp(r'^snail-([A-HJ-NP-Z2-9]{8})$', caseSensitive: false)
+          .firstMatch(roomId.trim());
+      if (match == null) {
+        _errorCode = SessionFailureCode.invalidRoomCode;
+        _error = 'session_invalid_room_code';
+        _isLoading = false;
+        notifyListeners();
+        return null;
+      }
+      final normalizedRoomId = 'snail-${match.group(1)!.toUpperCase()}';
+      const requestBody = '';
+      final response = await withTimeout(
+        _httpClient.post(
+          Uri.parse('${ApiKeys.workerUrl}/api/rooms/$normalizedRoomId/listen'),
+          headers: await _authHeaders(
+              json: true,
+              method: 'POST',
+              path: '/api/rooms/$normalizedRoomId/listen',
+              body: requestBody),
+          body: requestBody,
+        ),
+        _requestTimeout,
+      );
+
+      if (response.statusCode == 200) {
+        _currentSession =
+            Session.fromJson(jsonDecode(response.body), role: 'listener');
+        _isLoading = false;
+        notifyListeners();
+        return _currentSession;
+      } else {
         _errorCode = switch (response.statusCode) {
           404 => SessionFailureCode.roomNotFound,
           429 => SessionFailureCode.rateLimited,
@@ -332,7 +461,7 @@ class SessionService extends ChangeNotifier {
       _errorCode = SessionFailureCode.network;
       _error = 'session_network';
       ErrorLogger.I.log(
-          provider: 'api', context: 'session.join', error: e, stackTrace: st);
+          provider: 'api', context: 'session.listen', error: e, stackTrace: st);
     }
 
     _isLoading = false;
@@ -378,5 +507,20 @@ class SessionService extends ChangeNotifier {
     _currentSession = null;
     _error = null;
     notifyListeners();
+  }
+
+  /// Extracts the machine-readable `code` field from a Worker error body.
+  /// Returns null when the body is not JSON or carries no code.
+  static String? _errorCodeFromBody(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final code = decoded['code'];
+        return code is String && code.isNotEmpty ? code : null;
+      }
+    } catch (_) {
+      // Non-JSON error bodies are expected for some upstream failures.
+    }
+    return null;
   }
 }

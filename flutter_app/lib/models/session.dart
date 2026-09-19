@@ -8,10 +8,15 @@ class Session {
   final String sourceLang;
   final String targetLang;
   final String tier;
-  final String role; // "host" | "guest"
+  final String role; // "host" | "guest" | "listener"
   final String? inviteeId;
   final int quotaRemaining;
   final List<Map<String, dynamic>> iceServers;
+  /// "duo" (two translating peers) or "guide" (one speaker, N listeners).
+  /// Fixed at room creation; the relay routes the two modes differently.
+  final String mode;
+  /// Languages offered to listeners in a guide room.
+  final List<String> listenerLanguages;
 
   Session({
     required this.roomId,
@@ -24,6 +29,8 @@ class Session {
     this.inviteeId,
     required this.quotaRemaining,
     this.iceServers = const <Map<String, dynamic>>[],
+    this.mode = 'duo',
+    this.listenerLanguages = const <String>[],
   });
 
   factory Session.fromJson(Map<String, dynamic> json, {String role = 'host'}) {
@@ -40,6 +47,10 @@ class Session {
       iceServers: (json['iceServers'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
           .toList(growable: false),
+      mode: json['mode'] as String? ?? 'duo',
+      listenerLanguages: (json['listenerLanguages'] as List<dynamic>? ?? const [])
+          .whereType<String>()
+          .toList(growable: false),
     );
   }
 
@@ -54,6 +65,8 @@ class Session {
         inviteeId: inviteeId,
         quotaRemaining: quotaRemaining,
         iceServers: iceServers,
+        mode: mode,
+        listenerLanguages: listenerLanguages,
       );
 }
 

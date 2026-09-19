@@ -1,9 +1,7 @@
 {
   "@@locale": "es",
-
   "sessionNoiseGateLevel": "Puerta de ruido: {level} dBFS",
   "sessionMicrophoneLevel": "MicrÃ³fono: {level} dBFS",
-
   "commonCancel": "Cancelar",
   "commonJoin": "Unirse",
   "commonSave": "Guardar",
@@ -30,7 +28,6 @@
   "commonLoading": "Cargando …",
   "commonUnknown": "Desconocido",
   "commonSettings": "Configuración",
-
   "homeCodeDialogTitle": "Ingrese el código de sesión",
   "homeCodeDialogBody": "Ingrese el código de sesión de su interlocutor.",
   "homeCodeDialogHint": "snail-XXXXXXXX",
@@ -56,14 +53,17 @@
   "homeQuickTranslator": "Traductor rápido",
   "homeQuickTranslatorSubtitle": "Un dispositivo. Dos micrófonos. Entendimiento instantáneo.",
   "homeStartNow": "Empezar ahora",
-
   "welcomeMicPermissionDenied": "Snail necesita acceso al micrófono para la grabación de prueba y la traducción en directo. Por favor, permítalo en el diálogo del sistema o en la configuración de Android.",
   "welcomeMicUnavailable": "No se pudo iniciar el micrófono en este dispositivo.",
   "welcomeMicPrepareFailed": "No se pudo preparar el micrófono. Compruebe el permiso en la configuración de Android.",
   "welcomeMicStartFailed": "No se pudo iniciar la grabación. Compruebe si otra aplicación está utilizando el micrófono.",
   "welcomeRecordingReceived": "Grabación recibida: {kb} KB PCM. Iniciando reproducción …",
   "@welcomeRecordingReceived": {
-    "placeholders": { "kb": { "type": "int" } }
+    "placeholders": {
+      "kb": {
+        "type": "int"
+      }
+    }
   },
   "welcomeNoAudioReceived": "No se recibió audio. Compruebe el permiso del micrófono e intente de nuevo.",
   "welcomeNeedKeyForTranscription": "Grabación exitosa. Primero guarde una clave de Fish Audio para activar la transcripción.",
@@ -71,11 +71,19 @@
   "welcomeTranscriptionSuccess": "Grabación y transcripción exitosas.",
   "welcomeTranscriptionFailed": "Grabación reproducida, transcripción fallida: {error}",
   "@welcomeTranscriptionFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "welcomePlaybackSuccess": "Grabación reproducida exitosamente ({kb} KB).",
   "@welcomePlaybackSuccess": {
-    "placeholders": { "kb": { "type": "int" } }
+    "placeholders": {
+      "kb": {
+        "type": "int"
+      }
+    }
   },
   "welcomeAppTagline": "Traducción de voz en tiempo real\npara dos personas.",
   "welcomeFeatureSpeak": "Hable en su propio idioma",
@@ -87,7 +95,11 @@
   "welcomeMicExplanation": "Snail necesita su micrófono para traducir su habla en directo. Su voz solo se graba durante una sesión activa. Nada se almacena de forma permanente.",
   "welcomeTranscriptLabel": "Transcripción: «{text}»",
   "@welcomeTranscriptLabel": {
-    "placeholders": { "text": { "type": "String" } }
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
   },
   "welcomeHowItWorksTitle": "Cómo funciona Snail",
   "welcomeHowItWorksSubtitle": "Dos personas, dos idiomas — Snail traduce en ambas direcciones.",
@@ -118,15 +130,17 @@
   "welcomeAutoDetected": "detectado automáticamente",
   "welcomeChange": "Cambiar",
   "welcomeChooseLanguage": "Elegir idioma",
-
   "audioRouteAuto": "Automático",
   "audioRouteSpeaker": "Altavoz",
   "audioRouteHeadset": "Auriculares",
   "audioRoutePhone": "Teléfono",
-
   "sessionFishVoiceSelected": "Voz Fish para su salida: {voice}",
   "@sessionFishVoiceSelected": {
-    "placeholders": { "voice": { "type": "String" } }
+    "placeholders": {
+      "voice": {
+        "type": "String"
+      }
+    }
   },
   "sessionMicClipping": "¡Recorte del micrófono! Hable un poco más bajo o aumente la distancia al micrófono.",
   "sessionEndConfirmTitle": "¿Finalizar sesión?",
@@ -141,11 +155,19 @@
   "sessionTestToneFailed": "No se pudo iniciar el tono de prueba",
   "sessionInputOutputSummary": "Idioma de entrada: detectado automáticamente · Salida: {lang}",
   "@sessionInputOutputSummary": {
-    "placeholders": { "lang": { "type": "String" } }
+    "placeholders": {
+      "lang": {
+        "type": "String"
+      }
+    }
   },
   "sessionNoTranslation": "Sin traducción: {reason}",
   "@sessionNoTranslation": {
-    "placeholders": { "reason": { "type": "String" } }
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
   },
   "sessionMyFishVoiceLabel": "Mi voz de Fish Audio",
   "sessionVoiceHint": "Esta voz solo se utiliza para su salida traducida.",
@@ -157,15 +179,27 @@
   "sessionTranslationGenerating": "Generando traducción …",
   "sessionRealtimeState": "Tiempo real: {state}",
   "@sessionRealtimeState": {
-    "placeholders": { "state": { "type": "String" } }
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
   },
   "sessionConnectionDetail": "Detalle de conexión: {detail}",
   "@sessionConnectionDetail": {
-    "placeholders": { "detail": { "type": "String" } }
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   },
   "sessionRoomCode": "Código: {code}",
   "@sessionRoomCode": {
-    "placeholders": { "code": { "type": "String" } }
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
   },
   "sessionLetPartnerScan": "Pida a su interlocutor que lo escanee",
   "sessionMuted": "Silenciado",
@@ -174,10 +208,8 @@
   "sessionLatencyInput": "Entrada",
   "sessionLatencyOutput": "Salida",
   "sessionLatencyTotal": "Total",
-
   "identityQrTitle": "Mi ID de Snail",
   "identityQrScanHint": "Escanear para añadirme como contacto",
-
   "appShareTitle": "Compartir la aplicación directamente",
   "appShareDirectTitle": "Directamente desde este dispositivo",
   "appShareDirectBody": "El enlace HTTPS se retransmite a través de Cloudflare. El APK permanece en este dispositivo y solo se transfiere directamente en el momento de la descarga.",
@@ -187,23 +219,39 @@
   "appShareDownloadReady": "Descarga lista",
   "appShareExpiresInfo": "Disponible hasta {time} • {downloads} descargas",
   "@appShareExpiresInfo": {
-    "placeholders": { "time": { "type": "String" }, "downloads": { "type": "int" } }
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "downloads": {
+        "type": "int"
+      }
+    }
   },
   "appShareTransferProgress": "{transferred} de {total} • {rate}",
   "@appShareTransferProgress": {
     "placeholders": {
-      "transferred": { "type": "String" },
-      "total": { "type": "String" },
-      "rate": { "type": "String" }
+      "transferred": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      }
     }
   },
   "appShareCopyLink": "Copiar enlace",
   "appShareStopDownload": "Detener descarga",
-
   "profileTitle": "Perfil",
   "profileQrId": "ID QR: {id}",
   "@profileQrId": {
-    "placeholders": { "id": { "type": "String" } }
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
   },
   "profileTierPro": "Pro",
   "profileTierFree": "Gratuito",
@@ -215,7 +263,6 @@
   "profileLogoutConfirmTitle": "¿Restablecer datos?",
   "profileLogoutConfirmBody": "La identidad, los contactos, el historial de traducciones y la clave del proveedor se eliminarán de este dispositivo. No se puede deshacer.",
   "profileLogoutAction": "Restablecer",
-
   "paywallPreviewBadge": "Vista previa",
   "paywallUpgradeTitle": "Actualizar a Snail Pro",
   "paywallUpgradeBody": "Traducción ilimitada, todos los idiomas, mejor calidad.",
@@ -238,7 +285,6 @@
   "paywallCancelAnytime": "Cancele en cualquier momento. Prueba gratuita de 7 días.",
   "paywallFree": "Gratuito",
   "paywallPro": "Pro",
-
   "errorLogTitle": "Registro de errores",
   "errorLogCopyLogsTooltip": "Copiar registros",
   "errorLogCopied": "Registro de errores copiado",
@@ -249,7 +295,6 @@
   "errorLogEmpty": "Sin errores — ¡todo bien!",
   "errorLogCopyLogs": "Copiar registros de errores",
   "errorLogCopiedToClipboard": "Registros de errores copiados al portapapeles",
-
   "historyTitle": "Historial",
   "historyClearAllTooltip": "Borrar todo",
   "historyEmpty": "Sin transcripciones",
@@ -257,7 +302,6 @@
   "historyClearAllConfirmBody": "¿Desea eliminar todas las transcripciones?",
   "historyDeleteConfirmTitle": "¿Eliminar?",
   "historyDeleteConfirmBody": "¿Eliminar esta entrada?",
-
   "contactsAddIdTitle": "Añadir ID de Snail",
   "contactsAddButton": "Añadir",
   "contactsInvalidId": "ID de Snail inválido",
@@ -287,11 +331,14 @@
   "contactsBlock": "Bloquear",
   "contactsUnblock": "Desbloquear",
   "contactsBlockedSection": "Bloqueados",
-
   "qrHostNoServerResponse": "Sin respuesta del servidor",
   "qrHostConnectionError": "Error de conexión: {error}",
   "@qrHostConnectionError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "qrHostCreateFailed": "No se pudo crear la sesión",
   "qrHostTestConnection": "Probar conexión",
@@ -302,11 +349,14 @@
   "qrHostNoHeadsetWarning": "No se detectó auriculares. Recomendamos auriculares para la mejor calidad de audio y supresión de eco.",
   "qrHostStartSessionWith": "Iniciar sesión con {name}",
   "@qrHostStartSessionWith": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "qrHostCheckingAudio": "Comprobando audio …",
   "qrHostHeadsetDetected": "Auriculares detectados",
-
   "settingsByokProviderTooltip": "Proveedor BYOK",
   "settingsMyLanguageSection": "Mi idioma",
   "settingsISpeak": "Hablo",
@@ -334,15 +384,27 @@
   "settingsClearLog": "Borrar registro",
   "settingsClearLogWithCount": "Borrar registro ({count} entradas)",
   "@settingsClearLogWithCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsClearLogConfirmBody": "¿Eliminar permanentemente {count} entradas?",
   "@settingsClearLogConfirmBody": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsErrorLogEntryCount": "{count, plural, =1{1 entrada} other{{count} entradas}}",
   "@settingsErrorLogEntryCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsDiagnosticsTitle": "Diagnóstico",
   "settingsDiagnosticsBody": "Envía solo códigos de error redactados del proveedor para mejorar la fiabilidad. No se envían conversaciones ni claves.",
@@ -351,7 +413,6 @@
   "settingsAppSubtitle": "Traductor de conversación en tiempo real",
   "settingsChangeUsernameTitle": "Cambiar nombre de usuario",
   "settingsUsernameLabel": "Nombre de usuario",
-
   "chatMessengerTitle": "Mensajero Snail",
   "chatNeedsSessionHint": "Abra o únase a una sesión primero para usar el mensajero.",
   "chatStartChatSession": "Iniciar sesión de chat",
@@ -360,13 +421,20 @@
   "chatPendingCount": "{count} pendientes",
   "chatSendTooltip": "Enviar",
   "@chatPendingCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "chatTranslationFailed": "Traducción fallida: {error}",
   "@chatTranslationFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "joinContactDetected": "Contacto",
   "joinInvalidIdentity": "Identidad de Snail inválida",
   "joinTitle": "Unirse a la sesión",
@@ -378,7 +446,6 @@
   "joinProcessing": "Procesando …",
   "joinConnecting": "Estableciendo conexión",
   "joinUnknownError": "Error desconocido",
-
   "standaloneTitle": "Traductor rápido",
   "standaloneSplitPartner": "Compañero",
   "standaloneSplitUser": "Yo",
@@ -395,9 +462,15 @@
   "standaloneFrameSummary": "{source} · {frames} fotogramas de audio{headsetSuffix}",
   "@standaloneFrameSummary": {
     "placeholders": {
-      "source": { "type": "String" },
-      "frames": { "type": "int" },
-      "headsetSuffix": { "type": "String" }
+      "source": {
+        "type": "String"
+      },
+      "frames": {
+        "type": "int"
+      },
+      "headsetSuffix": {
+        "type": "String"
+      }
     }
   },
   "standaloneNoHeadsetSuffix": " · sin auriculares",
@@ -406,7 +479,14 @@
   "standaloneInactive": "inactivo",
   "standaloneAecNsSummary": "AEC: {aec} · NS: {ns}",
   "@standaloneAecNsSummary": {
-    "placeholders": { "aec": { "type": "String" }, "ns": { "type": "String" } }
+    "placeholders": {
+      "aec": {
+        "type": "String"
+      },
+      "ns": {
+        "type": "String"
+      }
+    }
   },
   "standaloneStopTranslation": "Detener traducción",
   "standaloneStartTranslation": "Iniciar traducción",
@@ -422,18 +502,29 @@
   "standaloneStatusActiveSingleMic": "Traducción en directo activa – un micrófono",
   "standaloneStatusReconnecting": "{provider}: reconectando",
   "@standaloneStatusReconnecting": {
-    "placeholders": { "provider": { "type": "String" } }
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
   },
   "standaloneStatusConnectedWaiting": "Conectado – esperando habla",
   "standaloneStatusConnectionFailed": "{provider}: conexión fallida",
   "@standaloneStatusConnectionFailed": {
-    "placeholders": { "provider": { "type": "String" } }
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
   },
   "standaloneStatusFishError": "Error del pipeline Fish: {error}",
   "@standaloneStatusFishError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "providerSettingsTitle": "Proveedor BYOK",
   "providerSettingsSessionOwnerProvider": "Proveedor del propietario de la sesión",
   "providerSettingsOpenAiRealtime": "Traducción OpenAI Realtime",
@@ -452,18 +543,20 @@
   "providerSettingsTestConnection": "Probar conexión",
   "providerSettingsDiagnosticsTitle": "Informe de diagnóstico",
   "providerSettingsKeyOwnerHint": "La clave pertenece al propietario de la sesión. El participante invitado no necesita su propia clave de proveedor.",
-
   "providerSettingsFilterAll": "Todos",
   "providerSettingsSearchVoice": "Buscar voz",
   "providerSettingsLanguage": "Idioma",
   "providerSettingsCategory": "Categoría",
   "providerSettingsVoicesLoaded": "{count} voces Fish cargadas",
   "@providerSettingsVoicesLoaded": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsPreview": "Vista previa",
   "providerSettingsFavorite": "Favorito",
-
   "providerSettingsDiagLatency": "Latencia",
   "providerSettingsDiagHttpStatus": "Estado HTTP",
   "providerSettingsDiagEndpoint": "Punto de finalización",
@@ -480,29 +573,48 @@
   "providerSettingsDiagInvalidCheckKey": "inválida (verificar clave)",
   "providerSettingsDiagErrorHttp": "Error (HTTP {status})",
   "@providerSettingsDiagErrorHttp": {
-    "placeholders": { "status": { "type": "int" } }
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsDiagError": "Error",
   "providerSettingsDiagLatencyTimeout": "{ms} ms (tiempo agotado/error)",
   "@providerSettingsDiagLatencyTimeout": {
-    "placeholders": { "ms": { "type": "int" } }
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsResultOk": "Aceptar – proveedor accesible",
   "providerSettingsResultErrorHttp": "Error – HTTP {status}",
   "@providerSettingsResultErrorHttp": {
-    "placeholders": { "status": { "type": "int" } }
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsResultError": "Error – {error}",
   "@providerSettingsResultError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "providerSettingsOllamaModel": "Modelo Ollama",
   "providerSettingsOllamaModelHint": "p. ej. llama3.2:3b",
   "providerSettingsModel": "Modelo",
   "providerSettingsModelFreeSuffix": "{model} (gratuito)",
   "@providerSettingsModelFreeSuffix": {
-    "placeholders": { "model": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "providerSettingsFishAudioVoice": "Voz de Fish Audio",
   "providerSettingsManualVoiceId": "ID de voz manual",
@@ -512,9 +624,12 @@
   "providerSettingsVoicePreviewSample": "Hola, esto es una breve muestra de voz de Fish Audio.",
   "providerSettingsVoicePreviewFailed": "Vista previa de voz Fish fallida: {error}",
   "@providerSettingsVoicePreviewFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "providerInfoOpenAiSubtitle": "Nube · latencia más baja · se requiere clave API",
   "providerInfoOpenAiBody": "OpenAI traduce el lenguaje hablado directamente en tiempo real — sin detour a través del texto. Es el camino más rápido y la opción recomendada para conversaciones en directo. Necesita una clave API de OpenAI (sk-...). Coste: aproximadamente 0,034 € por minuto de audio.",
   "providerInfoGeminiTitle": "Gemini Live",
@@ -525,5 +640,30 @@
   "providerInfoOllamaBody": "Ollama se ejecuta en su propia máquina. Sus datos nunca abandonan su red. Ideal si ya ejecuta un servidor Ollama. No recomendado para conversaciones en directo — la latencia es notablemente más alta que con proveedores en la nube. No se requiere clave API.",
   "providerInfoFishTitle": "Fish Audio Realtime",
   "providerInfoFishSubtitle": "TTS tiempo real · bajo coste · clave de voz propia",
-  "providerInfoFishBody": "Fish Audio transmite los chunks de texto traducido a través de WebSocket en chunks de audio naturales. La traducción en sí sigue siendo una etapa STT/TA separada. Elija un ID de voz y el modo de latencia equilibrado."
+  "providerInfoFishBody": "Fish Audio transmite los chunks de texto traducido a través de WebSocket en chunks de audio naturales. La traducción en sí sigue siendo una etapa STT/TA separada. Elija un ID de voz y el modo de latencia equilibrado.",
+  "homeGuideMode": "Modo oyente",
+  "guideTitle": "Modo oyente",
+  "guideHeadline": "Un orador, muchos oyentes",
+  "guideExplanation": "Hablas en tu idioma. Tu dispositivo traduce cada frase a todos los idiomas seleccionados y la envía a cada oyente. Los oyentes no necesitan su propia clave.",
+  "guideListenerLanguages": "Idiomas para los oyentes",
+  "guideNoLanguages": "Elige al menos un idioma para los oyentes.",
+  "guideProviderUnsupported": "{provider} no puede traducir en el modo oyente. Usa Fish Audio u OpenAI.",
+  "guideStart": "Iniciar modo oyente",
+  "guideStarting": "Iniciando …",
+  "guideStop": "Detener",
+  "guideListenerCount": "{count} oyentes conectados",
+  "guideYouSaid": "Has dicho",
+  "guideWaitingForSpeech": "Esperando voz …",
+  "guideQuestions": "Preguntas de los oyentes",
+  "guideNoQuestions": "Aún no hay preguntas.",
+  "guideConnectionFailed": "No se pudo conectar al relay.",
+  "guideCaptureFailed": "No se pudo iniciar el micrófono.",
+  "listenerTitle": "Modo oyente",
+  "listenerYourLanguage": "Tu idioma",
+  "listenerTtsToggle": "Leer en voz alta",
+  "listenerTtsUnavailable": "La lectura en voz alta no está disponible para este idioma — los subtítulos siguen funcionando.",
+  "listenerGuideSpeaking": "El guía está hablando",
+  "listenerGuideGone": "Guía no conectado",
+  "listenerWaiting": "Esperando la primera traducción …",
+  "joinGuideListenerNotice": "Esta es una sesión de escucha — ahora estás escuchando."
 }

@@ -1,9 +1,7 @@
 {
   "@@locale": "ko",
-
   "sessionNoiseGateLevel": "ë…¸ì´ì¦ˆ ê²Œì´íŠ¸: {level} dBFS",
   "sessionMicrophoneLevel": "ë§ˆì´í¬: {level} dBFS",
-
   "commonCancel": "취소",
   "commonJoin": "참가",
   "commonSave": "저장",
@@ -30,7 +28,6 @@
   "commonLoading": "로드 중 …",
   "commonUnknown": "알 수 없음",
   "commonSettings": "설정",
-
   "homeCodeDialogTitle": "세션 코드 입력",
   "homeCodeDialogBody": "대화 상대의 세션 코드를 입력하세요.",
   "homeCodeDialogHint": "snail-XXXXXXXX",
@@ -56,14 +53,17 @@
   "homeQuickTranslator": "빠른 번역기",
   "homeQuickTranslatorSubtitle": "1대 기기. 2개의 마이크. 즉각적인 이해.",
   "homeStartNow": "지금 시작",
-
   "welcomeMicPermissionDenied": "Snail은 테스트 녹음 및 라이브 번역을 위해 마이크 액세스가 필요합니다. 시스템 대화상자 또는 Android 설정에서 허용하세요.",
   "welcomeMicUnavailable": "이 기기에서 마이크를 시작할 수 없습니다.",
   "welcomeMicPrepareFailed": "마이크를 준비할 수 없습니다. Android 설정에서 권한을 확인하세요.",
   "welcomeMicStartFailed": "녹음을 시작할 수 없습니다. 다른 앱이 마이크를 사용하고 있는지 확인하세요.",
   "welcomeRecordingReceived": "녹음 수신됨: {kb} KB PCM. 재생 시작 중 …",
   "@welcomeRecordingReceived": {
-    "placeholders": { "kb": { "type": "int" } }
+    "placeholders": {
+      "kb": {
+        "type": "int"
+      }
+    }
   },
   "welcomeNoAudioReceived": "오디오를 받지 못했습니다. 마이크 권한을 확인하고 다시 시도하세요.",
   "welcomeNeedKeyForTranscription": "녹음 성공. 필사를 활성화하려면 먼저 Fish Audio 키를 저장하세요.",
@@ -71,11 +71,19 @@
   "welcomeTranscriptionSuccess": "녹음 및 필사 성공.",
   "welcomeTranscriptionFailed": "녹음은 재생되었으나 필사 실패: {error}",
   "@welcomeTranscriptionFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "welcomePlaybackSuccess": "녹음이 성공적으로 재생되었습니다 ({kb} KB).",
   "@welcomePlaybackSuccess": {
-    "placeholders": { "kb": { "type": "int" } }
+    "placeholders": {
+      "kb": {
+        "type": "int"
+      }
+    }
   },
   "welcomeAppTagline": "실시간 음성 번역\n2명용.",
   "welcomeFeatureSpeak": "자신의 언어로 말하기",
@@ -87,7 +95,11 @@
   "welcomeMicExplanation": "Snail은 음성을 라이브로 번역하기 위해 마이크가 필요합니다. 음성은 활성 세션 중에만 녹음됩니다. 아무것도 영구적으로 저장되지 않습니다.",
   "welcomeTranscriptLabel": "필사: 「{text}」",
   "@welcomeTranscriptLabel": {
-    "placeholders": { "text": { "type": "String" } }
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
   },
   "welcomeHowItWorksTitle": "Snail 작동 방식",
   "welcomeHowItWorksSubtitle": "2명, 2개 언어 — Snail은 양방향으로 번역합니다.",
@@ -118,15 +130,17 @@
   "welcomeAutoDetected": "자동 감지",
   "welcomeChange": "변경",
   "welcomeChooseLanguage": "언어 선택",
-
   "audioRouteAuto": "자동",
   "audioRouteSpeaker": "스피커",
   "audioRouteHeadset": "헤드셋",
   "audioRoutePhone": "전화",
-
   "sessionFishVoiceSelected": "출력용 Fish 음성: {voice}",
   "@sessionFishVoiceSelected": {
-    "placeholders": { "voice": { "type": "String" } }
+    "placeholders": {
+      "voice": {
+        "type": "String"
+      }
+    }
   },
   "sessionMicClipping": "마이크 클리핑! 조용히 말하거나 마이크와의 거리를 늘리세요.",
   "sessionEndConfirmTitle": "세션을 종료하시겠습니까?",
@@ -141,11 +155,19 @@
   "sessionTestToneFailed": "테스트 톤을 시작할 수 없음",
   "sessionInputOutputSummary": "입력 언어: 자동 감지 · 출력: {lang}",
   "@sessionInputOutputSummary": {
-    "placeholders": { "lang": { "type": "String" } }
+    "placeholders": {
+      "lang": {
+        "type": "String"
+      }
+    }
   },
   "sessionNoTranslation": "번역 없음: {reason}",
   "@sessionNoTranslation": {
-    "placeholders": { "reason": { "type": "String" } }
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
   },
   "sessionMyFishVoiceLabel": "내 Fish Audio 음성",
   "sessionVoiceHint": "이 음성은 번역된 출력에만 사용됩니다.",
@@ -157,15 +179,27 @@
   "sessionTranslationGenerating": "번역 생성 중 …",
   "sessionRealtimeState": "실시간: {state}",
   "@sessionRealtimeState": {
-    "placeholders": { "state": { "type": "String" } }
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
   },
   "sessionConnectionDetail": "연결 세부사항: {detail}",
   "@sessionConnectionDetail": {
-    "placeholders": { "detail": { "type": "String" } }
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   },
   "sessionRoomCode": "코드: {code}",
   "@sessionRoomCode": {
-    "placeholders": { "code": { "type": "String" } }
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
   },
   "sessionLetPartnerScan": "상대방이 스캔하도록 하세요",
   "sessionMuted": "음소거됨",
@@ -174,10 +208,8 @@
   "sessionLatencyInput": "입력",
   "sessionLatencyOutput": "출력",
   "sessionLatencyTotal": "합계",
-
   "identityQrTitle": "내 Snail ID",
   "identityQrScanHint": "스캔하여 연락처로 추가",
-
   "appShareTitle": "앱 직접 공유",
   "appShareDirectTitle": "이 기기에서 직접",
   "appShareDirectBody": "HTTPS 링크는 Cloudflare를 통해 중계됩니다. APK는 이 기기에 유지되며 다운로드 시점에만 직접 전송됩니다.",
@@ -187,23 +219,39 @@
   "appShareDownloadReady": "다운로드 준비 완료",
   "appShareExpiresInfo": "{time}까지 이용 가능 • {downloads}다운로드",
   "@appShareExpiresInfo": {
-    "placeholders": { "time": { "type": "String" }, "downloads": { "type": "int" } }
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "downloads": {
+        "type": "int"
+      }
+    }
   },
   "appShareTransferProgress": "{transferred} / {total} • {rate}",
   "@appShareTransferProgress": {
     "placeholders": {
-      "transferred": { "type": "String" },
-      "total": { "type": "String" },
-      "rate": { "type": "String" }
+      "transferred": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      }
     }
   },
   "appShareCopyLink": "링크 복사",
   "appShareStopDownload": "다운로드 중지",
-
   "profileTitle": "프로필",
   "profileQrId": "QR ID: {id}",
   "@profileQrId": {
-    "placeholders": { "id": { "type": "String" } }
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
   },
   "profileTierPro": "Pro",
   "profileTierFree": "무료",
@@ -215,7 +263,6 @@
   "profileLogoutConfirmTitle": "데이터를 초기화할까요?",
   "profileLogoutConfirmBody": "신원, 연락처, 번역 기록, 저장된 프로바이더 키가 이 기기에서 삭제됩니다. 되돌릴 수 없습니다.",
   "profileLogoutAction": "초기화",
-
   "paywallPreviewBadge": "미리보기",
   "paywallUpgradeTitle": "Snail Pro로 업그레이드",
   "paywallUpgradeBody": "무제한 번역, 모든 언어, 최고 품질.",
@@ -238,7 +285,6 @@
   "paywallCancelAnytime": "언제든지 취소하세요. 7일 무료 체험.",
   "paywallFree": "무료",
   "paywallPro": "Pro",
-
   "errorLogTitle": "오류 로그",
   "errorLogCopyLogsTooltip": "로그 복사",
   "errorLogCopied": "오류 로그 복사됨",
@@ -249,7 +295,6 @@
   "errorLogEmpty": "오류 없음 — 모두 양호!",
   "errorLogCopyLogs": "오류 로그 복사",
   "errorLogCopiedToClipboard": "오류 로그가 클립보드에 복사됨",
-
   "historyTitle": "기록",
   "historyClearAllTooltip": "모두 지우기",
   "historyEmpty": "필사 없음",
@@ -257,7 +302,6 @@
   "historyClearAllConfirmBody": "정말로 모든 필사를 삭제하시겠습니까?",
   "historyDeleteConfirmTitle": "삭제하시겠습니까?",
   "historyDeleteConfirmBody": "이 항목을 삭제하시겠습니까?",
-
   "contactsAddIdTitle": "Snail ID 추가",
   "contactsAddButton": "추가",
   "contactsInvalidId": "유효하지 않은 Snail ID",
@@ -287,11 +331,14 @@
   "contactsBlock": "차단",
   "contactsUnblock": "차단 해제",
   "contactsBlockedSection": "차단됨",
-
   "qrHostNoServerResponse": "서버 응답 없음",
   "qrHostConnectionError": "연결 오류: {error}",
   "@qrHostConnectionError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "qrHostCreateFailed": "세션을 만들 수 없음",
   "qrHostTestConnection": "연결 테스트",
@@ -302,11 +349,14 @@
   "qrHostNoHeadsetWarning": "헤드셋이 감지되지 않음. 최고의 오디오 품질과 에코 억제를 위해 헤드셋을 권장합니다.",
   "qrHostStartSessionWith": "{name}과(와) 세션 시작",
   "@qrHostStartSessionWith": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "qrHostCheckingAudio": "오디오 확인 중 …",
   "qrHostHeadsetDetected": "헤드셋 감지됨",
-
   "settingsByokProviderTooltip": "BYOK 제공자",
   "settingsMyLanguageSection": "내 언어",
   "settingsISpeak": "말하는 언어",
@@ -334,15 +384,27 @@
   "settingsClearLog": "로그 지우기",
   "settingsClearLogWithCount": "로그 지우기 ({count}항목)",
   "@settingsClearLogWithCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsClearLogConfirmBody": "{count}항목을 영구적으로 삭제하시겠습니까?",
   "@settingsClearLogConfirmBody": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsErrorLogEntryCount": "{count, plural, other{{count}개 항목}}",
   "@settingsErrorLogEntryCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsDiagnosticsTitle": "진단",
   "settingsDiagnosticsBody": "안정성 향상을 위해 삭제된 제공자 오류 코드만 보냅니다. 대화 내용이나 키는 보내지 않습니다.",
@@ -351,7 +413,6 @@
   "settingsAppSubtitle": "실시간 대화 번역기",
   "settingsChangeUsernameTitle": "사용자 이름 변경",
   "settingsUsernameLabel": "사용자 이름",
-
   "chatMessengerTitle": "Snail 메신저",
   "chatNeedsSessionHint": "메신저를 사용하려면 먼저 세션을 열거나 참가하세요.",
   "chatStartChatSession": "채팅 세션 시작",
@@ -360,13 +421,20 @@
   "chatPendingCount": "{count}개 대기 중",
   "chatSendTooltip": "보내기",
   "@chatPendingCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "chatTranslationFailed": "번역 실패: {error}",
   "@chatTranslationFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "joinContactDetected": "연락처",
   "joinInvalidIdentity": "유효하지 않은 Snail 신원",
   "joinTitle": "세션 참가",
@@ -378,7 +446,6 @@
   "joinProcessing": "처리 중 …",
   "joinConnecting": "연결 설정",
   "joinUnknownError": "알 수 없는 오류",
-
   "standaloneTitle": "빠른 번역기",
   "standaloneSplitPartner": "파트너",
   "standaloneSplitUser": "나",
@@ -395,9 +462,15 @@
   "standaloneFrameSummary": "{source} · {frames}개 오디오 프레임{headsetSuffix}",
   "@standaloneFrameSummary": {
     "placeholders": {
-      "source": { "type": "String" },
-      "frames": { "type": "int" },
-      "headsetSuffix": { "type": "String" }
+      "source": {
+        "type": "String"
+      },
+      "frames": {
+        "type": "int"
+      },
+      "headsetSuffix": {
+        "type": "String"
+      }
     }
   },
   "standaloneNoHeadsetSuffix": " · 헤드셋 없음",
@@ -406,7 +479,14 @@
   "standaloneInactive": "비활성",
   "standaloneAecNsSummary": "AEC: {aec} · NS: {ns}",
   "@standaloneAecNsSummary": {
-    "placeholders": { "aec": { "type": "String" }, "ns": { "type": "String" } }
+    "placeholders": {
+      "aec": {
+        "type": "String"
+      },
+      "ns": {
+        "type": "String"
+      }
+    }
   },
   "standaloneStopTranslation": "번역 중지",
   "standaloneStartTranslation": "번역 시작",
@@ -422,18 +502,29 @@
   "standaloneStatusActiveSingleMic": "라이브 번역 활성 – 1개 마이크",
   "standaloneStatusReconnecting": "{provider}: 재연결 중",
   "@standaloneStatusReconnecting": {
-    "placeholders": { "provider": { "type": "String" } }
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
   },
   "standaloneStatusConnectedWaiting": "연결됨 – 음성 대기 중",
   "standaloneStatusConnectionFailed": "{provider}: 연결 실패",
   "@standaloneStatusConnectionFailed": {
-    "placeholders": { "provider": { "type": "String" } }
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
   },
   "standaloneStatusFishError": "Fish 파이프라인 오류: {error}",
   "@standaloneStatusFishError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "providerSettingsTitle": "BYOK 제공자",
   "providerSettingsSessionOwnerProvider": "세션 소유자 제공자",
   "providerSettingsOpenAiRealtime": "OpenAI Realtime 번역",
@@ -452,18 +543,20 @@
   "providerSettingsTestConnection": "연결 테스트",
   "providerSettingsDiagnosticsTitle": "진단 보고서",
   "providerSettingsKeyOwnerHint": "키는 세션 소유자에게 속합니다. 초대된 참가자는 자신의 제공자 키가 필요하지 않습니다.",
-
   "providerSettingsFilterAll": "모두",
   "providerSettingsSearchVoice": "음성 검색",
   "providerSettingsLanguage": "언어",
   "providerSettingsCategory": "카테고리",
   "providerSettingsVoicesLoaded": "{count}개 Fish 음성 로드됨",
   "@providerSettingsVoicesLoaded": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsPreview": "미리보기",
   "providerSettingsFavorite": "즐겨찾기",
-
   "providerSettingsDiagLatency": "레이턴시",
   "providerSettingsDiagHttpStatus": "HTTP 상태",
   "providerSettingsDiagEndpoint": "엔드포인트",
@@ -480,29 +573,48 @@
   "providerSettingsDiagInvalidCheckKey": "무효 (키 확인)",
   "providerSettingsDiagErrorHttp": "오류 (HTTP {status})",
   "@providerSettingsDiagErrorHttp": {
-    "placeholders": { "status": { "type": "int" } }
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsDiagError": "오류",
   "providerSettingsDiagLatencyTimeout": "{ms} ms (타임아웃/오류)",
   "@providerSettingsDiagLatencyTimeout": {
-    "placeholders": { "ms": { "type": "int" } }
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsResultOk": "확인 – 제공자에 도달 가능",
   "providerSettingsResultErrorHttp": "오류 – HTTP {status}",
   "@providerSettingsResultErrorHttp": {
-    "placeholders": { "status": { "type": "int" } }
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsResultError": "오류 – {error}",
   "@providerSettingsResultError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "providerSettingsOllamaModel": "Ollama 모델",
   "providerSettingsOllamaModelHint": "예: llama3.2:3b",
   "providerSettingsModel": "모델",
   "providerSettingsModelFreeSuffix": "{model} (무료)",
   "@providerSettingsModelFreeSuffix": {
-    "placeholders": { "model": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "providerSettingsFishAudioVoice": "Fish Audio 음성",
   "providerSettingsManualVoiceId": "수동 음성 ID",
@@ -512,9 +624,12 @@
   "providerSettingsVoicePreviewSample": "안녕하세요. 이것은 Fish Audio의 짧은 음성 샘플입니다.",
   "providerSettingsVoicePreviewFailed": "Fish 음성 미리보기 실패: {error}",
   "@providerSettingsVoicePreviewFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "providerInfoOpenAiSubtitle": "클라우드 · 최저 레이턴시 · API 키 필요",
   "providerInfoOpenAiBody": "OpenAI는 텍스트를 거치지 않고 실시간으로 음성 언어를 직접 번역합니다. 가장 빠른 경로이며 라이브 대화에 권장되는 선택입니다. OpenAI API 키 (sk-...)가 필요합니다. 비용: 오디오 1분당 약 €0.034.",
   "providerInfoGeminiTitle": "Gemini Live",
@@ -525,5 +640,30 @@
   "providerInfoOllamaBody": "Ollama는 자신의 기계에서 실행됩니다. 데이터는 절대 네트워크를 벗어나지 않습니다. 이미 Ollama 서버를 실행 중인 경우 이상적입니다. 라이브 대화에는 권장되지 않습니다 — 레이턴시가 클라우드 제공자보다 훨씬 높습니다. API 키 불필요.",
   "providerInfoFishTitle": "Fish Audio Realtime",
   "providerInfoFishSubtitle": "실시간 TTS · 저비용 · 고유 음성 키",
-  "providerInfoFishBody": "Fish Audio는 WebSocket을 통해 번역된 텍스트 청크를 자연스러운 오디오 청크로 스트리밍합니다. 번역 자체는 별개의 STT/MT 단계입니다. 음성 ID를 선택하고 균형형 레이턴시 모드를 선택하세요."
+  "providerInfoFishBody": "Fish Audio는 WebSocket을 통해 번역된 텍스트 청크를 자연스러운 오디오 청크로 스트리밍합니다. 번역 자체는 별개의 STT/MT 단계입니다. 음성 ID를 선택하고 균형형 레이턴시 모드를 선택하세요.",
+  "homeGuideMode": "청취 모드",
+  "guideTitle": "청취 모드",
+  "guideHeadline": "한 명의 발화자, 여러 청취자",
+  "guideExplanation": "당신의 언어로 말하면 기기가 각 문장을 선택한 모든 언어로 번역해 모든 청취자에게 보냅니다. 청취자는 별도의 키가 필요 없습니다.",
+  "guideListenerLanguages": "청취자 언어",
+  "guideNoLanguages": "청취자를 위해 최소 하나의 언어를 선택하세요.",
+  "guideProviderUnsupported": "{provider}는 청취 모드에서 번역할 수 없습니다. Fish Audio 또는 OpenAI를 사용하세요.",
+  "guideStart": "청취 모드 시작",
+  "guideStarting": "시작 중 …",
+  "guideStop": "종료",
+  "guideListenerCount": "청취자 {count}명 연결됨",
+  "guideYouSaid": "당신의 발언",
+  "guideWaitingForSpeech": "음성을 기다리는 중 …",
+  "guideQuestions": "청취자 질문",
+  "guideNoQuestions": "아직 질문이 없습니다.",
+  "guideConnectionFailed": "릴레이에 연결하지 못했습니다.",
+  "guideCaptureFailed": "마이크를 시작할 수 없습니다.",
+  "listenerTitle": "청취 모드",
+  "listenerYourLanguage": "당신의 언어",
+  "listenerTtsToggle": "읽어주기",
+  "listenerTtsUnavailable": "이 언어에서는 읽어주기를 사용할 수 없습니다 — 자막은 계속 표시됩니다.",
+  "listenerGuideSpeaking": "가이드가 말하는 중",
+  "listenerGuideGone": "가이드 연결 끊김",
+  "listenerWaiting": "첫 번역을 기다리는 중 …",
+  "joinGuideListenerNotice": "이것은 청취 세션입니다 — 지금 듣고 있습니다."
 }

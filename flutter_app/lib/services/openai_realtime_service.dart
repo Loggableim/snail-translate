@@ -39,6 +39,7 @@ class OpenAiRealtimeService extends ChangeNotifier
   StreamSubscription? _subscription;
   bool _connected = false;
   bool _closing = false;
+  bool _disposed = false;
   String? _apiKey;
   String? _targetLanguage;
   String _safetyIdentifier = 'snail-device-session';
@@ -438,7 +439,9 @@ class OpenAiRealtimeService extends ChangeNotifier
     _credentialRefresher = null;
     _state = 'idle';
     _closing = false;
-    notifyListeners();
+    // dispose() calls this asynchronously; notifying afterwards throws
+    // "A OpenAiRealtimeService was used after being disposed".
+    if (!_disposed) notifyListeners();
   }
 
   Future<void> _closeTransport() async {
@@ -464,6 +467,7 @@ class OpenAiRealtimeService extends ChangeNotifier
 
   @override
   void dispose() {
+    _disposed = true;
     _reconnectTimer?.cancel();
     _turnFinalizeTimer?.cancel();
     disconnect();

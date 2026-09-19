@@ -208,10 +208,15 @@ class _GridMetrics {
 
   /// Tall phone, short-and-narrow window, landscape or tablet — in that order
   /// of preference, the widest tiles first.
+  ///
+  /// Nine tiles (hero + eight) must pack exactly into [rows]: the hero spans
+  /// [heroSpan] columns, the last tile spans [lastSpan], and the remaining
+  /// singles fill the rest. A shape whose rows do not match the packed result
+  /// overflows the screen instead of scrolling.
   static const _shapes = <_GridShape>[
-    _GridShape(columns: 2, rows: 5, heroSpan: 2, lastSpan: 2),
-    _GridShape(columns: 3, rows: 3, heroSpan: 2, lastSpan: 1),
-    _GridShape(columns: 5, rows: 2, heroSpan: 3, lastSpan: 1),
+    _GridShape(columns: 2, rows: 5, heroSpan: 2, lastSpan: 1),
+    _GridShape(columns: 3, rows: 4, heroSpan: 2, lastSpan: 2),
+    _GridShape(columns: 5, rows: 2, heroSpan: 2, lastSpan: 1),
   ];
 
   static const _padH = 16.0;
@@ -338,6 +343,16 @@ class _Dashboard extends StatelessWidget {
           label: l10n.homeEnterCode,
           color: colors.tertiary,
           onTap: () => _showCodeDialog(context),
+        ),
+      ),
+      _Cell(
+        span: 1,
+        child: _DashTile(
+          metrics: m,
+          icon: Icons.campaign_rounded,
+          label: l10n.homeGuideMode,
+          color: colors.secondary,
+          onTap: () => Navigator.pushNamed(context, '/guide'),
         ),
       ),
       _Cell(

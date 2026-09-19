@@ -1,9 +1,7 @@
 {
   "@@locale": "zh",
-
   "sessionNoiseGateLevel": "é™å™ªé˜ˆå€¼ï¼š{level} dBFS",
   "sessionMicrophoneLevel": "éº¦å…‹é£Žï¼š{level} dBFS",
-
   "commonCancel": "取消",
   "commonJoin": "加入",
   "commonSave": "保存",
@@ -30,7 +28,6 @@
   "commonLoading": "加载中 …",
   "commonUnknown": "未知",
   "commonSettings": "设置",
-
   "homeCodeDialogTitle": "输入会话代码",
   "homeCodeDialogBody": "输入您对话伙伴的会话代码。",
   "homeCodeDialogHint": "snail-XXXXXXXX",
@@ -56,14 +53,17 @@
   "homeQuickTranslator": "快速翻译器",
   "homeQuickTranslatorSubtitle": "一台设备。两个麦克风。即时理解。",
   "homeStartNow": "立即开始",
-
   "welcomeMicPermissionDenied": "Snail需要麦克风访问权限进行测试录音和实时翻译。请在系统对话框或Android设置中允许。",
   "welcomeMicUnavailable": "无法在此设备上启动麦克风。",
   "welcomeMicPrepareFailed": "无法准备麦克风。请检查Android设置中的权限。",
   "welcomeMicStartFailed": "无法启动录音。请检查是否有其他应用正在使用麦克风。",
   "welcomeRecordingReceived": "已收到录音: {kb} KB PCM。开始播放 …",
   "@welcomeRecordingReceived": {
-    "placeholders": { "kb": { "type": "int" } }
+    "placeholders": {
+      "kb": {
+        "type": "int"
+      }
+    }
   },
   "welcomeNoAudioReceived": "未收到音频。请检查麦克风权限并重试。",
   "welcomeNeedKeyForTranscription": "录音成功。要启用转录，请先保存Fish Audio密钥。",
@@ -71,11 +71,19 @@
   "welcomeTranscriptionSuccess": "录音和转录成功。",
   "welcomeTranscriptionFailed": "录音已播放，转录失败: {error}",
   "@welcomeTranscriptionFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "welcomePlaybackSuccess": "录音播放成功 ({kb} KB)。",
   "@welcomePlaybackSuccess": {
-    "placeholders": { "kb": { "type": "int" } }
+    "placeholders": {
+      "kb": {
+        "type": "int"
+      }
+    }
   },
   "welcomeAppTagline": "实时语音翻译\n供两个人使用。",
   "welcomeFeatureSpeak": "用自己的语言说话",
@@ -87,7 +95,11 @@
   "welcomeMicExplanation": "Snail需要您的麦克风来实时翻译您的语音。您的语音仅在活跃会话期间被录制。没有任何内容被永久存储。",
   "welcomeTranscriptLabel": "转录: 「{text}」",
   "@welcomeTranscriptLabel": {
-    "placeholders": { "text": { "type": "String" } }
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
   },
   "welcomeHowItWorksTitle": "Snail如何工作",
   "welcomeHowItWorksSubtitle": "两个人，两种语言 — Snail双向翻译。",
@@ -118,15 +130,17 @@
   "welcomeAutoDetected": "自动检测",
   "welcomeChange": "变更",
   "welcomeChooseLanguage": "选择语言",
-
   "audioRouteAuto": "自动",
   "audioRouteSpeaker": "扬声器",
   "audioRouteHeadset": "耳机",
   "audioRoutePhone": "电话",
-
   "sessionFishVoiceSelected": "输出的Fish音声: {voice}",
   "@sessionFishVoiceSelected": {
-    "placeholders": { "voice": { "type": "String" } }
+    "placeholders": {
+      "voice": {
+        "type": "String"
+      }
+    }
   },
   "sessionMicClipping": "麦克风削波!请讲得轻一点或增加与麦克风的距离。",
   "sessionEndConfirmTitle": "结束会话?",
@@ -141,11 +155,19 @@
   "sessionTestToneFailed": "无法启动测试音",
   "sessionInputOutputSummary": "输入语言: 自动检测 · 输出: {lang}",
   "@sessionInputOutputSummary": {
-    "placeholders": { "lang": { "type": "String" } }
+    "placeholders": {
+      "lang": {
+        "type": "String"
+      }
+    }
   },
   "sessionNoTranslation": "无翻译: {reason}",
   "@sessionNoTranslation": {
-    "placeholders": { "reason": { "type": "String" } }
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
   },
   "sessionMyFishVoiceLabel": "我的Fish Audio语音",
   "sessionVoiceHint": "此语音仅用于您的翻译输出。",
@@ -157,15 +179,27 @@
   "sessionTranslationGenerating": "生成翻译中 …",
   "sessionRealtimeState": "实时: {state}",
   "@sessionRealtimeState": {
-    "placeholders": { "state": { "type": "String" } }
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
   },
   "sessionConnectionDetail": "连接详情: {detail}",
   "@sessionConnectionDetail": {
-    "placeholders": { "detail": { "type": "String" } }
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   },
   "sessionRoomCode": "代码: {code}",
   "@sessionRoomCode": {
-    "placeholders": { "code": { "type": "String" } }
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
   },
   "sessionLetPartnerScan": "让您的对话伙伴扫描它",
   "sessionMuted": "已静音",
@@ -174,10 +208,8 @@
   "sessionLatencyInput": "输入",
   "sessionLatencyOutput": "输出",
   "sessionLatencyTotal": "总计",
-
   "identityQrTitle": "我的Snail ID",
   "identityQrScanHint": "扫描以将我添加为联系人",
-
   "appShareTitle": "直接分享应用",
   "appShareDirectTitle": "从此设备直接分享",
   "appShareDirectBody": "HTTPS链接通过Cloudflare中继。APK保留在此设备上，仅在下载时直接传输。",
@@ -187,23 +219,39 @@
   "appShareDownloadReady": "下载就绪",
   "appShareExpiresInfo": "可用到{time} • {downloads}次下载",
   "@appShareExpiresInfo": {
-    "placeholders": { "time": { "type": "String" }, "downloads": { "type": "int" } }
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "downloads": {
+        "type": "int"
+      }
+    }
   },
   "appShareTransferProgress": "{transferred} / {total} • {rate}",
   "@appShareTransferProgress": {
     "placeholders": {
-      "transferred": { "type": "String" },
-      "total": { "type": "String" },
-      "rate": { "type": "String" }
+      "transferred": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      }
     }
   },
   "appShareCopyLink": "复制链接",
   "appShareStopDownload": "停止下载",
-
   "profileTitle": "个人资料",
   "profileQrId": "QR ID: {id}",
   "@profileQrId": {
-    "placeholders": { "id": { "type": "String" } }
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
   },
   "profileTierPro": "专业版",
   "profileTierFree": "免费",
@@ -215,7 +263,6 @@
   "profileLogoutConfirmTitle": "重置数据？",
   "profileLogoutConfirmBody": "身份、联系人、翻译历史和已保存的提供商密钥将从本设备删除。此操作无法撤销。",
   "profileLogoutAction": "重置",
-
   "paywallPreviewBadge": "预览",
   "paywallUpgradeTitle": "升级到Snail Pro",
   "paywallUpgradeBody": "无限翻译、所有语言、最高品质。",
@@ -238,7 +285,6 @@
   "paywallCancelAnytime": "可随时取消。7天免费试用。",
   "paywallFree": "免费",
   "paywallPro": "专业版",
-
   "errorLogTitle": "错误日志",
   "errorLogCopyLogsTooltip": "复制日志",
   "errorLogCopied": "错误日志已复制",
@@ -249,7 +295,6 @@
   "errorLogEmpty": "无错误 — 一切正常!",
   "errorLogCopyLogs": "复制错误日志",
   "errorLogCopiedToClipboard": "错误日志已复制到剪贴板",
-
   "historyTitle": "历史记录",
   "historyClearAllTooltip": "全部清除",
   "historyEmpty": "无转录",
@@ -257,7 +302,6 @@
   "historyClearAllConfirmBody": "您确定要删除所有转录吗?",
   "historyDeleteConfirmTitle": "删除?",
   "historyDeleteConfirmBody": "删除此条目?",
-
   "contactsAddIdTitle": "添加Snail ID",
   "contactsAddButton": "添加",
   "contactsInvalidId": "无效的Snail ID",
@@ -287,11 +331,14 @@
   "contactsBlock": "屏蔽",
   "contactsUnblock": "取消屏蔽",
   "contactsBlockedSection": "已屏蔽",
-
   "qrHostNoServerResponse": "服务器无响应",
   "qrHostConnectionError": "连接错误: {error}",
   "@qrHostConnectionError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "qrHostCreateFailed": "无法创建会话",
   "qrHostTestConnection": "测试连接",
@@ -302,11 +349,14 @@
   "qrHostNoHeadsetWarning": "未检测到耳机。建议使用耳机以获得最佳音频质量和回声抑制。",
   "qrHostStartSessionWith": "与{name}开始会话",
   "@qrHostStartSessionWith": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "qrHostCheckingAudio": "检查音频中 …",
   "qrHostHeadsetDetected": "检测到耳机",
-
   "settingsByokProviderTooltip": "BYOK提供商",
   "settingsMyLanguageSection": "我的语言",
   "settingsISpeak": "我说的语言",
@@ -334,15 +384,27 @@
   "settingsClearLog": "清除日志",
   "settingsClearLogWithCount": "清除日志 ({count}项)",
   "@settingsClearLogWithCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsClearLogConfirmBody": "永久删除{count}项?",
   "@settingsClearLogConfirmBody": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsErrorLogEntryCount": "{count, plural, other{{count} 条记录}}",
   "@settingsErrorLogEntryCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsDiagnosticsTitle": "诊断",
   "settingsDiagnosticsBody": "仅发送经过清理的服务商错误代码以帮助提高可靠性。不发送对话内容或密钥。",
@@ -351,7 +413,6 @@
   "settingsAppSubtitle": "实时对话翻译器",
   "settingsChangeUsernameTitle": "更改用户名",
   "settingsUsernameLabel": "用户名",
-
   "chatMessengerTitle": "Snail信使",
   "chatNeedsSessionHint": "要使用信使，请先打开或加入会话。",
   "chatStartChatSession": "开始聊天会话",
@@ -360,13 +421,20 @@
   "chatPendingCount": "{count}件待处理",
   "chatSendTooltip": "发送",
   "@chatPendingCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "chatTranslationFailed": "翻译失败: {error}",
   "@chatTranslationFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "joinContactDetected": "联系人",
   "joinInvalidIdentity": "无效的Snail身份",
   "joinTitle": "加入会话",
@@ -378,7 +446,6 @@
   "joinProcessing": "处理中 …",
   "joinConnecting": "正在建立连接",
   "joinUnknownError": "未知错误",
-
   "standaloneTitle": "快速翻译器",
   "standaloneSplitPartner": "伙伴",
   "standaloneSplitUser": "我",
@@ -395,9 +462,15 @@
   "standaloneFrameSummary": "{source} · {frames}个音频帧{headsetSuffix}",
   "@standaloneFrameSummary": {
     "placeholders": {
-      "source": { "type": "String" },
-      "frames": { "type": "int" },
-      "headsetSuffix": { "type": "String" }
+      "source": {
+        "type": "String"
+      },
+      "frames": {
+        "type": "int"
+      },
+      "headsetSuffix": {
+        "type": "String"
+      }
     }
   },
   "standaloneNoHeadsetSuffix": " · 无耳机",
@@ -406,7 +479,14 @@
   "standaloneInactive": "非活跃",
   "standaloneAecNsSummary": "AEC: {aec} · NS: {ns}",
   "@standaloneAecNsSummary": {
-    "placeholders": { "aec": { "type": "String" }, "ns": { "type": "String" } }
+    "placeholders": {
+      "aec": {
+        "type": "String"
+      },
+      "ns": {
+        "type": "String"
+      }
+    }
   },
   "standaloneStopTranslation": "停止翻译",
   "standaloneStartTranslation": "开始翻译",
@@ -422,18 +502,29 @@
   "standaloneStatusActiveSingleMic": "实时翻译活跃 – 一个麦克风",
   "standaloneStatusReconnecting": "{provider}: 重新连接中",
   "@standaloneStatusReconnecting": {
-    "placeholders": { "provider": { "type": "String" } }
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
   },
   "standaloneStatusConnectedWaiting": "已连接 – 等待语音",
   "standaloneStatusConnectionFailed": "{provider}: 连接失败",
   "@standaloneStatusConnectionFailed": {
-    "placeholders": { "provider": { "type": "String" } }
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
   },
   "standaloneStatusFishError": "Fish管道错误: {error}",
   "@standaloneStatusFishError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "providerSettingsTitle": "BYOK提供商",
   "providerSettingsSessionOwnerProvider": "会话所有者提供商",
   "providerSettingsOpenAiRealtime": "OpenAI Realtime翻译",
@@ -452,18 +543,20 @@
   "providerSettingsTestConnection": "测试连接",
   "providerSettingsDiagnosticsTitle": "诊断报告",
   "providerSettingsKeyOwnerHint": "密钥属于会话所有者。受邀参与者不需要自己的提供商密钥。",
-
   "providerSettingsFilterAll": "全部",
   "providerSettingsSearchVoice": "搜索语音",
   "providerSettingsLanguage": "语言",
   "providerSettingsCategory": "类别",
   "providerSettingsVoicesLoaded": "已加载{count}个Fish语音",
   "@providerSettingsVoicesLoaded": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsPreview": "预览",
   "providerSettingsFavorite": "收藏",
-
   "providerSettingsDiagLatency": "延迟",
   "providerSettingsDiagHttpStatus": "HTTP状态",
   "providerSettingsDiagEndpoint": "端点",
@@ -480,29 +573,48 @@
   "providerSettingsDiagInvalidCheckKey": "无效 (检查密钥)",
   "providerSettingsDiagErrorHttp": "错误 (HTTP {status})",
   "@providerSettingsDiagErrorHttp": {
-    "placeholders": { "status": { "type": "int" } }
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsDiagError": "错误",
   "providerSettingsDiagLatencyTimeout": "{ms} ms (超时/错误)",
   "@providerSettingsDiagLatencyTimeout": {
-    "placeholders": { "ms": { "type": "int" } }
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsResultOk": "确定 – 提供商可达",
   "providerSettingsResultErrorHttp": "错误 – HTTP {status}",
   "@providerSettingsResultErrorHttp": {
-    "placeholders": { "status": { "type": "int" } }
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
   },
   "providerSettingsResultError": "错误 – {error}",
   "@providerSettingsResultError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "providerSettingsOllamaModel": "Ollama模型",
   "providerSettingsOllamaModelHint": "例如 llama3.2:3b",
   "providerSettingsModel": "模型",
   "providerSettingsModelFreeSuffix": "{model} (免费)",
   "@providerSettingsModelFreeSuffix": {
-    "placeholders": { "model": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "providerSettingsFishAudioVoice": "Fish Audio语音",
   "providerSettingsManualVoiceId": "手动语音ID",
@@ -512,9 +624,12 @@
   "providerSettingsVoicePreviewSample": "您好，这是Fish Audio的简短语音样本。",
   "providerSettingsVoicePreviewFailed": "Fish语音预览失败: {error}",
   "@providerSettingsVoicePreviewFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "providerInfoOpenAiSubtitle": "云 · 最低延迟 · 需要API密钥",
   "providerInfoOpenAiBody": "OpenAI实时直接翻译口语——无需通过文本。这是最快的路径，也是现场对话的推荐选择。您需要OpenAI API密钥 (sk-...)。成本: 约每分钟€0.034的音频。",
   "providerInfoGeminiTitle": "Gemini Live",
@@ -525,5 +640,30 @@
   "providerInfoOllamaBody": "Ollama在您自己的机器上运行。您的数据永远不会离开您的网络。如果您已经运行Ollama服务器，这是理想的。不推荐用于现场对话——延迟明显高于云提供商。无需API密钥。",
   "providerInfoFishTitle": "Fish Audio Realtime",
   "providerInfoFishSubtitle": "实时TTS · 低成本 · 自己的语音密钥",
-  "providerInfoFishBody": "Fish Audio通过WebSocket将翻译后的文本块流式传输为自然音频块。翻译本身仍然是单独的STT/MT阶段。选择语音ID并选择平衡延迟模式。"
+  "providerInfoFishBody": "Fish Audio通过WebSocket将翻译后的文本块流式传输为自然音频块。翻译本身仍然是单独的STT/MT阶段。选择语音ID并选择平衡延迟模式。",
+  "homeGuideMode": "收听模式",
+  "guideTitle": "收听模式",
+  "guideHeadline": "一位讲者，多位听众",
+  "guideExplanation": "你用你的语言说话。你的设备会把每句话翻译成所有选定的语言，并发送给每位听众。听众无需自己的密钥。",
+  "guideListenerLanguages": "听众语言",
+  "guideNoLanguages": "请至少选择一种听众语言。",
+  "guideProviderUnsupported": "{provider} 无法在收听模式下翻译。请使用 Fish Audio 或 OpenAI。",
+  "guideStart": "启动收听模式",
+  "guideStarting": "正在启动 …",
+  "guideStop": "结束",
+  "guideListenerCount": "已连接 {count} 位听众",
+  "guideYouSaid": "你说的话",
+  "guideWaitingForSpeech": "等待语音 …",
+  "guideQuestions": "听众提问",
+  "guideNoQuestions": "还没有提问。",
+  "guideConnectionFailed": "无法连接到中继。",
+  "guideCaptureFailed": "无法启动麦克风。",
+  "listenerTitle": "收听模式",
+  "listenerYourLanguage": "你的语言",
+  "listenerTtsToggle": "朗读",
+  "listenerTtsUnavailable": "该语言不支持朗读 — 字幕仍然可用。",
+  "listenerGuideSpeaking": "讲者正在说话",
+  "listenerGuideGone": "讲者未连接",
+  "listenerWaiting": "等待第一条翻译 …",
+  "joinGuideListenerNotice": "这是一个收听会话 — 你现在是听众。"
 }

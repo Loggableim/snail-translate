@@ -59,6 +59,7 @@ void _useScreen(WidgetTester tester, double width, double height) {
 /// Every destination the home screen offers, with the label the user sees.
 const _destinations = <String, String>{
   'Schnellübersetzer': '/standalone',
+  'Zuhör-Modus': '/guide',
   'Session starten': '/qr-host',
   'Beitreten': '/join',
   'Messenger': '/chat',

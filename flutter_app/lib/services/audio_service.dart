@@ -32,6 +32,10 @@ class AudioService extends ChangeNotifier {
   void Function(Uint8List bytes, int sampleRate)? onFallbackPcmAudio;
   void Function(String signalType, dynamic signal)? onSignal;
   VoidCallback? onAuthenticated;
+  /// Guide mode: a subtitle arrived from the host.
+  void Function(Map<String, dynamic> subtitle)? onSubtitle;
+  /// Guide mode: the audience size changed (host side).
+  void Function(int count)? onListenerCountChanged;
   Future<String?> Function()? sessionTokenRefresher;
   String? localAgreementPublicKey;
   Future<String?> Function(String peerPublicKey)? sharedSecretDeriver;
@@ -40,6 +44,7 @@ class AudioService extends ChangeNotifier {
   Timer? _reconnectTimer;
   Session? _session;
   Map<String, dynamic>? _fishTtsConfig;
+  int _listenerCount = 0;
 
   static const _reconnectDelays = [1, 2, 4, 8, 15, 30]; // seconds
 
@@ -51,6 +56,8 @@ class AudioService extends ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
   bool get hasTerminalAuthError => _terminalAuthError;
   String? get connectionError => _connectionError;
+  /// Current audience size in a guide room (0 in duo mode).
+  int get listenerCount => _listenerCount;
   List<ChatMessage> get messages => chat.messages;
   int get pendingCount => chat.pendingCount;
   List<Map<String, dynamic>> get signals => List.unmodifiable(_signals);
@@ -171,6 +178,13 @@ class AudioService extends ChangeNotifier {
       switch (msg['type']) {
         case 'auth_ok':
           _isAuthenticated = true;
+          // A (re)connecting guide host receives the current audience size so
+          // its counter is correct before the next join event arrives.
+          final authCount = msg['count'];
+          if (authCount is int) {
+            _listenerCount = authCount;
+            onListenerCountChanged?.call(authCount);
+          }
           _sendFishTtsConfig();
           onAuthenticated?.call();
           chat.flushOutbox();
@@ -249,6 +263,21 @@ class AudioService extends ChangeNotifier {
           _signals
               .add({'signalType': msg['signalType'], 'signal': msg['signal']});
           onSignal?.call(msg['signalType'] as String, msg['signal']);
+          notifyListeners();
+          break;
+        case 'subtitle':
+          // Guide mode: the host's translated line. The screen filters by its
+          // own language; the relay fans every language out to everyone.
+          onSubtitle?.call(Map<String, dynamic>.from(msg));
+          notifyListeners();
+          break;
+        case 'listener_joined':
+        case 'listener_left':
+          final count = msg['count'];
+          if (count is int) {
+            _listenerCount = count;
+            onListenerCountChanged?.call(count);
+          }
           notifyListeners();
           break;
         case 'error':
@@ -410,6 +439,27 @@ class AudioService extends ChangeNotifier {
       'type': 'signal',
       'signalType': signalType,
       'signal': signal,
+    }));
+  }
+
+  /// Guide mode: publish one translated line to the audience.
+  ///
+  /// Every listener receives every language and filters locally, so a
+  /// listener can switch languages without re-subscribing.
+  void sendSubtitle({
+    required String text,
+    required String sourceLang,
+    required String targetLang,
+    String? messageId,
+  }) {
+    if (!_isConnected || !_isAuthenticated || text.trim().isEmpty) return;
+    _channel?.sink.add(jsonEncode({
+      'type': 'subtitle',
+      if (messageId != null) 'messageId': messageId,
+      'text': text,
+      'sourceLang': sourceLang,
+      'targetLang': targetLang,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
     }));
   }
 

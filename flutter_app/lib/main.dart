@@ -30,6 +30,8 @@ import 'screens/history_screen.dart';
 import 'screens/error_log_screen.dart';
 import 'screens/contacts_screen.dart';
 import 'screens/standalone_screen.dart';
+import 'screens/guide_screen.dart';
+import 'screens/listener_screen.dart';
 import 'screens/app_share_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/paywall_screen.dart';
@@ -146,6 +148,8 @@ class SnailApp extends StatelessWidget {
               '/error-log': (_) => const ErrorLogScreen(),
               '/contacts': (_) => const ContactsScreen(),
               '/standalone': (_) => const StandaloneScreen(),
+              '/guide': (_) => const GuideScreen(),
+              '/listener': (_) => const ListenerScreen(),
               '/app-share': (_) => const AppShareScreen(),
               '/profile': (_) => const ProfileScreen(),
               '/paywall': (_) => const PaywallScreen(),

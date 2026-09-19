@@ -43,14 +43,32 @@ class _JoinScreenState extends State<JoinScreen> {
       _step = _JoinStep.joining;
       _error = null;
     });
-    final session = await context.read<SessionService>().joinRoom(roomId);
+    final service = context.read<SessionService>();
+    final session = await service.joinRoom(roomId);
     if (mounted && session != null) {
       // Success — navigation happens, no need to update step
       Navigator.pushReplacementNamed(context, '/session');
-    } else if (mounted) {
+      return;
+    }
+    // A guide room has no guest slot. The Worker answers 409 with a code so
+    // the app can fall back to the listener flow — visibly, not silently:
+    // the user must know they are now an audience member, not a peer.
+    if (mounted && service.lastErrorCode == 'guide_room_use_listen') {
+      final listenerSession = await service.joinAsListener(roomId);
+      if (!mounted) return;
+      if (listenerSession != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context).joinGuideListenerNotice),
+          ),
+        );
+        Navigator.pushReplacementNamed(context, '/listener');
+        return;
+      }
+    }
+    if (mounted) {
       setState(() {
         _step = _JoinStep.error;
-        final service = context.read<SessionService>();
         _error = service.localizedError(AppLocalizations.of(context));
       });
     }
@@ -70,6 +88,19 @@ class _JoinScreenState extends State<JoinScreen> {
         _saveContactQr(value);
         return;
       }
+      // Guide rooms share a dedicated scheme so the scanner can route the
+      // listener flow directly instead of attempting a guest join first.
+      if (value.startsWith('snail://guide/')) {
+        final guideRoom = _roomIdFromQr(value.substring('snail://guide/'.length));
+        if (guideRoom != null) {
+          setState(() {
+            _step = _JoinStep.detected;
+            _detectedCode = guideRoom;
+          });
+          _joinAsListener(guideRoom);
+          return;
+        }
+      }
       final roomId = _roomIdFromQr(value);
       if (roomId != null) {
         setState(() {
@@ -80,6 +111,24 @@ class _JoinScreenState extends State<JoinScreen> {
         return;
       }
     }
+  }
+
+  Future<void> _joinAsListener(String roomId) async {
+    setState(() {
+      _step = _JoinStep.joining;
+      _error = null;
+    });
+    final service = context.read<SessionService>();
+    final session = await service.joinAsListener(roomId);
+    if (!mounted) return;
+    if (session != null) {
+      Navigator.pushReplacementNamed(context, '/listener');
+      return;
+    }
+    setState(() {
+      _step = _JoinStep.error;
+      _error = service.localizedError(AppLocalizations.of(context));
+    });
   }
 
   /// Accept the compact current QR (`snail-AAYV2B7C`) and the former URI forms,
