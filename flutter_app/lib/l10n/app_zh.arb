@@ -665,5 +665,9 @@
   "listenerGuideSpeaking": "讲者正在说话",
   "listenerGuideGone": "讲者未连接",
   "listenerWaiting": "等待第一条翻译 …",
-  "joinGuideListenerNotice": "这是一个收听会话 — 你现在是听众。"
+  "joinGuideListenerNotice": "这是一个收听会话 — 你现在是听众。",
+  "guideKickListener": "移除听众",
+  "guideExportTranscript": "复制文字记录",
+  "guideTranscriptCopied": "文字记录已复制到剪贴板",
+  "listenerRemovedByGuide": "讲者已将你移出会话。"
 }

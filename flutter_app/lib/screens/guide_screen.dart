@@ -41,8 +41,11 @@ class _GuideScreenState extends State<GuideScreen> {
   bool _starting = false;
   String? _error;
   int _listenerCount = 0;
+  List<String> _listenerIds = const <String>[];
   String _sourceText = '';
   final List<String> _questions = <String>[];
+  /// Every published line, kept for the transcript export.
+  final List<String> _transcript = <String>[];
 
   // Fish pipeline state (mirrors the standalone screen's turn handling).
   SpeechTurnBuffer? _fishTurns;
@@ -99,6 +102,9 @@ class _GuideScreenState extends State<GuideScreen> {
     relay.onSubtitle = null;
     relay.onListenerCountChanged = (count) {
       if (mounted) setState(() => _listenerCount = count);
+    };
+    relay.onListenerListChanged = (ids) {
+      if (mounted) setState(() => _listenerIds = ids);
     };
     final connected = await relay.connect(session);
     if (!mounted) return;
@@ -220,7 +226,12 @@ class _GuideScreenState extends State<GuideScreen> {
     final relay = _relay;
     if (relay == null) return;
     final sourceLang = _guideLanguage;
-    if (mounted) setState(() => _sourceText = source);
+    if (mounted) {
+      setState(() {
+        _sourceText = source;
+        _transcript.add(source);
+      });
+    }
 
     final targets = _listenerLanguages
         .where((lang) => lang != sourceLang)
@@ -260,6 +271,7 @@ class _GuideScreenState extends State<GuideScreen> {
     final relay = _relay;
     if (relay != null) {
       relay.onListenerCountChanged = null;
+      relay.onListenerListChanged = null;
       relay.disconnect();
     }
     if (!mounted) return;
@@ -267,9 +279,23 @@ class _GuideScreenState extends State<GuideScreen> {
     setState(() {
       _running = false;
       _listenerCount = 0;
+      _listenerIds = const <String>[];
       _sourceText = '';
       _questions.clear();
     });
+  }
+
+  /// Copies the collected source lines to the clipboard. The relay already
+  /// keeps the full transcript for late joiners; this is the guide's own
+  /// copy for notes and reports.
+  Future<void> _exportTranscript() async {
+    final l10n = AppLocalizations.of(context);
+    if (_transcript.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: _transcript.join('\n')));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.guideTranscriptCopied)),
+    );
   }
 
   @override
@@ -425,6 +451,30 @@ class _GuideScreenState extends State<GuideScreen> {
                   fontSize: 14,
                   color: colors.onSurface.withValues(alpha: 0.7))),
         ),
+        // The roster is only useful when someone can be removed from it.
+        if (_listenerIds.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            alignment: WrapAlignment.center,
+            children: [
+              for (final listenerId in _listenerIds)
+                InputChip(
+                  label: Text(
+                    listenerId.length > 10
+                        ? '${listenerId.substring(0, 8)}…'
+                        : listenerId,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  deleteIcon: const Icon(Icons.person_remove_rounded, size: 16),
+                  deleteButtonTooltipMessage: l10n.guideKickListener,
+                  onDeleted: () =>
+                      context.read<AudioService>().sendListenerKick(listenerId),
+                ),
+            ],
+          ),
+        ],
         const SizedBox(height: 20),
         Text(l10n.guideYouSaid,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
@@ -465,6 +515,17 @@ class _GuideScreenState extends State<GuideScreen> {
               ),
             ),
         const SizedBox(height: 24),
+        if (_transcript.isNotEmpty) ...[
+          SizedBox(
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: _exportTranscript,
+              icon: const Icon(Icons.copy_all_rounded),
+              label: Text(l10n.guideExportTranscript),
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
         SizedBox(
           height: 52,
           child: OutlinedButton.icon(

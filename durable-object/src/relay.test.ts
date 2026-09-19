@@ -474,4 +474,33 @@ describe("SnailRelay guide mode", () => {
     expect("listenerSockets" in meta).toBe(false);
     expect(meta.mode).toBe("guide");
   });
+
+  it("lets the host remove one listener without touching the others", async () => {
+    const { relay } = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    const host = await connect(relay, "host", "host");
+    const first = await connect(relay, "listener", "listener-1");
+    const second = await connect(relay, "listener", "listener-2");
+
+    host.socket.send(JSON.stringify({ type: "listener_kick", listenerId: "listener-1" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(messagesOf(first, "listener_kicked")).toHaveLength(1);
+    // The remaining listener is untouched and the counter reflects the removal.
+    expect(messagesOf(second, "listener_kicked")).toHaveLength(0);
+    expect(messagesOf(host, "listener_left").at(-1)?.count).toBe(1);
+    expect(messagesOf(host, "listener_left").at(-1)?.listenerId).toBe("listener-1");
+  });
+
+  it("rejects a kick from a listener and for an unknown id", async () => {
+    const { relay } = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    const host = await connect(relay, "host", "host");
+    const listener = await connect(relay, "listener", "listener-1");
+
+    listener.socket.send(JSON.stringify({ type: "listener_kick", listenerId: "listener-1" }));
+    host.socket.send(JSON.stringify({ type: "listener_kick", listenerId: "nobody" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(messagesOf(listener, "error")[0].error).toContain("Only the host can remove listeners");
+    expect(messagesOf(host, "error")[0].error).toContain("Listener not found");
+  });
 });

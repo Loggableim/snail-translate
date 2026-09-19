@@ -665,5 +665,9 @@
   "listenerGuideSpeaking": "ガイドが話しています",
   "listenerGuideGone": "ガイド未接続",
   "listenerWaiting": "最初の翻訳を待っています …",
-  "joinGuideListenerNotice": "これはリスニングセッションです — あなたは今、聞き手です。"
+  "joinGuideListenerNotice": "これはリスニングセッションです — あなたは今、聞き手です。",
+  "guideKickListener": "リスナーを削除",
+  "guideExportTranscript": "文字起こしをコピー",
+  "guideTranscriptCopied": "文字起こしをクリップボードにコピーしました",
+  "listenerRemovedByGuide": "ガイドがあなたをセッションから削除しました。"
 }

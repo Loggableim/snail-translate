@@ -665,5 +665,9 @@
   "listenerGuideSpeaking": "가이드가 말하는 중",
   "listenerGuideGone": "가이드 연결 끊김",
   "listenerWaiting": "첫 번역을 기다리는 중 …",
-  "joinGuideListenerNotice": "이것은 청취 세션입니다 — 지금 듣고 있습니다."
+  "joinGuideListenerNotice": "이것은 청취 세션입니다 — 지금 듣고 있습니다.",
+  "guideKickListener": "청취자 제거",
+  "guideExportTranscript": "스크립트 복사",
+  "guideTranscriptCopied": "스크립트를 클립보드에 복사했습니다",
+  "listenerRemovedByGuide": "가이드가 당신을 세션에서 제거했습니다."
 }

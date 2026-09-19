@@ -16,7 +16,7 @@
         "ping",
         "chat_history", "delivery_ack",
         "peer_joined", "peer_left", "session_end",
-        "subtitle", "listener_joined", "listener_left",
+        "subtitle", "listener_joined", "listener_left", "listener_kick", "listener_kicked",
         "error"
       ]
     },
@@ -129,6 +129,21 @@
         "type": { "const": "listener_left" },
         "listenerId": { "type": "string", "minLength": 1 },
         "count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ListenerKickMessage": {
+      "type": "object",
+      "required": ["type", "listenerId"],
+      "properties": {
+        "type": { "const": "listener_kick" },
+        "listenerId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "ListenerKickedMessage": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "listener_kicked" }
       }
     },
     "ErrorMessage": {

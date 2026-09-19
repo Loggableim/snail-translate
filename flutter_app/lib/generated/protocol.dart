@@ -19,5 +19,7 @@ enum ProtocolMessageType {
   subtitle,
   listenerJoined,
   listenerLeft,
+  listenerKick,
+  listenerKicked,
   error,
 }

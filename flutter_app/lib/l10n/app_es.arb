@@ -665,5 +665,9 @@
   "listenerGuideSpeaking": "El guía está hablando",
   "listenerGuideGone": "Guía no conectado",
   "listenerWaiting": "Esperando la primera traducción …",
-  "joinGuideListenerNotice": "Esta es una sesión de escucha — ahora estás escuchando."
+  "joinGuideListenerNotice": "Esta es una sesión de escucha — ahora estás escuchando.",
+  "guideKickListener": "Eliminar oyente",
+  "guideExportTranscript": "Copiar transcripción",
+  "guideTranscriptCopied": "Transcripción copiada al portapapeles",
+  "listenerRemovedByGuide": "El guía te ha eliminado de la sesión."
 }

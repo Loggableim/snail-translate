@@ -665,5 +665,9 @@
   "listenerGuideSpeaking": "Der Guide spricht",
   "listenerGuideGone": "Guide nicht verbunden",
   "listenerWaiting": "Warte auf die erste Übersetzung …",
-  "joinGuideListenerNotice": "Dies ist eine Zuhör-Session — du hörst jetzt zu."
+  "joinGuideListenerNotice": "Dies ist eine Zuhör-Session — du hörst jetzt zu.",
+  "guideKickListener": "Zuhörer entfernen",
+  "guideExportTranscript": "Transkript kopieren",
+  "guideTranscriptCopied": "Transkript in die Zwischenablage kopiert",
+  "listenerRemovedByGuide": "Der Guide hat dich aus der Session entfernt."
 }

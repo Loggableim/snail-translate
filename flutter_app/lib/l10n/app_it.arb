@@ -665,5 +665,9 @@
   "listenerGuideSpeaking": "La guida sta parlando",
   "listenerGuideGone": "Guida non connessa",
   "listenerWaiting": "In attesa della prima traduzione …",
-  "joinGuideListenerNotice": "Questa è una sessione di ascolto — ora stai ascoltando."
+  "joinGuideListenerNotice": "Questa è una sessione di ascolto — ora stai ascoltando.",
+  "guideKickListener": "Rimuovi ascoltatore",
+  "guideExportTranscript": "Copia trascrizione",
+  "guideTranscriptCopied": "Trascrizione copiata negli appunti",
+  "listenerRemovedByGuide": "La guida ti ha rimosso dalla sessione."
 }

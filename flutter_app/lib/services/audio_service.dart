@@ -36,6 +36,10 @@ class AudioService extends ChangeNotifier {
   void Function(Map<String, dynamic> subtitle)? onSubtitle;
   /// Guide mode: the audience size changed (host side).
   void Function(int count)? onListenerCountChanged;
+  /// Guide mode: the audience roster changed (host side).
+  void Function(List<String> listenerIds)? onListenerListChanged;
+  /// Guide mode: the host removed this listener.
+  VoidCallback? onKicked;
   Future<String?> Function()? sessionTokenRefresher;
   String? localAgreementPublicKey;
   Future<String?> Function(String peerPublicKey)? sharedSecretDeriver;
@@ -45,6 +49,7 @@ class AudioService extends ChangeNotifier {
   Session? _session;
   Map<String, dynamic>? _fishTtsConfig;
   int _listenerCount = 0;
+  final List<String> _listenerIds = <String>[];
 
   static const _reconnectDelays = [1, 2, 4, 8, 15, 30]; // seconds
 
@@ -278,6 +283,23 @@ class AudioService extends ChangeNotifier {
             _listenerCount = count;
             onListenerCountChanged?.call(count);
           }
+          // Track the roster so the guide can remove a specific listener.
+          final listenerId = msg['listenerId'] as String?;
+          if (listenerId != null && listenerId.isNotEmpty) {
+            if (msg['type'] == 'listener_joined') {
+              if (!_listenerIds.contains(listenerId)) _listenerIds.add(listenerId);
+            } else {
+              _listenerIds.remove(listenerId);
+            }
+            onListenerListChanged?.call(List.unmodifiable(_listenerIds));
+          }
+          notifyListeners();
+          break;
+        case 'listener_kicked':
+          // The guide removed this device from the audience. Surface it so
+          // the listener screen can leave instead of sitting on a dead
+          // connection.
+          onKicked?.call();
           notifyListeners();
           break;
         case 'error':
@@ -460,6 +482,15 @@ class AudioService extends ChangeNotifier {
       'sourceLang': sourceLang,
       'targetLang': targetLang,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
+    }));
+  }
+
+  /// Guide mode: remove one listener from the audience.
+  void sendListenerKick(String listenerId) {
+    if (!_isConnected || !_isAuthenticated || listenerId.isEmpty) return;
+    _channel?.sink.add(jsonEncode({
+      'type': 'listener_kick',
+      'listenerId': listenerId,
     }));
   }
 

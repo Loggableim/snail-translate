@@ -679,5 +679,9 @@
   "listenerGuideSpeaking": "The guide is speaking",
   "listenerGuideGone": "Guide not connected",
   "listenerWaiting": "Waiting for the first translation …",
-  "joinGuideListenerNotice": "This is a listening session — you are now listening in."
+  "joinGuideListenerNotice": "This is a listening session — you are now listening in.",
+  "guideKickListener": "Remove listener",
+  "guideExportTranscript": "Copy transcript",
+  "guideTranscriptCopied": "Transcript copied to clipboard",
+  "listenerRemovedByGuide": "The guide removed you from the session."
 }

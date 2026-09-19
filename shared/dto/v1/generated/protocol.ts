@@ -18,4 +18,6 @@ export type ProtocolMessageType =
   | "subtitle"
   | "listener_joined"
   | "listener_left"
+  | "listener_kick"
+  | "listener_kicked"
   | "error";

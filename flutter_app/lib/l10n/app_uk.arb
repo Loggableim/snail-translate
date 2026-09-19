@@ -665,5 +665,9 @@
   "listenerGuideSpeaking": "Гід говорить",
   "listenerGuideGone": "Гід не підключений",
   "listenerWaiting": "Очікування першого перекладу …",
-  "joinGuideListenerNotice": "Це сеанс слухання — тепер ви слухаєте."
+  "joinGuideListenerNotice": "Це сеанс слухання — тепер ви слухаєте.",
+  "guideKickListener": "Видалити слухача",
+  "guideExportTranscript": "Копіювати транскрипт",
+  "guideTranscriptCopied": "Транскрипт скопійовано в буфер обміну",
+  "listenerRemovedByGuide": "Гід видалив вас із сеансу."
 }

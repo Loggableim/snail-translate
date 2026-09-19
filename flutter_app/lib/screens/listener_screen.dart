@@ -86,10 +86,32 @@ class _ListenerScreenState extends State<ListenerScreen> {
     final relay = context.read<AudioService>();
     _relay = relay;
     relay.onSubtitle = _onSubtitle;
+    relay.onKicked = _onKicked;
     await relay.connect(session);
     if (!mounted) return;
     setState(() => _guideConnected = relay.isPeerConnected || true);
     await _configureTts();
+  }
+
+  /// The guide removed this device. Leave the screen instead of sitting on a
+  /// connection that will never deliver another subtitle.
+  void _onKicked() {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.listenerRemovedByGuide)),
+    );
+    _leave();
+  }
+
+  void _leave() {
+    final relay = _relay;
+    _tts.stop();
+    relay?.onSubtitle = null;
+    relay?.onKicked = null;
+    relay?.disconnect();
+    context.read<SessionService>().endSession();
+    Navigator.pop(context);
   }
 
   /// A missing language pack must degrade silently to subtitles-only: the
@@ -180,12 +202,7 @@ class _ListenerScreenState extends State<ListenerScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        final relay = _relay;
-        _tts.stop();
-        relay?.disconnect();
-        if (!mounted) return;
-        context.read<SessionService>().endSession();
-        Navigator.pop(context);
+        _leave();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -193,13 +210,7 @@ class _ListenerScreenState extends State<ListenerScreen> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             tooltip: l10n.commonCancel,
-            onPressed: () {
-              final relay = _relay;
-              _tts.stop();
-              relay?.disconnect();
-              context.read<SessionService>().endSession();
-              Navigator.pop(context);
-            },
+            onPressed: _leave,
           ),
         ),
         body: Column(

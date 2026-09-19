@@ -57,7 +57,7 @@ interface SessionState {
 }
 
 interface ClientMessage {
-  type: "auth" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end" | "subtitle";
+  type: "auth" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end" | "subtitle" | "listener_kick";
   token?: string;
   protocolVersion?: number;
   agreementPublicKey?: string;
@@ -78,10 +78,12 @@ interface ClientMessage {
   temperature?: number;
   topP?: number;
   speed?: number;
+  // Guide-mode moderation
+  listenerId?: string;
 }
 
 interface ServerMessage {
-  type: "auth_ok" | "auth_error" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end" | "subtitle" | "listener_joined" | "listener_left";
+  type: "auth_ok" | "auth_error" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end" | "subtitle" | "listener_joined" | "listener_left" | "listener_kicked";
   sampleRate?: number;
   messageId?: string;
   text?: string;
@@ -736,6 +738,38 @@ export class SnailRelay implements DurableObject {
             relayLog("provider_request_failed", { provider: "fish_tts", operation: "flush" });
             this.send(ws, { type: "error", error: "Fish TTS flush failed" });
           }
+          break;
+        }
+
+        case "listener_kick": {
+          if (!authenticated || !msg.listenerId) {
+            this.send(ws, { type: "error", error: "Invalid listener kick" });
+            return;
+          }
+          // Only the guide owns the audience; a listener removing others
+          // would be a moderation bypass.
+          if (peerRole !== "host" || this.session.mode !== "guide") {
+            this.send(ws, { type: "error", error: "Only the host can remove listeners" });
+            return;
+          }
+          const target = this.session.listenerSockets.get(msg.listenerId);
+          if (!target) {
+            this.send(ws, { type: "error", error: "Listener not found" });
+            return;
+          }
+          // Remove from the map before closing so the close handler's
+          // identity check finds nothing to report and cannot double-count.
+          this.session.listenerSockets.delete(msg.listenerId);
+          try {
+            this.send(target, { type: "listener_kicked" });
+            target.close(4004, "Removed by host");
+          } catch {}
+          this.send(ws, {
+            type: "listener_left",
+            listenerId: msg.listenerId,
+            count: this.session.listenerSockets.size,
+          });
+          await this.saveState();
           break;
         }
 
