@@ -669,5 +669,7 @@
   "guideKickListener": "Видалити слухача",
   "guideExportTranscript": "Копіювати транскрипт",
   "guideTranscriptCopied": "Транскрипт скопійовано в буфер обміну",
-  "listenerRemovedByGuide": "Гід видалив вас із сеансу."
+  "listenerRemovedByGuide": "Гід видалив вас із сеансу.",
+  "listenerAskQuestion": "Запитати гіда",
+  "listenerQuestionSent": "Питання надіслано"
 }

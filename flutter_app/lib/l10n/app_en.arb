@@ -683,5 +683,7 @@
   "guideKickListener": "Remove listener",
   "guideExportTranscript": "Copy transcript",
   "guideTranscriptCopied": "Transcript copied to clipboard",
-  "listenerRemovedByGuide": "The guide removed you from the session."
+  "listenerRemovedByGuide": "The guide removed you from the session.",
+  "listenerAskQuestion": "Ask the guide",
+  "listenerQuestionSent": "Question sent"
 }

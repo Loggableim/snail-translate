@@ -669,5 +669,7 @@
   "guideKickListener": "Zuhörer entfernen",
   "guideExportTranscript": "Transkript kopieren",
   "guideTranscriptCopied": "Transkript in die Zwischenablage kopiert",
-  "listenerRemovedByGuide": "Der Guide hat dich aus der Session entfernt."
+  "listenerRemovedByGuide": "Der Guide hat dich aus der Session entfernt.",
+  "listenerAskQuestion": "Frage an den Guide",
+  "listenerQuestionSent": "Frage gesendet"
 }

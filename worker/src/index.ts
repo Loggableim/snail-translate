@@ -525,6 +525,32 @@ async function handleListenRoom(request: Request, env: Env, roomId: string): Pro
   }, 200, origin, env.CORS_ORIGINS);
 }
 
+/**
+ * Public room status.
+ *
+ * Deliberately unauthenticated: a client holding a room code must be able to
+ * learn whether it is a guide room before choosing between the guest and the
+ * listener flow. Only non-sensitive routing metadata is exposed — no tokens,
+ * no user ids, no message content.
+ */
+async function handleRoomStatus(request: Request, env: Env, roomId: string): Promise<Response> {
+  const origin = request.headers.get("Origin") || "";
+  const doId = env.SNAIL_RELAY.idFromName(roomId);
+  const doStub = env.SNAIL_RELAY.get(doId);
+  const roomCheck = await doStub.fetch(new Request("https://internal/status"));
+  if (roomCheck.status !== 200) {
+    return json({ error: "Room not found" }, 404, origin, env.CORS_ORIGINS);
+  }
+  const roomState: any = await roomCheck.json();
+  return json({
+    roomId,
+    mode: roomState.mode === "guide" ? "guide" : "duo",
+    sourceLang: roomState.sourceLang,
+    listenerLanguages: roomState.listenerLanguages || [],
+    listenerCount: roomState.listenerCount ?? 0,
+  }, 200, origin, env.CORS_ORIGINS);
+}
+
 async function handleQuota(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get("Origin") || "";
   const userId = await getUserId(request, env);
@@ -728,6 +754,13 @@ export default {
       const limited = await checkRoomRateLimit(request, env, "join");
       if (limited) return limited;
       return handleListenRoom(request, env, listenMatch[1]);
+    }
+
+    // Public room status: lets a client check whether a code is a guide room
+    // (and how many listeners are connected) before choosing a join flow.
+    const statusMatch = path.match(/^\/api\/rooms\/(.+)\/status$/);
+    if (statusMatch && request.method === "GET") {
+      return handleRoomStatus(request, env, statusMatch[1]);
     }
 
     // Quota

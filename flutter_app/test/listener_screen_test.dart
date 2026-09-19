@@ -11,13 +11,21 @@ import 'package:snail/services/session_service.dart';
 import 'package:snail/theme/app_theme.dart';
 
 /// A session service that already holds a listener session, so the screen can
-/// connect without a Worker.
+/// connect without a Worker. `endSession()` must still be observable, so the
+/// helper tracks the cleared state instead of returning a frozen field.
 class _ListenerSessionService extends SessionService {
   _ListenerSessionService(this._session);
   final Session _session;
+  bool _ended = false;
 
   @override
-  Session? get currentSession => _session;
+  Session? get currentSession => _ended ? null : _session;
+
+  @override
+  void endSession() {
+    _ended = true;
+    super.endSession();
+  }
 }
 
 Session _guideSession() => Session(
@@ -128,5 +136,48 @@ void main() {
 
     expect(find.text('Warte auf die erste Übersetzung …'), findsOneWidget);
     expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
+  });
+
+  testWidgets('listener screen sends a typed question through the chat',
+      (tester) async {
+    await tester.pumpWidget(_wrap(const ListenerScreen()));
+    await tester.pumpAndSettle();
+
+    final relay = Provider.of<AudioService>(
+        tester.element(find.byType(ListenerScreen)),
+        listen: false);
+    // Capture what the screen hands to the relay.
+    final sent = <String>[];
+    relay.chat.onSend = (jsonMessage) => sent.add(jsonMessage);
+
+    await tester.enterText(find.byType(TextField), 'Wo sind wir?');
+    await tester.tap(find.byIcon(Icons.send_rounded));
+    await tester.pumpAndSettle();
+
+    expect(sent, hasLength(1));
+    expect(sent.single, contains('Wo sind wir?'));
+    expect(sent.single, contains('"type":"chat"'));
+    // The field is cleared and the user gets a confirmation.
+    expect(find.text('Frage gesendet'), findsOneWidget);
+  });
+
+  testWidgets('listener screen leaves when the guide removes it',
+      (tester) async {
+    final sessionService = _ListenerSessionService(_guideSession());
+    await tester.pumpWidget(_wrap(const ListenerScreen(),
+        sessionService: sessionService));
+    await tester.pumpAndSettle();
+    expect(sessionService.currentSession, isNotNull);
+
+    final relay = Provider.of<AudioService>(
+        tester.element(find.byType(ListenerScreen)),
+        listen: false);
+    relay.onKicked?.call();
+    await tester.pumpAndSettle();
+
+    // The screen tears the session down instead of sitting on a connection
+    // that will never deliver another subtitle.
+    expect(sessionService.currentSession, isNull);
+    expect(find.byType(ListenerScreen), findsNothing);
   });
 }

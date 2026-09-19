@@ -21,6 +21,7 @@ class AudioService extends ChangeNotifier {
   bool _reconnectExhausted = false;
   bool _isAuthenticated = false;
   bool _terminalAuthError = false;
+  bool _disposed = false;
   String? _connectionError;
   final ChatService chat = ChatService();
   final List<Map<String, dynamic>> _signals = [];
@@ -298,8 +299,13 @@ class AudioService extends ChangeNotifier {
         case 'listener_kicked':
           // The guide removed this device from the audience. Surface it so
           // the listener screen can leave instead of sitting on a dead
-          // connection.
-          onKicked?.call();
+          // connection. Deferred: this runs inside the socket's message
+          // dispatch, and a listener that tears its tree down synchronously
+          // here trips "setState() called when widget tree was locked".
+          final kicked = onKicked;
+          if (kicked != null) {
+            scheduleMicrotask(kicked);
+          }
           notifyListeners();
           break;
         case 'error':
@@ -508,6 +514,17 @@ class AudioService extends ChangeNotifier {
     _isReconnecting = false;
     _fishTtsConfig = null;
     chat.persistConversation(immediate: true);
-    notifyListeners();
+    // A screen may disconnect while it is being disposed; notifying then
+    // throws "A AudioService was used after being disposed".
+    if (!_disposed) notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _reconnectTimer?.cancel();
+    _subscription?.cancel();
+    _channel?.sink.close();
+    super.dispose();
   }
 }

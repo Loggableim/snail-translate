@@ -669,5 +669,7 @@
   "guideKickListener": "Retirer l'auditeur",
   "guideExportTranscript": "Copier la transcription",
   "guideTranscriptCopied": "Transcription copiée dans le presse-papiers",
-  "listenerRemovedByGuide": "Le guide vous a retiré de la session."
+  "listenerRemovedByGuide": "Le guide vous a retiré de la session.",
+  "listenerAskQuestion": "Poser une question au guide",
+  "listenerQuestionSent": "Question envoyée"
 }

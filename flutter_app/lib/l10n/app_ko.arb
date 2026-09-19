@@ -669,5 +669,7 @@
   "guideKickListener": "청취자 제거",
   "guideExportTranscript": "스크립트 복사",
   "guideTranscriptCopied": "스크립트를 클립보드에 복사했습니다",
-  "listenerRemovedByGuide": "가이드가 당신을 세션에서 제거했습니다."
+  "listenerRemovedByGuide": "가이드가 당신을 세션에서 제거했습니다.",
+  "listenerAskQuestion": "가이드에게 질문",
+  "listenerQuestionSent": "질문을 보냈습니다"
 }

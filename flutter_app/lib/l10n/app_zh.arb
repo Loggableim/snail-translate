@@ -669,5 +669,7 @@
   "guideKickListener": "移除听众",
   "guideExportTranscript": "复制文字记录",
   "guideTranscriptCopied": "文字记录已复制到剪贴板",
-  "listenerRemovedByGuide": "讲者已将你移出会话。"
+  "listenerRemovedByGuide": "讲者已将你移出会话。",
+  "listenerAskQuestion": "向讲者提问",
+  "listenerQuestionSent": "问题已发送"
 }

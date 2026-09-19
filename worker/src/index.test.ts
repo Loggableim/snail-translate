@@ -249,6 +249,38 @@ describe("Worker fetch handler", () => {
     });
   });
 
+  it("exposes public room status without authentication", async () => {
+    const guideStatus = new Response(JSON.stringify({
+      mode: "guide",
+      sourceLang: "de",
+      listenerLanguages: ["en", "fr"],
+      listenerCount: 3,
+    }), { status: 200 });
+    const response = await call("/api/rooms/snail-GUIDE1/status", {
+      method: "GET",
+    }, { SNAIL_RELAY: namespace(guideStatus) });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      roomId: "snail-GUIDE1",
+      mode: "guide",
+      sourceLang: "de",
+      listenerLanguages: ["en", "fr"],
+      listenerCount: 3,
+    });
+  });
+
+  it("reports a duo room and a missing room through the status endpoint", async () => {
+    const duoStatus = new Response(JSON.stringify({ mode: "duo", sourceLang: "de" }), { status: 200 });
+    const duo = await call("/api/rooms/snail-DUO123/status", { method: "GET" },
+      { SNAIL_RELAY: namespace(duoStatus) });
+    expect(duo.status).toBe(200);
+    expect(await duo.json()).toMatchObject({ mode: "duo", listenerCount: 0 });
+
+    const missing = await call("/api/rooms/snail-NONE12/status", { method: "GET" },
+      { SNAIL_RELAY: namespace(new Response("Not found", { status: 404 })) });
+    expect(missing.status).toBe(404);
+  });
+
   it("rate-limits repeated room joins and advertises the retry window", async () => {
     const sharedKv = kv();
     const bindings = {

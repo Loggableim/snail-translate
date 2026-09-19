@@ -669,5 +669,7 @@
   "guideKickListener": "Rimuovi ascoltatore",
   "guideExportTranscript": "Copia trascrizione",
   "guideTranscriptCopied": "Trascrizione copiata negli appunti",
-  "listenerRemovedByGuide": "La guida ti ha rimosso dalla sessione."
+  "listenerRemovedByGuide": "La guida ti ha rimosso dalla sessione.",
+  "listenerAskQuestion": "Chiedi alla guida",
+  "listenerQuestionSent": "Domanda inviata"
 }

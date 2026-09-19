@@ -669,5 +669,7 @@
   "guideKickListener": "リスナーを削除",
   "guideExportTranscript": "文字起こしをコピー",
   "guideTranscriptCopied": "文字起こしをクリップボードにコピーしました",
-  "listenerRemovedByGuide": "ガイドがあなたをセッションから削除しました。"
+  "listenerRemovedByGuide": "ガイドがあなたをセッションから削除しました。",
+  "listenerAskQuestion": "ガイドに質問",
+  "listenerQuestionSent": "質問を送信しました"
 }

@@ -41,6 +41,7 @@ class ListenerScreen extends StatefulWidget {
 
 class _ListenerScreenState extends State<ListenerScreen> {
   final _scrollController = ScrollController();
+  final _questionController = TextEditingController();
   final _tts = FlutterTts();
   final List<_SubtitleLine> _lines = <_SubtitleLine>[];
   String? _language;
@@ -59,11 +60,16 @@ class _ListenerScreenState extends State<ListenerScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _questionController.dispose();
     _tts.stop();
     final relay = _relay;
     if (relay != null) {
       relay.onSubtitle = null;
-      relay.disconnect();
+      relay.onKicked = null;
+      // Deferred: disconnect() notifies its listeners, and notifying while
+      // the framework is disposing this widget trips
+      // "setState() called when widget tree was locked".
+      scheduleMicrotask(relay.disconnect);
     }
     super.dispose();
   }
@@ -97,11 +103,15 @@ class _ListenerScreenState extends State<ListenerScreen> {
   /// connection that will never deliver another subtitle.
   void _onKicked() {
     if (!mounted) return;
+    // Capture the messenger before the teardown: it lives above this route,
+    // so the notice survives the pop. Showing it first would interleave a
+    // setState with the disconnect's notifyListeners in the same frame.
+    final messenger = ScaffoldMessenger.of(context);
     final l10n = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
+    _leave();
+    messenger.showSnackBar(
       SnackBar(content: Text(l10n.listenerRemovedByGuide)),
     );
-    _leave();
   }
 
   void _leave() {
@@ -112,6 +122,25 @@ class _ListenerScreenState extends State<ListenerScreen> {
     relay?.disconnect();
     context.read<SessionService>().endSession();
     Navigator.pop(context);
+  }
+
+  /// Sends the typed question to the guide. The relay routes a listener's
+  /// chat message to the host only, so other listeners never see it.
+  void _sendQuestion() {
+    final text = _questionController.text.trim();
+    if (text.isEmpty) return;
+    final relay = _relay;
+    if (relay == null) return;
+    relay.sendChat(
+      text,
+      sourceLang: _language ?? 'en',
+      targetLang: 'en',
+    );
+    _questionController.clear();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context).listenerQuestionSent)),
+    );
   }
 
   /// A missing language pack must degrade silently to subtitles-only: the
@@ -313,6 +342,37 @@ class _ListenerScreenState extends State<ListenerScreen> {
                         );
                       },
                     ),
+            ),
+            // Questions travel over the existing chat channel: the relay
+            // routes a listener's chat to the host only.
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _questionController,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _sendQuestion(),
+                        decoration: InputDecoration(
+                          hintText: l10n.listenerAskQuestion,
+                          isDense: true,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      tooltip: l10n.listenerAskQuestion,
+                      onPressed: _sendQuestion,
+                      icon: const Icon(Icons.send_rounded),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
