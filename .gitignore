@@ -8,6 +8,8 @@
 artifacts/
 **/*.apk
 **/key.properties
+# Local wrangler secrets for `wrangler dev` — never commit these.
+**/.dev.vars
 .tmp-jdk17*
 .gradle-local/
 output/

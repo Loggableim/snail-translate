@@ -9,6 +9,17 @@ enum AudioOutput { speaker, headset, auto }
 
 enum AudioInput { phone, headset, auto }
 
+/// One selectable microphone as the platform reports it.
+///
+/// Android only distinguishes fixed routes, so the list stays empty there and
+/// the picker falls back to the route dropdown. Desktop has real devices.
+class AudioInputDevice {
+  const AudioInputDevice({required this.id, required this.label});
+
+  final String id;
+  final String label;
+}
+
 /// Flutter interface to the native SnailAudioPlugin (Android/iOS).
 ///
 /// Provides:
@@ -117,11 +128,18 @@ class SnailAudio {
         debugPrint('[SnailAudio] desktop microphone permission denied');
         return false;
       }
-      final stream = await recorder.startStream(const RecordConfig(
-        encoder: AudioEncoder.pcm16bits,
-        sampleRate: 16000,
-        numChannels: 1,
-      ));
+      final stream = await recorder.startStream(
+        RecordConfig(
+          encoder: AudioEncoder.pcm16bits,
+          sampleRate: 16000,
+          numChannels: 1,
+          // A specific device when the user picked one; null means the
+          // platform default.
+          device: _desktopInputId == null
+              ? null
+              : InputDevice(id: _desktopInputId!, label: _desktopInputId!),
+        ),
+      );
       _desktopRecorder = recorder;
 
       final controller = StreamController<Map<String, dynamic>>.broadcast();
@@ -248,6 +266,9 @@ class SnailAudio {
   }
 
   Future<bool> requestNotificationPermission() async {
+    // Android 13+ needs this so the foreground session stays visible.
+    // Desktop has no such requirement and no plugin to ask.
+    if (_isDesktop) return true;
     try {
       return await _methodChannel
               .invokeMethod<bool>('requestNotificationPermission') ??
@@ -428,6 +449,35 @@ class SnailAudio {
       return false;
     }
   }
+
+  /// Lists the microphones the platform actually offers.
+  ///
+  /// Android exposes fixed routes (phone/headset) through the native plugin;
+  /// desktop has real, named devices, so the picker can show them instead of
+  /// an empty list.
+  Future<List<AudioInputDevice>> listInputDevices() async {
+    if (!_isDesktop) return const <AudioInputDevice>[];
+    try {
+      final recorder = _desktopRecorder ?? AudioRecorder();
+      final devices = await recorder.listInputDevices();
+      return devices
+          .map((device) => AudioInputDevice(
+                id: device.id,
+                label: device.label.isEmpty ? device.id : device.label,
+              ))
+          .toList(growable: false);
+    } catch (error) {
+      debugPrint('[SnailAudio] listInputDevices failed: $error');
+      return const <AudioInputDevice>[];
+    }
+  }
+
+  /// Selects a specific desktop microphone for the next capture start.
+  void selectDesktopInput(String deviceId) {
+    _desktopInputId = deviceId;
+  }
+
+  String? _desktopInputId;
 
   Future<bool> isHeadsetConnected() async {
     try {

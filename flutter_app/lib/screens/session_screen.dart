@@ -129,6 +129,20 @@ class _SessionScreenState extends State<SessionScreen>
   int _lastOpenAiSpeechStarts = 0;
   int _connectionGeneration = 0;
   late final SessionController _sessionController;
+  /// Real microphones on desktop; empty on Android, which uses routes.
+  List<AudioInputDevice> _inputDevices = const <AudioInputDevice>[];
+  String? _selectedInputDeviceId;
+
+  /// Loads the platform's real microphones. Empty on Android, which has no
+  /// per-device selection — the picker then keeps the route dropdown.
+  Future<void> _loadInputDevices() async {
+    final devices = await _snailAudio.listInputDevices();
+    if (!mounted || devices.isEmpty) return;
+    setState(() {
+      _inputDevices = devices;
+      _selectedInputDeviceId ??= devices.first.id;
+    });
+  }
 
   void _debugPlaybackDiagnostic(String message) {
     if (!kDebugMode) return;
@@ -250,6 +264,9 @@ class _SessionScreenState extends State<SessionScreen>
       _sessionService.endSession();
       Navigator.popUntil(context, (route) => route.isFirst);
     });
+    // Desktop exposes real microphones; load them so the picker can offer a
+    // device instead of the Android route list.
+    unawaited(_loadInputDevices());
     // Keep the session alive while the user is actively translating. This is
     // intentionally scoped to the session route and released on exit.
     WakelockPlus.enable();
@@ -1275,32 +1292,58 @@ class _SessionScreenState extends State<SessionScreen>
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: DropdownButtonFormField<AudioInput>(
-                            initialValue: _audioPolicy.input,
-                            isExpanded: true,
-                            decoration: InputDecoration(
-                              labelText: l10n.sessionMicrophoneLabel,
-                              prefixIcon: const Icon(Icons.mic),
-                              border: const OutlineInputBorder(),
-                            ),
-                            items: [
-                              DropdownMenuItem(
-                                  value: AudioInput.auto,
-                                  child: Text(l10n.audioRouteAuto)),
-                              DropdownMenuItem(
-                                  value: AudioInput.phone,
-                                  child: Text(l10n.audioRoutePhone)),
-                              DropdownMenuItem(
-                                  value: AudioInput.headset,
-                                  child: Text(l10n.audioRouteHeadset)),
-                            ],
-                            onChanged: (value) {
-                              if (value != null) {
-                                _audioPolicy.setInput(value);
-                                _snailAudio.setInput(value);
-                              }
-                            },
-                          ),
+                          // Desktop has real, named microphones; Android only
+                          // knows fixed routes. Showing the route dropdown on
+                          // desktop offered a choice that did nothing.
+                          child: _inputDevices.isEmpty
+                              ? DropdownButtonFormField<AudioInput>(
+                                  initialValue: _audioPolicy.input,
+                                  isExpanded: true,
+                                  decoration: InputDecoration(
+                                    labelText: l10n.sessionMicrophoneLabel,
+                                    prefixIcon: const Icon(Icons.mic),
+                                    border: const OutlineInputBorder(),
+                                  ),
+                                  items: [
+                                    DropdownMenuItem(
+                                        value: AudioInput.auto,
+                                        child: Text(l10n.audioRouteAuto)),
+                                    DropdownMenuItem(
+                                        value: AudioInput.phone,
+                                        child: Text(l10n.audioRoutePhone)),
+                                    DropdownMenuItem(
+                                        value: AudioInput.headset,
+                                        child: Text(l10n.audioRouteHeadset)),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      _audioPolicy.setInput(value);
+                                      _snailAudio.setInput(value);
+                                    }
+                                  },
+                                )
+                              : DropdownButtonFormField<String>(
+                                  initialValue: _selectedInputDeviceId,
+                                  isExpanded: true,
+                                  decoration: InputDecoration(
+                                    labelText: l10n.sessionMicrophoneLabel,
+                                    prefixIcon: const Icon(Icons.mic),
+                                    border: const OutlineInputBorder(),
+                                  ),
+                                  items: [
+                                    for (final device in _inputDevices)
+                                      DropdownMenuItem(
+                                        value: device.id,
+                                        child: Text(device.label,
+                                            overflow: TextOverflow.ellipsis),
+                                      ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() => _selectedInputDeviceId = value);
+                                    _snailAudio.selectDesktopInput(value);
+                                  },
+                                ),
                         ),
                       ],
                     ),
