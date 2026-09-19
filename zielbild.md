@@ -100,7 +100,8 @@ nächsten offenen Punkt.
 - [x] 62. Zuhörer-Ansicht mit Sprachwahl, Auto-Scroll-Untertiteln und lokalem Vorlesen (flutter_tts).
 - [x] 63. Zuhörer-Fragen über den Chat-Kanal an den Guide leiten.
 - [x] 64. Guide-Räume per QR (`snail://guide/<room>`) und Code beitreten, mit sichtbarem Hinweis beim Fallback.
-- [ ] 65. Zuhör-Modus auf zwei Geräten testen (Guide + Zuhörer, Untertitel-Latenz, Sprachwechsel, TTS, Frage, Stop).
+- [x] 65. Zuhörer aus der Session entfernen (Kick) und Transkript kopieren.
+- [ ] 66. Zuhör-Modus auf zwei Geräten testen (Guide + Zuhörer, Untertitel-Latenz, Sprachwechsel, TTS, Frage, Stop) — braucht Worker-Deploy.
 
 ## Kurzer Persistent-Goal-Prompt für andere Agenten
 

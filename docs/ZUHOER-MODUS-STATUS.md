@@ -14,8 +14,8 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 | Flutter-Tests | `flutter test` | **213 grün, 1 skip** (15 neue) |
 | Worker-Tests | `cd worker && npx vitest run` | **31/31 grün** (7 neue) |
 | DO-Typcheck | `cd durable-object && npx tsc --noEmit` | clean |
-| DO-Tests | `cd durable-object && npx vitest run` | **37/37 grün** (13 neue) |
-| Protokoll-Drift | `node tools/generate-protocol.mjs` + diff | keine Drift (18 Typen) |
+| DO-Tests | `cd durable-object && npx vitest run` | **39/39 grün** (15 neue) |
+| Protokoll-Drift | `node tools/generate-protocol.mjs` + diff | keine Drift (20 Typen) |
 | l10n-Parität | Skript über alle 9 `app_*.arb` | 0 fehlend / 0 überzählig |
 
 ## Punkte-Status
@@ -62,22 +62,41 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 
 | Punkt | Status | Evidenz |
 |---|---|---|
-| G-24 Kick | ⏭️ nicht umgesetzt (optional) | — |
-| G-25 Transkript-Export | ⏭️ nicht umgesetzt (optional) | — |
-| G-26 Gerätetest | ❌ **nicht durchgeführt** | s. „Nicht verifiziert" |
+| G-24 Kick | ✅ | `listener_kick` (host-only, guide-only) → `listener_kicked` an das Ziel, Socket geschlossen, Zähler aktualisiert; Tests inkl. Ablehnung durch Listener und unbekannter ID |
+| G-25 Transkript-Export | ✅ | Guide kopiert die gesammelten Quellzeilen per Clipboard; Button erscheint erst mit Inhalt |
+| G-26 Gerätetest | ⚠️ **teilweise** | s. „Gerätetest" |
 | G-27 Dokumente | ✅ | `README.md` (Modus-Tabelle, Endpoints, Features) + `zielbild.md` (Punkte 60–65) |
 | G-28 Abschlussbericht | ✅ | diese Datei |
 
+## Gerätetest (G-26) — Teilergebnis
+
+Auf dem Nothing Phone 3a Pro (`A059P`, Android 16) verifiziert:
+
+- App startet, Home-Dashboard rendert **alle neun Tiles** inklusive „Zuhör-Modus".
+- Tap auf das Tile öffnet den Guide-Setup-Screen: Erklärung, alle 18 Sprach-Chips, Start-Button.
+- Sprachwahl (English) + Start → **Lauf-Ansicht erscheint**: QR-Code, Raumcode
+  (`snail-PF8MDG77`), Zähler „0 Zuhörer verbunden", Quelltext-Bereich, Fragenliste, Stop-Button.
+- Mikrofon-Capture läuft (`SnailAudio: Standalone capture started; phone=true, headset=false, aec=true, ns=true`).
+- **Kein Crash** über die gesamte Session (Crash-Buffer leer, Prozess stabil).
+
+**Nicht durchgeführt:** der Zwei-Geräte-Teil (Listener auf zweitem Gerät/Emulator),
+weil (a) kein Emulator installiert ist und (b) der deployte Worker noch die alte
+Version ohne `/listen`-Endpoint ist — der Guide-Raum wurde deshalb als Duo-Raum
+angelegt. Für den vollständigen Test muss zuerst `wrangler deploy` laufen
+(Produktionsaktion, braucht Betreiber-Freigabe).
+
 ## Nicht verifiziert
 
-- **Kein Gerätetest (G-26).** Der Zuhör-Modus wurde nicht auf Hardware
-  ausgeführt. Nicht geprüft: Untertitel-Latenz, Sprachwechsel zur Laufzeit,
-  Vorlesen auf dem Gerät, Frage→Guide-Zustellung, Host-Stop-Verhalten,
-  Listener-Reconnect, Verhalten bei 50 Zuhörern.
+- **Zwei-Geräte-Test (G-26, Rest).** Der Guide-Teil lief auf dem Gerät (s. o.);
+  der Listener-Teil wurde **nicht** ausgeführt. Nicht geprüft: Untertitel-Latenz,
+  Sprachwechsel zur Laufzeit, Vorlesen auf dem Gerät, Frage→Guide-Zustellung,
+  Kick auf dem Zielgerät, Host-Stop-Verhalten, Listener-Reconnect, Verhalten bei
+  50 Zuhörern.
 - **Kein Live-Provider-Test.** Die Guide-Pipeline (ASR → MT × N) lief nur
   gegen Fakes in Widget-/Unit-Tests, nicht gegen Fish Audio oder OpenAI.
-- **Kein Worker-Deploy.** Die neuen Endpunkte sind nur lokal getestet; ein
-  Deploy auf Cloudflare erfolgte nicht.
+- **Kein Worker-Deploy.** Die neuen Endpunkte (`/listen`, `mode=guide`,
+  `listener_kick`) sind nur lokal getestet; der deployte Worker ist die alte
+  Version. Ohne Deploy kann der Listener-Flow auf echten Geräten nicht greifen.
 
 ## Betriebsrisiken
 
