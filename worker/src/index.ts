@@ -46,7 +46,7 @@ export interface Env {
 interface SessionTokenPayload {
   sub: string;
   room: string;
-  role: "host" | "guest";
+  role: "host" | "guest" | "listener";
   tier: "free" | "paid";
   exp: number;
   iat: number;
@@ -66,6 +66,14 @@ const ROOM_RATE_WINDOW_SECONDS = 60;
 const ROOM_RATE_LIMITS = { create: 10, join: 20, websocket: 40, failedJoin: 5 } as const;
 const TELEMETRY_LIMIT = 30;
 const TELEMETRY_WINDOW_SECONDS = 60;
+// Languages the app can offer as listener targets. Mirrors
+// flutter_app/lib/models/translation_languages.dart — a listener language the
+// app cannot render would produce subtitles nobody can read.
+const SUPPORTED_LANGUAGES = new Set([
+  "de", "en", "fr", "es", "it", "ja", "ko", "zh", "uk",
+  "ar", "pt", "ru", "nl", "tr", "hi", "vi", "pl", "sv",
+]);
+const MAX_LISTENER_LANGUAGES = 18;
 
 function observabilityLog(event: string, fields: Record<string, string | number | boolean>): void {
   // Operational telemetry must never contain tokens, keys, message bodies, or
@@ -335,6 +343,24 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
     return json({ error: "Quota exceeded", remaining: quota.remaining }, 403, origin, env.CORS_ORIGINS);
   }
 
+  // Guide mode: one speaker, N listeners. The mode is fixed at creation —
+  // duo and guide route differently, so a room cannot switch later.
+  const mode = body.mode === "guide" ? "guide" : "duo";
+  let listenerLanguages: string[] = [];
+  if (mode === "guide") {
+    const requested = Array.isArray(body.listenerLanguages) ? body.listenerLanguages : [];
+    listenerLanguages = requested
+      .filter((lang: unknown): lang is string => typeof lang === "string")
+      .map((lang: string) => lang.trim().toLowerCase())
+      .filter((lang: string) => SUPPORTED_LANGUAGES.has(lang));
+    const unique = [...new Set(listenerLanguages)];
+    if (unique.length < 1 || unique.length > MAX_LISTENER_LANGUAGES ||
+        unique.length !== requested.length) {
+      return json({ error: "Invalid listener languages" }, 400, origin, env.CORS_ORIGINS);
+    }
+    listenerLanguages = unique;
+  }
+
   const inviteeId = typeof body.inviteeId === "string" && /^[a-f0-9-]{16,80}$/i.test(body.inviteeId.trim())
     ? body.inviteeId.trim()
     : null;
@@ -367,6 +393,8 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
       sourceLang: body.sourceLang || "de",
       targetLang: body.targetLang || "en",
       tier,
+      mode,
+      listenerLanguages,
       sessionSecret: env.SESSION_SECRET,
     }),
   }));
@@ -380,6 +408,8 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
     targetLang: body.targetLang || "en",
     inviteeId,
     tier, quotaRemaining: quota.remaining,
+    mode,
+    listenerLanguages,
   }, 201, origin, env.CORS_ORIGINS);
 }
 
@@ -408,6 +438,15 @@ async function handleJoinRoom(request: Request, env: Env, roomId: string): Promi
   }
 
   const roomState: any = await roomCheck.json();
+  // Guide rooms have no second translating peer: joining as a guest would
+  // silently produce a room where one side never hears a translation. The
+  // app uses the code to fall back into the listener flow.
+  if (roomState.mode === "guide") {
+    return json({
+      error: "This is a listening room",
+      code: "guide_room_use_listen",
+    }, 409, origin, env.CORS_ORIGINS);
+  }
   if (roomState.inviteeId && roomState.inviteeId !== getSnailIdentity(request)) {
     await checkRoomRateLimit(request, env, "failedJoin");
     return json({ error: "This session was invited for another Snail identity" }, 403, origin, env.CORS_ORIGINS);
@@ -434,6 +473,55 @@ async function handleJoinRoom(request: Request, env: Env, roomId: string): Promi
     targetLang: roomState.sourceLang,
     inviteeId: roomState.inviteeId || null,
     tier, quotaRemaining: quota.remaining,
+  }, 200, origin, env.CORS_ORIGINS);
+}
+
+/**
+ * Join a guide room as a listener.
+ *
+ * Listeners are displays: they receive subtitles and can ask questions, but
+ * they never translate and never stream audio. The quota check is therefore
+ * skipped — an audience member consumes nothing.
+ */
+async function handleListenRoom(request: Request, env: Env, roomId: string): Promise<Response> {
+  const origin = request.headers.get("Origin") || "";
+  const userId = await getUserId(request, env);
+  if (!userId) {
+    observabilityLog("auth_failure", { route: "rooms_listen", reason: "missing_or_invalid_token" });
+    return json({ error: "Unauthorized" }, 401, origin, env.CORS_ORIGINS);
+  }
+
+  const tier = isDevMode(env) ? "paid" : "free";
+
+  const doId = env.SNAIL_RELAY.idFromName(roomId);
+  const doStub = env.SNAIL_RELAY.get(doId);
+  const roomCheck = await doStub.fetch(new Request("https://internal/status"));
+  if (roomCheck.status !== 200) {
+    observabilityLog("room_lookup_failed", { route: "rooms_listen", status: roomCheck.status });
+    await checkRoomRateLimit(request, env, "failedJoin");
+    return json({ error: "Room not found" }, 404, origin, env.CORS_ORIGINS);
+  }
+
+  const roomState: any = await roomCheck.json();
+  if (roomState.mode !== "guide") {
+    return json({ error: "Not a listening room" }, 409, origin, env.CORS_ORIGINS);
+  }
+
+  const sessionToken = await createSessionToken(
+    { sub: userId, room: roomId, role: "listener", tier: tier as "free" | "paid" },
+    env
+  );
+
+  const relayHost = new URL(request.url).host;
+  return json({
+    roomId, sessionToken,
+    relayUrl: `wss://${relayHost}/ws?room=${roomId}`,
+    // The guide's language is the source every listener reads from; the
+    // listener's own language is chosen in the app from `listenerLanguages`.
+    sourceLang: roomState.sourceLang,
+    listenerLanguages: roomState.listenerLanguages || [],
+    mode: "guide",
+    tier,
   }, 200, origin, env.CORS_ORIGINS);
 }
 
@@ -632,6 +720,14 @@ export default {
       const limited = await checkRoomRateLimit(request, env, "join");
       if (limited) return limited;
       return handleJoinRoom(request, env, joinMatch[1]);
+    }
+
+    // Join a guide room as a listener
+    const listenMatch = path.match(/^\/api\/rooms\/(.+)\/listen$/);
+    if (listenMatch && request.method === "POST") {
+      const limited = await checkRoomRateLimit(request, env, "join");
+      if (limited) return limited;
+      return handleListenRoom(request, env, listenMatch[1]);
     }
 
     // Quota

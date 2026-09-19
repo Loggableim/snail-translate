@@ -15,4 +15,7 @@ export type ProtocolMessageType =
   | "peer_joined"
   | "peer_left"
   | "session_end"
+  | "subtitle"
+  | "listener_joined"
+  | "listener_left"
   | "error";

@@ -9,7 +9,7 @@ import { jwtVerify } from "jose";
 export interface SessionTokenPayload {
   sub: string;
   room: string;
-  role: "host" | "guest";
+  role: "host" | "guest" | "listener";
   tier: "free" | "paid";
   exp: number;
   iat: number;
@@ -21,7 +21,11 @@ export function validateSessionTokenForRoom(
   roomId: string,
 ): void {
   if (payload.room !== roomId) throw new Error("Token room mismatch");
-  if (payload.role !== "host" && payload.role !== "guest") {
+  if (
+    payload.role !== "host" &&
+    payload.role !== "guest" &&
+    payload.role !== "listener"
+  ) {
     throw new Error("Invalid token role");
   }
   if (!payload.sub) throw new Error("Missing token subject");

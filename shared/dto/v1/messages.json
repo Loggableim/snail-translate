@@ -16,6 +16,7 @@
         "ping",
         "chat_history", "delivery_ack",
         "peer_joined", "peer_left", "session_end",
+        "subtitle", "listener_joined", "listener_left",
         "error"
       ]
     },
@@ -97,6 +98,37 @@
       "properties": {
         "type": { "const": "delivery_ack" },
         "messageId": { "type": "string", "format": "uuid" }
+      }
+    },
+    "SubtitleMessage": {
+      "type": "object",
+      "required": ["type", "messageId", "text", "sourceLang", "targetLang", "timestamp"],
+      "properties": {
+        "type": { "const": "subtitle" },
+        "messageId": { "type": "string", "format": "uuid" },
+        "text": { "type": "string", "maxLength": 2000 },
+        "sourceLang": { "type": "string", "minLength": 2, "maxLength": 5 },
+        "targetLang": { "type": "string", "minLength": 2, "maxLength": 5 },
+        "senderId": { "type": "string" },
+        "timestamp": { "type": "integer" }
+      }
+    },
+    "ListenerJoinedMessage": {
+      "type": "object",
+      "required": ["type", "listenerId", "count"],
+      "properties": {
+        "type": { "const": "listener_joined" },
+        "listenerId": { "type": "string", "minLength": 1 },
+        "count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ListenerLeftMessage": {
+      "type": "object",
+      "required": ["type", "listenerId", "count"],
+      "properties": {
+        "type": { "const": "listener_left" },
+        "listenerId": { "type": "string", "minLength": 1 },
+        "count": { "type": "integer", "minimum": 0 }
       }
     },
     "ErrorMessage": {

@@ -28,6 +28,11 @@ function recordingNamespace() {
   const fetcher: Fetcher = {
     fetch: async (request) => {
       requests.push(request);
+      // Room allocation probes /status and expects 404 for a free code; the
+      // /init call that follows must succeed.
+      if (new URL(request.url).pathname === "/status") {
+        return new Response("Not found", { status: 404 });
+      }
       return new Response("{}", { status: 200 });
     },
   };
@@ -142,6 +147,106 @@ describe("Worker fetch handler", () => {
     }, { SNAIL_RELAY: namespace(new Response("{}", { status: 200 })) });
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: "Could not allocate a unique room code" });
+  });
+
+  it("creates a guide room with listener languages and forwards the mode to the relay", async () => {
+    const { binding, requests } = recordingNamespace();
+    const response = await call("/api/rooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": "test-api-key" },
+      body: JSON.stringify({ mode: "guide", sourceLang: "de", listenerLanguages: ["en", "fr"] }),
+    }, { SNAIL_RELAY: binding });
+    expect(response.status).toBe(201);
+    const body = await response.json() as { mode: string; listenerLanguages: string[] };
+    expect(body.mode).toBe("guide");
+    expect(body.listenerLanguages).toEqual(["en", "fr"]);
+
+    const initRequest = requests.find((request) => new URL(request.url).pathname === "/init");
+    expect(initRequest).toBeDefined();
+    const initBody = JSON.parse(await initRequest!.text());
+    expect(initBody.mode).toBe("guide");
+    expect(initBody.listenerLanguages).toEqual(["en", "fr"]);
+  });
+
+  it("defaults to duo mode when no mode is requested", async () => {
+    const response = await call("/api/rooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": "test-api-key" },
+      body: JSON.stringify({ sourceLang: "de", targetLang: "en" }),
+    }, { SNAIL_RELAY: namespace(new Response("Not found", { status: 404 })) });
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({ mode: "duo" });
+  });
+
+  it("rejects a guide room with an unsupported listener language", async () => {
+    const response = await call("/api/rooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": "test-api-key" },
+      body: JSON.stringify({ mode: "guide", listenerLanguages: ["en", "xx"] }),
+    }, { SNAIL_RELAY: namespace(new Response("Not found", { status: 404 })) });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Invalid listener languages" });
+  });
+
+  it("rejects a guide room without any listener language", async () => {
+    const response = await call("/api/rooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": "test-api-key" },
+      body: JSON.stringify({ mode: "guide", listenerLanguages: [] }),
+    }, { SNAIL_RELAY: namespace(new Response("Not found", { status: 404 })) });
+    expect(response.status).toBe(400);
+  });
+
+  it("mints a listener token for a guide room without consuming quota", async () => {
+    const guideStatus = new Response(JSON.stringify({
+      mode: "guide",
+      sourceLang: "de",
+      listenerLanguages: ["en", "fr"],
+    }), { status: 200 });
+    const response = await call("/api/rooms/snail-GUIDE1/listen", {
+      method: "POST",
+      headers: { "X-API-Key": "test-api-key" },
+    }, { SNAIL_RELAY: namespace(guideStatus) });
+    expect(response.status).toBe(200);
+    const body = await response.json() as { sessionToken: string; listenerLanguages: string[]; sourceLang: string };
+    expect(body.sourceLang).toBe("de");
+    expect(body.listenerLanguages).toEqual(["en", "fr"]);
+    // The JWT carries the listener role — the relay admits on that basis.
+    const payload = JSON.parse(atob(body.sessionToken.split(".")[1]));
+    expect(payload.role).toBe("listener");
+  });
+
+  it("rejects listening on a duo room and on an unknown room", async () => {
+    const duoStatus = new Response(JSON.stringify({ mode: "duo" }), { status: 200 });
+    const onDuo = await call("/api/rooms/snail-DUO123/listen", {
+      method: "POST",
+      headers: { "X-API-Key": "test-api-key" },
+    }, { SNAIL_RELAY: namespace(duoStatus) });
+    expect(onDuo.status).toBe(409);
+    expect(await onDuo.json()).toEqual({ error: "Not a listening room" });
+
+    const unknown = await call("/api/rooms/snail-NONE12/listen", {
+      method: "POST",
+      headers: { "X-API-Key": "test-api-key" },
+    }, { SNAIL_RELAY: namespace(new Response("Not found", { status: 404 })) });
+    expect(unknown.status).toBe(404);
+  });
+
+  it("rejects a guest join on a guide room with the listener fallback code", async () => {
+    const guideStatus = new Response(JSON.stringify({
+      mode: "guide",
+      sourceLang: "de",
+      targetLang: "en",
+    }), { status: 200 });
+    const response = await call("/api/rooms/snail-GUIDE1/join", {
+      method: "POST",
+      headers: { "X-API-Key": "test-api-key" },
+    }, { SNAIL_RELAY: namespace(guideStatus) });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "This is a listening room",
+      code: "guide_room_use_listen",
+    });
   });
 
   it("rate-limits repeated room joins and advertises the retry window", async () => {

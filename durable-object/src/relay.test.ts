@@ -16,7 +16,7 @@ class Storage {
   async setAlarm(at: number) { this.alarmAt = at; this.alarmCalls++; }
 }
 
-async function token(role: "host" | "guest", sub: string) {
+async function token(role: "host" | "guest" | "listener", sub: string) {
   const now = Math.floor(Date.now() / 1000);
   return new SignJWT({ sub, room: "snail-TEST", role, tier: "free", iat: now, exp: now + 3600 })
     .setProtectedHeader({ alg: "HS256" })
@@ -25,24 +25,39 @@ async function token(role: "host" | "guest", sub: string) {
 
 function state() {
   const storage = new Storage();
+  const sockets: WebSocket[] = [];
   const durableState = {
     storage,
     blockConcurrencyWhile: async (callback: () => Promise<void>) => callback(),
+    // The relay restores host/guest/listener sockets from the hibernation
+    // attachments after a wake-up; the mock must expose the same surface.
+    // `acceptWebSocket` is deliberately absent so the relay keeps its
+    // non-hibernation wiring (which registers the message/close listeners
+    // the test sockets rely on).
+    getWebSockets: () => sockets,
   } as unknown as DurableObjectState;
-  return { durableState, storage };
+  return { durableState, storage, sockets };
 }
 
-async function initializedRelay() {
+async function initializedRelay(options: { mode?: "duo" | "guide"; listenerLanguages?: string[] } = {}) {
   const context = state();
   const relay = new SnailRelay(context.durableState, { FISHAUDIO_API_KEY: "test-fish-key" });
   await relay.fetch(new Request("https://internal/init", {
     method: "POST",
-    body: JSON.stringify({ roomId: "snail-TEST", hostId: "host", sourceLang: "de", targetLang: "en", sessionSecret: secret }),
+    body: JSON.stringify({
+      roomId: "snail-TEST",
+      hostId: "host",
+      sourceLang: "de",
+      targetLang: "en",
+      sessionSecret: secret,
+      ...(options.mode ? { mode: options.mode } : {}),
+      ...(options.listenerLanguages ? { listenerLanguages: options.listenerLanguages } : {}),
+    }),
   }));
   return { relay, ...context };
 }
 
-async function connect(relay: SnailRelay, role: "host" | "guest", sub: string, agreementPublicKey?: string) {
+async function connect(relay: SnailRelay, role: "host" | "guest" | "listener", sub: string, agreementPublicKey?: string) {
   const response = await relay.fetch(new Request("https://internal/ws", { headers: { Upgrade: "websocket" } }));
   const socket = response.webSocket!;
   socket.accept();
@@ -274,5 +289,189 @@ describe("SnailRelay lifecycle and limits", () => {
     await relay.alarm();
     expect(storage.alarmCalls).toBeGreaterThan(before);
     expect(storage.values.size).toBeGreaterThan(0);
+  });
+});
+
+describe("SnailRelay guide mode", () => {
+  it("reports mode and listener count through /status", async () => {
+    const duo = await initializedRelay();
+    const duoStatus = await (await duo.relay.fetch(new Request("https://internal/status"))).json() as any;
+    expect(duoStatus.mode).toBe("duo");
+    expect(duoStatus.listenerCount).toBe(0);
+
+    const guide = await initializedRelay({ mode: "guide", listenerLanguages: ["en", "fr"] });
+    const guideStatus = await (await guide.relay.fetch(new Request("https://internal/status"))).json() as any;
+    expect(guideStatus.mode).toBe("guide");
+    expect(guideStatus.listenerLanguages).toEqual(["en", "fr"]);
+    expect(guideStatus.listenerCount).toBe(0);
+  });
+
+  it("rejects a listener on a duo room and a guest on a guide room", async () => {
+    const duo = await initializedRelay();
+    const listenerOnDuo = await connect(duo.relay, "listener", "listener-1");
+    expect(messagesOf(listenerOnDuo, "auth_error")[0].error).toContain("Not a listening room");
+
+    const guide = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    const guestOnGuide = await connect(guide.relay, "guest", "guest-1");
+    expect(messagesOf(guestOnGuide, "auth_error")[0].error).toContain("Not a listening room");
+  });
+
+  it("admits listeners up to the cap and rejects the next one", async () => {
+    const { relay } = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    await connect(relay, "host", "host");
+    for (let index = 0; index < 50; index++) {
+      const listener = await connect(relay, "listener", `listener-${index}`);
+      expect(messagesOf(listener, "auth_ok")).toHaveLength(1);
+    }
+    const overflow = await connect(relay, "listener", "listener-51");
+    expect(messagesOf(overflow, "auth_error")[0].error).toContain("Room is full");
+  });
+
+  it("replaces the socket when the same listener reconnects", async () => {
+    const { relay } = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    const host = await connect(relay, "host", "host");
+    const first = await connect(relay, "listener", "listener-1");
+    const second = await connect(relay, "listener", "listener-1");
+    expect(messagesOf(second, "auth_ok")).toHaveLength(1);
+    // Only one admission: the reconnect replaced the slot, it did not add one.
+    const joins = messagesOf(host, "listener_joined");
+    expect(joins.at(-1)?.count).toBe(1);
+  });
+
+  it("notifies the host about joins and leaves with a running count", async () => {
+    const { relay } = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    const host = await connect(relay, "host", "host");
+    const first = await connect(relay, "listener", "listener-1");
+    const second = await connect(relay, "listener", "listener-2");
+    expect(messagesOf(host, "listener_joined").map((message) => message.count)).toEqual([1, 2]);
+
+    first.socket.close();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(messagesOf(host, "listener_left").at(-1)?.count).toBe(1);
+    expect(messagesOf(host, "listener_left").at(-1)?.listenerId).toBe("listener-1");
+    expect(messagesOf(second, "auth_ok")).toHaveLength(1);
+  });
+
+  it("fans subtitles out to every listener and stores them as transcript", async () => {
+    const { relay } = await initializedRelay({ mode: "guide", listenerLanguages: ["en", "fr"] });
+    const host = await connect(relay, "host", "host");
+    const first = await connect(relay, "listener", "listener-1");
+    const second = await connect(relay, "listener", "listener-2");
+    host.socket.send(JSON.stringify({
+      type: "subtitle",
+      messageId: "subtitle-1",
+      text: "Guten Tag",
+      sourceLang: "de",
+      targetLang: "en",
+      timestamp: 1,
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(messagesOf(first, "subtitle")).toHaveLength(1);
+    expect(messagesOf(second, "subtitle")).toHaveLength(1);
+    expect(messagesOf(host, "delivery_ack")).toHaveLength(1);
+
+    // A late listener receives the transcript through the history replay.
+    const late = await connect(relay, "listener", "listener-3");
+    const history = messagesOf(late, "chat_history")[0].history as Array<Record<string, unknown>>;
+    expect(history.some((entry) => entry.type === "subtitle" && entry.text === "Guten Tag")).toBe(true);
+  });
+
+  it("rejects subtitles from a listener and on a duo room", async () => {
+    const guide = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    await connect(guide.relay, "host", "host");
+    const listener = await connect(guide.relay, "listener", "listener-1");
+    listener.socket.send(JSON.stringify({ type: "subtitle", text: "I am the guide now" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(messagesOf(listener, "error")[0].error).toContain("Only the host can send subtitles");
+
+    const duo = await initializedRelay();
+    const duoHost = await connect(duo.relay, "host", "host");
+    duoHost.socket.send(JSON.stringify({ type: "subtitle", text: "hello" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(messagesOf(duoHost, "error")[0].error).toContain("Only the host can send subtitles");
+  });
+
+  it("routes guide chat: host fans out, listener reaches only the host", async () => {
+    const { relay } = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    const host = await connect(relay, "host", "host");
+    const first = await connect(relay, "listener", "listener-1");
+    const second = await connect(relay, "listener", "listener-2");
+
+    host.socket.send(JSON.stringify({ type: "chat", messageId: "announce-1", text: "Welcome" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(messagesOf(first, "chat")).toHaveLength(1);
+    expect(messagesOf(second, "chat")).toHaveLength(1);
+
+    first.socket.send(JSON.stringify({ type: "chat", messageId: "question-1", text: "Where are we?" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(messagesOf(host, "chat").at(-1)?.text).toBe("Where are we?");
+    // The other listener must not see a private question.
+    expect(messagesOf(second, "chat")).toHaveLength(1);
+  });
+
+  it("rejects signaling, audio frames and end from listeners in guide mode", async () => {
+    const { relay } = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    await connect(relay, "host", "host");
+    const listener = await connect(relay, "listener", "listener-1");
+    listener.socket.send(JSON.stringify({ type: "signal", signalType: "offer", signal: {} }));
+    listener.socket.send(framePcm(new Uint8Array(960), 24_000, "peer_pcm"));
+    listener.socket.send(JSON.stringify({ type: "end" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const errors = messagesOf(listener, "error").map((message) => message.error).join(" | ");
+    expect(errors).toContain("Signaling is not available in guide mode");
+    expect(errors).toContain("Audio streaming is not available in guide mode");
+    expect(errors).toContain("Only the host can end the session");
+  });
+
+  it("tells the audience when the host disconnects", async () => {
+    const { relay } = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    const host = await connect(relay, "host", "host");
+    const listener = await connect(relay, "listener", "listener-1");
+    host.socket.close();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(messagesOf(listener, "peer_left").at(-1)?.peerId).toBe("host");
+  });
+
+  it("closes every listener socket on cleanup", async () => {
+    const { relay, storage } = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    const host = await connect(relay, "host", "host");
+    await connect(relay, "listener", "listener-1");
+    await connect(relay, "listener", "listener-2");
+    host.socket.send(JSON.stringify({ type: "end" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(storage.values.size).toBe(0);
+  });
+
+  it("restores listener sockets from hibernation attachments", async () => {
+    const { durableState, sockets } = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    // A wake-up only sees hibernation attachments. The non-hibernation test
+    // path stores attachments in a WeakMap instead, so the registry is fed a
+    // socket that exposes the same `deserializeAttachment` surface the
+    // production runtime provides.
+    const restoredSocket = {
+      deserializeAttachment: () => ({
+        authenticated: true,
+        peerRole: "listener",
+        userId: "listener-1",
+      }),
+    } as unknown as WebSocket;
+    sockets.push(restoredSocket);
+
+    const revived = new SnailRelay(durableState, { FISHAUDIO_API_KEY: "test-fish-key" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const restored = (revived as unknown as { session: { listenerSockets: Map<string, WebSocket> } })
+      .session.listenerSockets;
+    expect(restored.size).toBe(1);
+    expect(restored.get("listener-1")).toBe(restoredSocket);
+  });
+
+  it("never persists live listener sockets", async () => {
+    const { relay, storage } = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    await connect(relay, "host", "host");
+    await connect(relay, "listener", "listener-1");
+    const meta = storage.values.get("session_meta") as Record<string, unknown>;
+    expect(meta).toBeDefined();
+    expect("listenerSockets" in meta).toBe(false);
+    expect(meta.mode).toBe("guide");
   });
 });

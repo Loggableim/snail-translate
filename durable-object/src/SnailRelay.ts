@@ -35,6 +35,14 @@ interface SessionState {
   lastActivity: number;
   hostSocket: WebSocket | null;
   guestSocket: WebSocket | null;
+  // Guide mode: one speaker, N listeners. `mode` is fixed at room creation;
+  // duo and guide route differently (fan-out vs. single peer), so mixing them
+  // would be a third mode rather than a flag.
+  mode: "duo" | "guide";
+  listenerLanguages: string[];
+  // Live listener sockets keyed by userId. Never persisted — WebSocket
+  // instances are runtime objects (see saveState()).
+  listenerSockets: Map<string, WebSocket>;
   quotaUsed: number;
   fishTtsChars: number;
   sessionSecret: string;  // Passed from Worker at /init
@@ -49,7 +57,7 @@ interface SessionState {
 }
 
 interface ClientMessage {
-  type: "auth" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end";
+  type: "auth" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end" | "subtitle";
   token?: string;
   protocolVersion?: number;
   agreementPublicKey?: string;
@@ -73,7 +81,7 @@ interface ClientMessage {
 }
 
 interface ServerMessage {
-  type: "auth_ok" | "auth_error" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end";
+  type: "auth_ok" | "auth_error" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end" | "subtitle" | "listener_joined" | "listener_left";
   sampleRate?: number;
   messageId?: string;
   text?: string;
@@ -90,6 +98,9 @@ interface ServerMessage {
   peerId?: string;
   peerAgreementPublicKey?: string;
   reason?: string;
+  // Listener bookkeeping
+  listenerId?: string;
+  count?: number;
   // Voice message fields
   audioData?: string;
   durationMs?: number;
@@ -98,7 +109,7 @@ interface ServerMessage {
 
 interface SocketAttachment {
   authenticated: boolean;
-  peerRole: "host" | "guest" | null;
+  peerRole: "host" | "guest" | "listener" | null;
   userId: string | null;
 }
 
@@ -107,6 +118,8 @@ interface SocketAttachment {
 const MAX_QUOTA_SECONDS = 30 * 60;
 const MAX_PCM_SAMPLES_PER_MESSAGE = 16_000; // max 1 s mono PCM at 16 kHz
 const MAX_CHAT_TEXT_LENGTH = 16_384;         // max chars per chat message
+const MAX_SUBTITLE_TEXT_LENGTH = 2_000;      // max chars per subtitle
+const MAX_LISTENERS = 50;                    // guide mode fan-out cap
 const MAX_VOICE_AUDIO_DATA_LENGTH = 64 * 1024; // keeps one voice entry below a history page
 const MAX_HISTORY_PAGE_BYTES = 96 * 1024;
 const MAX_FISH_TTS_CHARS = 10_000;
@@ -148,6 +161,9 @@ export class SnailRelay implements DurableObject {
       lastActivity: Date.now(),
       hostSocket: null,
       guestSocket: null,
+      mode: "duo",
+      listenerLanguages: [],
+      listenerSockets: new Map(),
       quotaUsed: 0,
       fishTtsChars: 0,
       sessionSecret: "",
@@ -182,10 +198,16 @@ export class SnailRelay implements DurableObject {
             (pagedHistory.length > 0 ? pagedHistory : savedHistory ?? []),
           hostSocket: null,
           guestSocket: null,
+          // Live sockets are never restored from storage — only from the
+          // hibernation attachments (restoreSockets below).
+          listenerSockets: new Map(),
         };
         // Sessions created before chat history was introduced may not have
         // this field yet.
         this.session.chatHistory ??= [];
+        // Sessions created before guide mode existed are duo rooms.
+        this.session.mode ??= "duo";
+        this.session.listenerLanguages ??= [];
         const storedDeliveredMessageIds =
           saved?.deliveredMessageIds ?? savedMeta?.deliveredMessageIds;
         this.session.deliveredMessageIds = new Set(
@@ -255,6 +277,10 @@ export class SnailRelay implements DurableObject {
       this.session.sourceLang = body.sourceLang || "de";
       this.session.targetLang = body.targetLang || "en";
       this.session.tier = body.tier || "free";
+      this.session.mode = body.mode === "guide" ? "guide" : "duo";
+      this.session.listenerLanguages = Array.isArray(body.listenerLanguages)
+        ? body.listenerLanguages.filter((lang: unknown) => typeof lang === "string")
+        : [];
       this.session.sessionSecret = body.sessionSecret || "";
       if (body.sessionSecret) {
         this.secret = body.sessionSecret;
@@ -294,6 +320,9 @@ export class SnailRelay implements DurableObject {
           sourceLang: this.session.sourceLang,
           targetLang: this.session.targetLang,
           tier: this.session.tier,
+          mode: this.session.mode,
+          listenerLanguages: this.session.listenerLanguages,
+          listenerCount: this.session.listenerSockets.size,
         }),
         {
           status: this.session.roomId ? 200 : 404,
@@ -349,6 +378,12 @@ export class SnailRelay implements DurableObject {
         // accepted from a socket that has not completed the auth handshake.
         if (!authenticated) {
           this.send(ws, { type: "error", error: "Not authenticated" });
+          return;
+        }
+        // Guide mode has no audio path: listeners are displays and the
+        // speaker's device translates locally (v1 decision D4).
+        if (this.session.mode === "guide") {
+          this.send(ws, { type: "error", error: "Audio streaming is not available in guide mode" });
           return;
         }
         const frame = message instanceof Uint8Array ? message : new Uint8Array(message);
@@ -419,7 +454,15 @@ export class SnailRelay implements DurableObject {
               this.session.hostSocket = ws;
               this.session.hostId = userId;
               this.session.hostAgreementPublicKey = agreementPublicKey;
-            } else {
+            } else if (payload.role === "guest") {
+              // Guide rooms have no guest slot: the second participant is a
+              // listener, not a translating peer. Reject the guest token so a
+              // stale join path cannot silently occupy a duo slot.
+              if (this.session.mode === "guide") {
+                this.send(ws, { type: "auth_error", error: "Not a listening room" });
+                ws.close(4002, "Not a listening room");
+                return;
+              }
               if (this.session.guestSocket) {
                 this.send(ws, { type: "auth_error", error: "Guest already connected" });
                 ws.close(4002, "Guest already connected");
@@ -428,6 +471,28 @@ export class SnailRelay implements DurableObject {
               this.session.guestSocket = ws;
               this.session.guestId = userId;
               this.session.guestAgreementPublicKey = agreementPublicKey;
+            } else {
+              // Listener (guide mode only). The previous `else` branch would
+              // have assigned any non-host role to the guest slot, silently
+              // turning a listener into a translating peer.
+              if (this.session.mode !== "guide") {
+                this.send(ws, { type: "auth_error", error: "Not a listening room" });
+                ws.close(4002, "Not a listening room");
+                return;
+              }
+              const existing = this.session.listenerSockets.get(userId);
+              if (existing && existing !== ws) {
+                // Same identity reconnecting: replace the old socket instead
+                // of consuming a second slot. The old socket's close handler
+                // checks identity, so it will not emit listener_left.
+                try { existing.close(4002, "Replaced by new connection"); } catch {}
+                this.session.listenerSockets.delete(userId);
+              } else if (!existing && this.session.listenerSockets.size >= MAX_LISTENERS) {
+                this.send(ws, { type: "auth_error", error: "Room is full" });
+                ws.close(4002, "Room is full");
+                return;
+              }
+              this.session.listenerSockets.set(userId, ws);
             }
 
             authenticated = true;
@@ -435,32 +500,52 @@ export class SnailRelay implements DurableObject {
             this.localAttachments.set(ws, updatedAttachment);
             ws.serializeAttachment?.(updatedAttachment);
             await this.scheduleInactivityAlarm();
-            this.send(ws, { type: "auth_ok", peerId: payload.role });
+            this.send(ws, {
+              type: "auth_ok",
+              peerId: payload.role,
+              // A (re)connecting host needs the current audience size to
+              // render its counter without waiting for the next join.
+              ...(payload.role === "host" && this.session.mode === "guide"
+                ? { count: this.session.listenerSockets.size }
+                : {}),
+            });
 
             if (this.session.chatHistory.length > 0) {
               this.send(ws, { type: "chat_history", history: this.session.chatHistory });
             }
 
-            // Notify peer
-            const peer = this.getPeer(ws);
-            if (peer) {
-              this.send(peer, {
-                type: "peer_joined",
-                peerId: payload.role,
-                peerAgreementPublicKey: payload.role === "host"
-                  ? this.session.hostAgreementPublicKey ?? undefined
-                  : this.session.guestAgreementPublicKey ?? undefined,
-              });
-              // The newly authenticated socket also needs the peer state.
-              // Otherwise the guest remains stuck on "waiting" when the host
-              // was already connected before the guest joined.
-              this.send(ws, {
-                type: "peer_joined",
-                peerId: peerRole === "host" ? "guest" : "host",
-                peerAgreementPublicKey: peerRole === "host"
-                  ? this.session.guestAgreementPublicKey ?? undefined
-                  : this.session.hostAgreementPublicKey ?? undefined,
-              });
+            if (payload.role === "listener") {
+              // The host tracks the audience; listeners get no peer state.
+              if (this.session.hostSocket) {
+                this.send(this.session.hostSocket, {
+                  type: "listener_joined",
+                  listenerId: userId,
+                  count: this.session.listenerSockets.size,
+                });
+              }
+            } else {
+              // Notify peer. Guide rooms have no guest slot, so getPeer()
+              // returns null there and this block is a duo-mode path.
+              const peer = this.getPeer(ws);
+              if (peer) {
+                this.send(peer, {
+                  type: "peer_joined",
+                  peerId: payload.role,
+                  peerAgreementPublicKey: payload.role === "host"
+                    ? this.session.hostAgreementPublicKey ?? undefined
+                    : this.session.guestAgreementPublicKey ?? undefined,
+                });
+                // The newly authenticated socket also needs the peer state.
+                // Otherwise the guest remains stuck on "waiting" when the host
+                // was already connected before the guest joined.
+                this.send(ws, {
+                  type: "peer_joined",
+                  peerId: peerRole === "host" ? "guest" : "host",
+                  peerAgreementPublicKey: peerRole === "host"
+                    ? this.session.guestAgreementPublicKey ?? undefined
+                    : this.session.hostAgreementPublicKey ?? undefined,
+                });
+              }
             }
 
             await this.saveState();
@@ -506,15 +591,80 @@ export class SnailRelay implements DurableObject {
           this.session.deliveredMessageIds.add(messageId);
           this.trimDeliveredMessageIds();
           await this.saveState();
-          const peer = this.getPeer(ws);
-          if (peer) this.send(peer, chatMessage);
+          if (this.session.mode === "guide") {
+            // Guide routing: the host's messages reach the whole audience
+            // (announcements), a listener's message reaches only the host
+            // (questions). No peer slot exists in this mode.
+            if (peerRole === "host") {
+              this.fanOutToListeners(chatMessage);
+            } else if (this.session.hostSocket) {
+              this.send(this.session.hostSocket, chatMessage);
+            }
+          } else {
+            const peer = this.getPeer(ws);
+            if (peer) this.send(peer, chatMessage);
+          }
           this.send(ws, { type: "delivery_ack", messageId: chatMessage.messageId });
+          break;
+        }
+
+        case "subtitle": {
+          if (!authenticated || !msg.text?.trim()) {
+            this.send(ws, { type: "error", error: "Not authenticated or empty subtitle" });
+            return;
+          }
+          // Only the guide speaks; a listener sending subtitles would let any
+          // audience member impersonate the speaker.
+          if (peerRole !== "host" || this.session.mode !== "guide") {
+            this.send(ws, { type: "error", error: "Only the host can send subtitles" });
+            return;
+          }
+          if (msg.text!.length > MAX_SUBTITLE_TEXT_LENGTH) {
+            this.send(ws, {
+              type: "error",
+              error: `Subtitle too long (max ${MAX_SUBTITLE_TEXT_LENGTH} characters)`,
+            });
+            return;
+          }
+
+          const messageId = msg.messageId || crypto.randomUUID();
+
+          if (this.session.deliveredMessageIds.has(messageId)) {
+            this.send(ws, { type: "delivery_ack", messageId });
+            break;
+          }
+
+          const subtitle: ServerMessage = {
+            type: "subtitle",
+            messageId,
+            senderId: userId || undefined,
+            text: msg.text.trim(),
+            sourceLang: msg.sourceLang || this.session.sourceLang,
+            targetLang: msg.targetLang || this.session.targetLang,
+            timestamp: msg.timestamp || Date.now(),
+          };
+
+          // Subtitles double as the transcript: a listener that joins later
+          // receives the full history through the regular chat_history replay.
+          this.session.chatHistory.push(subtitle);
+          this.session.chatHistory = this.session.chatHistory.slice(-500);
+          this.session.deliveredMessageIds.add(messageId);
+          this.trimDeliveredMessageIds();
+          await this.saveState();
+          this.fanOutToListeners(subtitle);
+          this.send(ws, { type: "delivery_ack", messageId: subtitle.messageId });
           break;
         }
 
         case "fish_tts_config": {
           if (!authenticated || !peerRole || !msg.voiceId?.trim()) {
             this.send(ws, { type: "error", error: "Invalid Fish TTS configuration" });
+            return;
+          }
+          // Fish TTS is a duo-mode provider path; listeners never own a
+          // translating session.
+          if (peerRole === "listener") {
+            this.send(ws, { type: "error", error: "Fish TTS is not available in guide mode" });
             return;
           }
           if (!this.fishApiKey) {
@@ -550,6 +700,10 @@ export class SnailRelay implements DurableObject {
             this.send(ws, { type: "error", error: "Invalid Fish TTS text" });
             return;
           }
+          if (peerRole === "listener") {
+            this.send(ws, { type: "error", error: "Fish TTS is not available in guide mode" });
+            return;
+          }
           if (msg.text.length > MAX_FISH_TTS_TEXT_LENGTH ||
               this.session.fishTtsChars + msg.text.length > MAX_FISH_TTS_CHARS) {
             relayLog("provider_quota_rejected", { provider: "fish_tts", limit: MAX_FISH_TTS_CHARS });
@@ -570,6 +724,10 @@ export class SnailRelay implements DurableObject {
         case "fish_tts_flush": {
           if (!authenticated || !peerRole) {
             this.send(ws, { type: "error", error: "Not authenticated" });
+            return;
+          }
+          if (peerRole === "listener") {
+            this.send(ws, { type: "error", error: "Fish TTS is not available in guide mode" });
             return;
           }
           try {
@@ -617,8 +775,16 @@ export class SnailRelay implements DurableObject {
           this.session.deliveredMessageIds.add(messageId);
           this.trimDeliveredMessageIds();
           await this.saveState();
-          const peer = this.getPeer(ws);
-          if (peer) this.send(peer, voiceMessage);
+          if (this.session.mode === "guide") {
+            if (peerRole === "host") {
+              this.fanOutToListeners(voiceMessage);
+            } else if (this.session.hostSocket) {
+              this.send(this.session.hostSocket, voiceMessage);
+            }
+          } else {
+            const peer = this.getPeer(ws);
+            if (peer) this.send(peer, voiceMessage);
+          }
           this.send(ws, { type: "delivery_ack", messageId: voiceMessage.messageId });
           break;
         }
@@ -643,14 +809,30 @@ export class SnailRelay implements DurableObject {
             };
             await this.saveState();
           }
-          // Forward to peer
-          const peer = this.getPeer(ws);
-          if (peer) {
-            this.send(peer, {
-              type: "edit",
-              messageId: msg.messageId,
-              text: msg.text.trim(),
-            });
+          // Forward to peer (duo) or fan out to the audience (guide host).
+          if (this.session.mode === "guide") {
+            if (peerRole === "host") {
+              this.fanOutToListeners({
+                type: "edit",
+                messageId: msg.messageId,
+                text: msg.text.trim(),
+              });
+            } else if (this.session.hostSocket) {
+              this.send(this.session.hostSocket, {
+                type: "edit",
+                messageId: msg.messageId,
+                text: msg.text.trim(),
+              });
+            }
+          } else {
+            const peer = this.getPeer(ws);
+            if (peer) {
+              this.send(peer, {
+                type: "edit",
+                messageId: msg.messageId,
+                text: msg.text.trim(),
+              });
+            }
           }
           break;
         }
@@ -670,13 +852,27 @@ export class SnailRelay implements DurableObject {
             (m) => m.messageId !== msg.messageId
           );
           await this.saveState();
-          // Forward to peer
-          const peer = this.getPeer(ws);
-          if (peer) {
-            this.send(peer, {
-              type: "delete",
-              messageId: msg.messageId,
-            });
+          // Forward to peer (duo) or fan out to the audience (guide host).
+          if (this.session.mode === "guide") {
+            if (peerRole === "host") {
+              this.fanOutToListeners({
+                type: "delete",
+                messageId: msg.messageId,
+              });
+            } else if (this.session.hostSocket) {
+              this.send(this.session.hostSocket, {
+                type: "delete",
+                messageId: msg.messageId,
+              });
+            }
+          } else {
+            const peer = this.getPeer(ws);
+            if (peer) {
+              this.send(peer, {
+                type: "delete",
+                messageId: msg.messageId,
+              });
+            }
           }
           break;
         }
@@ -684,6 +880,12 @@ export class SnailRelay implements DurableObject {
         case "signal": {
           if (!authenticated || !msg.signalType || msg.signal == null) {
             this.send(ws, { type: "error", error: "Invalid WebRTC signal" });
+            return;
+          }
+          // No P2P in guide mode: listeners are displays, not translating
+          // peers, so there is no data channel to negotiate.
+          if (this.session.mode === "guide") {
+            this.send(ws, { type: "error", error: "Signaling is not available in guide mode" });
             return;
           }
           const peer = this.getPeer(ws);
@@ -709,6 +911,12 @@ export class SnailRelay implements DurableObject {
             this.send(ws, { type: "error", error: "Not authenticated" });
             return;
           }
+          // In guide mode only the speaker owns the room; a listener ending
+          // the session would disconnect the whole audience.
+          if (this.session.mode === "guide" && peerRole !== "host") {
+            this.send(ws, { type: "error", error: "Only the host can end the session" });
+            return;
+          }
           this.broadcast({ type: "session_end", reason: "Session ended" });
           await this.cleanup();
           break;
@@ -725,6 +933,7 @@ export class SnailRelay implements DurableObject {
   async webSocketClose(ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): Promise<void> {
     const attachment = (ws.deserializeAttachment?.() as SocketAttachment | null) ?? this.localAttachments.get(ws);
     const peerRole = attachment?.peerRole ?? null;
+    const userId = attachment?.userId ?? null;
       // Resolve the counterpart before clearing the closing socket. Looking it
       // up afterwards always returns null, which leaves the other device
       // visually stuck on "Verbunden" after a peer disconnects.
@@ -739,20 +948,38 @@ export class SnailRelay implements DurableObject {
         // Guard by socket identity so a delayed close from an old connection
         // cannot evict a newly authenticated guest.
         this.session.guestId = null;
+      } else if (peerRole === "listener" && userId) {
+        // Guard by socket identity: a reconnect replaces the map entry with a
+        // new socket, and the old socket's delayed close must not evict it.
+        if (this.session.listenerSockets.get(userId) === ws) {
+          this.session.listenerSockets.delete(userId);
+          if (this.session.hostSocket) {
+            this.send(this.session.hostSocket, {
+              type: "listener_left",
+              listenerId: userId,
+              count: this.session.listenerSockets.size,
+            });
+          }
+        }
       }
-      if (peerRole) {
+      if (peerRole === "host" || peerRole === "guest") {
         this.fishTts.get(peerRole)?.close();
         this.fishTts.delete(peerRole);
       }
 
       if (peer) {
         this.send(peer, { type: "peer_left", peerId: peerRole || "unknown" });
+      } else if (peerRole === "host" && this.session.mode === "guide") {
+        // The speaker dropped: tell the audience instead of leaving every
+        // listener on a silently frozen transcript. The inactivity alarm
+        // eventually cleans the room up if the host does not return.
+        this.fanOutToListeners({ type: "peer_left", peerId: "host" });
       }
 
       await this.saveState();
       await this.scheduleInactivityAlarm();
 
-      if (!this.session.hostSocket && !this.session.guestSocket) {
+      if (!this.session.hostSocket && !this.session.guestSocket && this.session.listenerSockets.size === 0) {
         void this.scheduleInactivityAlarm();
       }
   }
@@ -767,6 +994,13 @@ export class SnailRelay implements DurableObject {
     if (ws === this.session.hostSocket) return this.session.guestSocket;
     if (ws === this.session.guestSocket) return this.session.hostSocket;
     return null;
+  }
+
+  /** Guide mode: deliver one message to every connected listener. */
+  private fanOutToListeners(msg: ServerMessage): void {
+    for (const socket of this.session.listenerSockets.values()) {
+      this.send(socket, msg);
+    }
   }
 
   private send(ws: WebSocket, msg: ServerMessage): void {
@@ -829,6 +1063,7 @@ export class SnailRelay implements DurableObject {
   private broadcast(msg: ServerMessage): void {
     if (this.session.hostSocket) this.send(this.session.hostSocket, msg);
     if (this.session.guestSocket) this.send(this.session.guestSocket, msg);
+    this.fanOutToListeners(msg);
   }
 
   private restoreSockets(): void {
@@ -837,6 +1072,11 @@ export class SnailRelay implements DurableObject {
       if (!attachment?.authenticated || !attachment.peerRole) continue;
       if (attachment.peerRole === "host") this.session.hostSocket = ws;
       if (attachment.peerRole === "guest") this.session.guestSocket = ws;
+      // Without this the fan-out is dead after every hibernation: the map is
+      // runtime state and the sockets only exist as hibernation attachments.
+      if (attachment.peerRole === "listener" && attachment.userId) {
+        this.session.listenerSockets.set(attachment.userId, ws);
+      }
     }
   }
 
@@ -848,7 +1088,9 @@ export class SnailRelay implements DurableObject {
     // WebSocket instances are live runtime objects and cannot be persisted.
     // Keep metadata and bounded message history separate so voice payloads
     // cannot make the metadata record exceed Durable Object limits.
-    const { chatHistory, hostSocket, guestSocket, ...metadata } = this.session;
+    // `listenerSockets` is a Map of live sockets and must be excluded too —
+    // serializing it would throw and take the whole DO down.
+    const { chatHistory, hostSocket, guestSocket, listenerSockets, ...metadata } = this.session;
     const persisted = {
       ...metadata,
       hostSocket: null,
@@ -901,7 +1143,8 @@ export class SnailRelay implements DurableObject {
     relayLog("room_cleanup", {
       reason: "session_end",
       connectedSockets: Number(Boolean(this.session.hostSocket)) +
-        Number(Boolean(this.session.guestSocket)),
+        Number(Boolean(this.session.guestSocket)) +
+        this.session.listenerSockets.size,
     });
     for (const connection of this.fishTts.values()) connection.close();
     this.fishTts.clear();
@@ -911,8 +1154,12 @@ export class SnailRelay implements DurableObject {
     if (this.session.guestSocket) {
       try { this.session.guestSocket.close(4000, "Session ended"); } catch {}
     }
+    for (const socket of this.session.listenerSockets.values()) {
+      try { socket.close(4000, "Session ended"); } catch {}
+    }
     this.session.hostSocket = null;
     this.session.guestSocket = null;
+    this.session.listenerSockets.clear();
     await this.state.storage.deleteAll();
   }
 }

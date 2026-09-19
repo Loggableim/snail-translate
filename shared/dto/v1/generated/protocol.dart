@@ -16,5 +16,8 @@ enum ProtocolMessageType {
   peerJoined,
   peerLeft,
   sessionEnd,
+  subtitle,
+  listenerJoined,
+  listenerLeft,
   error,
 }
