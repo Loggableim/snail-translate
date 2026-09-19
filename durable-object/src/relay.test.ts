@@ -144,7 +144,7 @@ describe("SnailRelay lifecycle and limits", () => {
   it("rejects oversized chat and PCM messages", async () => {
     const { relay } = await initializedRelay();
     const host = await connect(relay, "host", "host");
-    host.socket.send(JSON.stringify({ type: "chat", text: "x".repeat(10_001) }));
+    host.socket.send(JSON.stringify({ type: "chat", text: "x".repeat(16_385) }));
     host.socket.send(framePcm(new Uint8Array(32_001), 16_000, "peer_pcm"));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(messagesOf(host, "error").map((message) => message.error).join(" ")).toContain("too long");
