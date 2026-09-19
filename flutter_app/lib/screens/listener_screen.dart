@@ -8,6 +8,7 @@ import '../l10n/app_localizations.dart';
 import '../models/translation_languages.dart';
 import '../services/audio_service.dart';
 import '../services/session_service.dart';
+import '../services/tts_queue_policy.dart';
 
 /// One subtitle line as shown to a listener.
 class _SubtitleLine {
@@ -43,6 +44,16 @@ class _ListenerScreenState extends State<ListenerScreen> {
   final _scrollController = ScrollController();
   final _questionController = TextEditingController();
   final _tts = FlutterTts();
+  late final TtsQueuePolicy _ttsPolicy = TtsQueuePolicy(
+    speak: _speak,
+    stop: () async {
+      try {
+        await _tts.stop();
+      } catch (_) {
+        // The engine may be absent; subtitles remain the source of truth.
+      }
+    },
+  );
   final List<_SubtitleLine> _lines = <_SubtitleLine>[];
   String? _language;
   bool _ttsEnabled = true;
@@ -181,22 +192,12 @@ class _ListenerScreenState extends State<ListenerScreen> {
   /// falls behind — otherwise the voice reads a transcript that is already
   /// twenty seconds old while the speaker has moved on.
   void _speakIfRelevant(_SubtitleLine line) {
-    if (!_ttsEnabled || !_ttsAvailable) return;
     if (line.targetLang != _language) return;
-    if (!_isCompleteSentence(line.text)) return;
-    unawaited(_speak(line.text));
-  }
-
-  static bool _isCompleteSentence(String text) {
-    final trimmed = text.trim();
-    if (trimmed.length < 2) return false;
-    return RegExp(r'[.!?。！？…]$').hasMatch(trimmed);
+    unawaited(_ttsPolicy.offer(line.text, enabled: _ttsEnabled && _ttsAvailable));
   }
 
   Future<void> _speak(String text) async {
     try {
-      // Drop anything still queued: late audio is worse than none.
-      await _tts.stop();
       await _tts.speak(text);
     } catch (_) {
       // Speech is best-effort; subtitles remain the source of truth.

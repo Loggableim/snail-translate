@@ -10,6 +10,7 @@ import '../models/provider_config.dart';
 import '../models/translation_languages.dart';
 import '../services/audio_service.dart';
 import '../services/fish_audio_asr_service.dart';
+import '../services/guide_pipeline.dart';
 import '../services/openai_realtime_service.dart';
 import '../services/provider_config_service.dart';
 import '../services/session_service.dart';
@@ -35,6 +36,18 @@ class _GuideScreenState extends State<GuideScreen> {
   final _openAi = OpenAiRealtimeService();
   final _fishAsr = FishAudioAsrService();
   final _translator = TranslationService();
+  late final GuidePipeline _pipeline = GuidePipeline(
+    translate: ({required text, required sourceLang, required targetLang, required config}) =>
+        _translator.translate(
+            text: text,
+            sourceLang: sourceLang,
+            targetLang: targetLang,
+            config: config),
+    publish: ({required text, required sourceLang, required targetLang}) =>
+        _relay?.sendSubtitle(
+            text: text, sourceLang: sourceLang, targetLang: targetLang),
+    isImplausible: FishAudioAsrService.isImplausibleTranscript,
+  );
 
   final Set<String> _listenerLanguages = <String>{};
   bool _running = false;
@@ -233,30 +246,12 @@ class _GuideScreenState extends State<GuideScreen> {
       });
     }
 
-    final targets = _listenerLanguages
-        .where((lang) => lang != sourceLang)
-        .toList(growable: false);
-    if (targets.isEmpty) return;
-
-    final results = await Future.wait(targets.map((target) async {
-      final result = await _translator.translate(
-        text: source,
-        sourceLang: sourceLang,
-        targetLang: target,
-        config: config,
-      );
-      return MapEntry(target, result);
-    }));
-
-    for (final entry in results) {
-      final result = entry.value;
-      if (!result.translated) continue;
-      relay.sendSubtitle(
-        text: result.text,
-        sourceLang: sourceLang,
-        targetLang: entry.key,
-      );
-    }
+    await _pipeline.processTurn(
+      source: source,
+      sourceLang: sourceLang,
+      listenerLanguages: _listenerLanguages.toList(growable: false),
+      config: config,
+    );
   }
 
   Future<void> _stop() async {
