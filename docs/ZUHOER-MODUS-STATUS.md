@@ -11,7 +11,7 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 | Check | Befehl | Ergebnis |
 |---|---|---|
 | Flutter-Analyse | `flutter analyze` (vendored SDK) | No issues found |
-| Flutter-Tests | `flutter test` | **215 grün, 1 skip** (17 neue) |
+| Flutter-Tests | `flutter test` | **228 grün, 1 skip** (30 neue) |
 | Worker-Tests | `cd worker && npx vitest run` | **33/33 grün** (9 neue) |
 | DO-Typcheck | `cd durable-object && npx tsc --noEmit` | clean |
 | DO-Tests | `cd durable-object && npx vitest run` | **39/39 grün** (15 neue) |
@@ -44,7 +44,7 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 |---|---|---|
 | G-13 SessionService + Session-Model | ✅ | `mode`, `listenerLanguages`, `createGuideRoom`, `joinAsListener`; 8 Unit-Tests |
 | G-14 Guide-Setup-Ansicht | ✅ | Sprachen-Multi-Select, Provider-Guard (Gemini abgelehnt), Start; 3 Widget-Tests |
-| G-15 Guide-Pipeline | ✅ | Fish: `SpeechTurnBuffer` + `FishAudioAsrService` + Halluzinations-Guard; OpenAI: `takeCompletedTurns()`; MT × N via `Future.wait`, Quellsprache übersprungen |
+| G-15 Guide-Pipeline | ✅ | `GuidePipeline` (eigene Einheit): Fish: `SpeechTurnBuffer` + `FishAudioAsrService` + Halluzinations-Guard; OpenAI: `takeCompletedTurns()`; MT × N parallel via `Future.wait`, Quellsprache übersprungen; **6 Unit-Tests mit Fake-MT** (Parallelität, Guard, Fehlerpfad) |
 | G-16 Guide-Lauf-Ansicht | ✅ | QR + Code + Zähler + Quelltext + Fragenliste + Stop; `PopScope`-Teardown |
 | G-17 AudioService-Erweiterung | ✅ | `sendSubtitle`, `subtitle`/`listener_joined`/`listener_left`, `listenerCount`; kein P2P/ECDH im Guide-Pfad |
 | G-18 Home-Tile + Route | ✅ | Tile „Zuhör-Modus" → `/guide`; Grid auf 9 Tiles umgepackt (2×5, 3×4, 5×2); `home_screen_test` 18/18 |
@@ -55,8 +55,8 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 |---|---|---|
 | G-19 Listener-Join | ✅ | `snail://guide/<room>`-Schema; 409-Fallback mit sichtbarem Hinweis |
 | G-20 Listener-Screen | ✅ | Sprachwahl nur aus `listenerLanguages`, Auto-Scroll-Untertitel, TTS-Toggle, Status, **Frage-Eingabe** (Chat an den Host); 5 Widget-Tests |
-| G-21 TTS-Disziplin | ✅ | Nur komplette Sätze, Queue-Verwerfung (`stop()` vor `speak()`), stiller Fallback ohne Sprachpaket, Stop beim Exit |
-| G-22 l10n | ✅ | 25 Keys × 9 Locales, Parität 0/0, `gen-l10n` läuft |
+| G-21 TTS-Disziplin | ✅ | `TtsQueuePolicy` (eigene Einheit): nur komplette Sätze, Queue-Verwerfung bei Rückstand, Slot-Freigabe bei Engine-Fehler, stiller Fallback ohne Sprachpaket, Stop beim Exit; **7 Unit-Tests mit Fake-TTS** |
+| G-22 l10n | ✅ | 29 Keys × 9 Locales, Parität 0/0, `gen-l10n` läuft |
 | G-23 flutter_tts-Integration | ✅ | `pubspec.yaml` + `<queries>` für `TTS_SERVICE` im Manifest |
 
 ### Phase 4 — Politur & Verifikation
