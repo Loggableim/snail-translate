@@ -151,6 +151,7 @@ wrangler deploy
 | `/api/rooms` | POST | Raum erstellen (Host); `mode: "guide"` + `listenerLanguages` für den Zuhör-Modus |
 | `/api/rooms/:id/join` | POST | Raum beitreten (Guest); auf einem Guide-Raum 409 mit `code: "guide_room_use_listen"` |
 | `/api/rooms/:id/listen` | POST | Guide-Raum als Zuhörer beitreten (kein Quota-Verbrauch) |
+| `/api/rooms/:id/status` | GET | Öffentlicher Raumstatus: `mode`, `sourceLang`, `listenerLanguages`, `listenerCount` |
 | `/ws?room=<id>` | WS | WebSocket-Relay |
 
 ## Historischer Provider-Benchmark

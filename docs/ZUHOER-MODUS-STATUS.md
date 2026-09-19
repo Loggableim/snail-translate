@@ -11,8 +11,8 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 | Check | Befehl | Ergebnis |
 |---|---|---|
 | Flutter-Analyse | `flutter analyze` (vendored SDK) | No issues found |
-| Flutter-Tests | `flutter test` | **213 grün, 1 skip** (15 neue) |
-| Worker-Tests | `cd worker && npx vitest run` | **31/31 grün** (7 neue) |
+| Flutter-Tests | `flutter test` | **215 grün, 1 skip** (17 neue) |
+| Worker-Tests | `cd worker && npx vitest run` | **33/33 grün** (9 neue) |
 | DO-Typcheck | `cd durable-object && npx tsc --noEmit` | clean |
 | DO-Tests | `cd durable-object && npx vitest run` | **39/39 grün** (15 neue) |
 | Protokoll-Drift | `node tools/generate-protocol.mjs` + diff | keine Drift (20 Typen) |
@@ -33,6 +33,7 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 | G-07 Guide-Routing | ✅ | chat/edit/delete/voice-Fan-out, Listener→Host, signal/PCM/end/fish_tts abgelehnt, Host-Disconnect → `peer_left`; Tests |
 | G-08 Worker: Guide-Raum erstellen | ✅ | `mode` + `listenerLanguages` validiert (1–18, gegen die 18 App-Sprachen); Tests inkl. 400-Fälle |
 | G-09 Worker: `/listen` | ✅ | Listener-Token ohne Quota; 404/409-Fälle; JWT-Rolle geprüft |
+| G-09b Worker: `GET /api/rooms/:id/status` | ✅ | Öffentlicher Status (mode, sourceLang, listenerLanguages, listenerCount) ohne Auth; nur Routing-Metadaten; Tests inkl. 404 |
 | G-10 Worker: `/join` auf Guide-Raum | ✅ | 409 + `code: "guide_room_use_listen"` |
 | G-11 DTO + Protokoll-Generator | ✅ | 3 neue Typen + Schemas; Generator läuft; keine Drift |
 | G-12 Phase-1-Tests | ✅ | DO 37/37, Worker 31/31, tsc clean |
@@ -53,7 +54,7 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 | Punkt | Status | Evidenz |
 |---|---|---|
 | G-19 Listener-Join | ✅ | `snail://guide/<room>`-Schema; 409-Fallback mit sichtbarem Hinweis |
-| G-20 Listener-Screen | ✅ | Sprachwahl nur aus `listenerLanguages`, Auto-Scroll-Untertitel, TTS-Toggle, Status; 3 Widget-Tests |
+| G-20 Listener-Screen | ✅ | Sprachwahl nur aus `listenerLanguages`, Auto-Scroll-Untertitel, TTS-Toggle, Status, **Frage-Eingabe** (Chat an den Host); 5 Widget-Tests |
 | G-21 TTS-Disziplin | ✅ | Nur komplette Sätze, Queue-Verwerfung (`stop()` vor `speak()`), stiller Fallback ohne Sprachpaket, Stop beim Exit |
 | G-22 l10n | ✅ | 25 Keys × 9 Locales, Parität 0/0, `gen-l10n` läuft |
 | G-23 flutter_tts-Integration | ✅ | `pubspec.yaml` + `<queries>` für `TTS_SERVICE` im Manifest |
@@ -120,7 +121,16 @@ angelegt. Für den vollständigen Test muss zuerst `wrangler deploy` laufen
 
 ## Nebenfund
 
-Die neuen Widget-Tests deckten einen vorbestehenden Crash auf:
-`OpenAiRealtimeService.disconnect()` rief `notifyListeners()` nach
-`dispose()` auf („used after being disposed"). Behoben mit dem `_disposed`-Guard,
-den `GeminiLiveService` bereits hatte.
+Die neuen Widget-Tests deckten **zwei vorbestehende Dispose-Bugs** auf:
+
+1. `OpenAiRealtimeService.disconnect()` rief `notifyListeners()` nach
+   `dispose()` auf („used after being disposed"). Behoben mit dem
+   `_disposed`-Guard, den `GeminiLiveService` bereits hatte.
+2. `AudioService` hatte **gar kein** `dispose()`-Override und `disconnect()`
+   notifizierte bedingungslos — ein Screen, der beim Teardown trennt, warf
+   „A AudioService was used after being disposed". Guard + Override ergänzt.
+
+Zusätzlich: Der Kick-Handler riss den Widget-Tree **innerhalb** des
+Socket-Dispatch ab und löste „setState() called when widget tree was locked"
+aus; der Callback wird jetzt per `scheduleMicrotask` verzögert und der Hinweis
+nach dem Teardown gezeigt.
