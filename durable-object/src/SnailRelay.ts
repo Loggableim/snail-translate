@@ -13,7 +13,12 @@ import {
   verifySessionToken,
   type SessionTokenPayload,
 } from "./auth";
-import { FishTtsConnection, framePcm, framePcmEnd } from "./fish-tts";
+import {
+  type FishTtsConfig,
+  FishTtsConnection,
+  framePcm,
+  framePcmEnd,
+} from "./fish-tts";
 import { PROTOCOL_VERSION } from "../../shared/dto/v1/generated/protocol";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -38,6 +43,9 @@ interface SessionState {
   historyPageCount?: number;
   chatHistory: ServerMessage[];
   deliveredMessageIds: Set<string>;
+  // Last configured Fish TTS voice per direction. Persisted so a hibernated
+  // DO can rebuild its warm Fish connections after wake-up.
+  fishTtsConfig?: Partial<Record<"host" | "guest", FishTtsConfig>>;
 }
 
 interface ClientMessage {
@@ -201,9 +209,18 @@ export class SnailRelay implements DurableObject {
       this.restoreSockets();
     });
     // Older local Miniflare versions expose the hibernation API but not the
-    // automatic response helper. Cloudflare handles protocol ping frames in
-    // production; keep local tests compatible with that runtime gap.
-    this.state.setWebSocketAutoResponse?.({ request: "ping", response: "pong" });
+    // automatic response helper. workerd additionally requires a real
+    // WebSocketRequestResponsePair instance — a plain object throws a
+    // TypeError at construction time and kills every request that touches
+    // this DO. Cloudflare handles protocol ping frames in production; keep
+    // local runtimes compatible by tolerating both gaps.
+    try {
+      this.state.setWebSocketAutoResponse?.(
+        new WebSocketRequestResponsePair("ping", "pong"),
+      );
+    } catch {
+      // Auto-response is an optimization, not a correctness requirement.
+    }
   }
 
   // ── Alarm Handler ──────────────────────────────────────────────────
@@ -509,14 +526,18 @@ export class SnailRelay implements DurableObject {
             this.send(ws, { type: "error", error: "Unsupported Fish TTS voice or model" });
             return;
           }
+          const fishConfig: FishTtsConfig = {
+            voiceId: msg.voiceId,
+            model: msg.model,
+            temperature: msg.temperature,
+            topP: msg.topP,
+            speed: msg.speed,
+          };
           try {
-            await this.fishConnection(peerRole).configure({
-              voiceId: msg.voiceId,
-              model: msg.model,
-              temperature: msg.temperature,
-              topP: msg.topP,
-              speed: msg.speed,
-            });
+            await this.fishConnection(peerRole).configure(fishConfig);
+            // Persist so a hibernated DO can rebuild the warm connection.
+            this.session.fishTtsConfig ??= {};
+            this.session.fishTtsConfig[peerRole] = fishConfig;
           } catch (err) {
             relayLog("provider_request_failed", { provider: "fish_tts", operation: "configure" });
             this.send(ws, { type: "error", error: "Fish TTS connect failed" });
@@ -759,6 +780,33 @@ export class SnailRelay implements DurableObject {
   private fishConnection(role: "host" | "guest"): FishTtsConnection {
     let connection = this.fishTts.get(role);
     if (connection) return connection;
+    // After hibernation the in-memory map is empty. Rebuild the warm Fish
+    // connection from the persisted per-direction voice configuration so the
+    // first translated turn after wake-up does not fail with "not configured".
+    const savedConfig = this.session.fishTtsConfig?.[role];
+    if (savedConfig?.voiceId) {
+      connection = new FishTtsConnection(
+        this.fishApiKey,
+        (audio) => {
+          const target = role === "host" ? this.session.guestSocket : this.session.hostSocket;
+          if (target) {
+            try { target.send(framePcm(audio, 24000, "fish_tts")); } catch {}
+          }
+        },
+        () => {
+          const target = role === "host" ? this.session.guestSocket : this.session.hostSocket;
+          if (target) {
+            try { target.send(framePcmEnd("fish_tts")); } catch {}
+          }
+        },
+      );
+      // Warm up asynchronously; sendText() awaits ensureOpen() anyway.
+      connection.configure(savedConfig).catch(() => {
+        relayLog("provider_request_failed", { provider: "fish_tts", operation: "restore" });
+      });
+      this.fishTts.set(role, connection);
+      return connection;
+    }
     connection = new FishTtsConnection(
       this.fishApiKey,
       (audio) => {
@@ -806,6 +854,7 @@ export class SnailRelay implements DurableObject {
       hostSocket: null,
       guestSocket: null,
       deliveredMessageIds: [...this.session.deliveredMessageIds],
+      fishTtsConfig: this.session.fishTtsConfig ?? {},
     };
     const pages = this.paginateHistory(chatHistory);
     const previousPageCount = this.session.historyPageCount ?? 0;
