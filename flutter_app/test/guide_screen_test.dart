@@ -1,4 +1,5 @@
-import 'package:flutter/semantics.dart';
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -92,7 +93,7 @@ void main() {
     // `FilledButton.icon` builds a private subclass, so the disabled state is
     // asserted through the semantics node instead of a widget type.
     final semantics = tester.getSemantics(find.text('Zuhör-Modus starten'));
-    expect(semantics.hasFlag(SemanticsFlag.isEnabled), isFalse);
+    expect(semantics.flagsCollection.isEnabled, Tristate.isFalse);
   });
 
   testWidgets('guide setup requires at least one listener language',
