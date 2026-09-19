@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:record/record.dart';
 
 /// Audio output device for playback routing.
 enum AudioOutput { speaker, headset, auto }
@@ -59,6 +61,12 @@ class SnailAudio {
       bool aecEnabled = true,
       bool noiseSuppressionEnabled = true}) async {
     if (!_isValidSampleRate(sampleRate)) return false;
+    // Desktop has no SnailAudioPlugin. The guide needs a microphone there, so
+    // capture goes through the WebRTC audio stack that flutter_webrtc already
+    // ships for Windows.
+    if (_isDesktop) {
+      return _startDesktopCapture(sampleRate);
+    }
     try {
       // Subscribe before starting the native recorder. Otherwise the native
       // thread can emit its first frames while no EventChannel listener is
@@ -87,7 +95,84 @@ class SnailAudio {
     }
   }
 
+  /// True on platforms without the native SnailAudioPlugin.
+  static bool get _isDesktop =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+
+  /// Desktop capture through the `record` package.
+  ///
+  /// Emits the same frame shape as the Android path (`source`, `bytes`,
+  /// `sampleRate`) so the guide pipeline is platform-agnostic. The source is
+  /// always `phone`: desktop has no second microphone to route.
+  ///
+  /// The stream is 16 kHz mono PCM16, which is exactly what the ASR expects —
+  /// no resampling step is needed on this path.
+  Future<bool> _startDesktopCapture(int sampleRate) async {
+    try {
+      final recorder = AudioRecorder();
+      if (!await recorder.hasPermission()) {
+        debugPrint('[SnailAudio] desktop microphone permission denied');
+        return false;
+      }
+      final stream = await recorder.startStream(const RecordConfig(
+        encoder: AudioEncoder.pcm16bits,
+        sampleRate: 16000,
+        numChannels: 1,
+      ));
+      _desktopRecorder = recorder;
+
+      final controller = StreamController<Map<String, dynamic>>.broadcast();
+      _desktopController = controller;
+      _desktopSubscription = stream.listen(
+        (bytes) {
+          if (controller.isClosed || bytes.isEmpty) return;
+          controller.add({
+            'source': 'phone',
+            'bytes': bytes,
+            'sampleRate': sampleRate,
+          });
+        },
+        onError: (Object error) =>
+            debugPrint('[SnailAudio] desktop capture stream error: $error'),
+      );
+
+      _standaloneStream = controller.stream;
+      _isCapturing = true;
+      return true;
+    } catch (error) {
+      debugPrint('[SnailAudio] desktop capture failed: $error');
+      return false;
+    }
+  }
+
+  AudioRecorder? _desktopRecorder;
+  StreamSubscription<Uint8List>? _desktopSubscription;
+  StreamController<Map<String, dynamic>>? _desktopController;
+
   Future<void> stopStandaloneCapture() async {
+    if (_isDesktop) {
+      _isCapturing = false;
+      try {
+        await _desktopSubscription?.cancel();
+      } catch (_) {}
+      _desktopSubscription = null;
+      try {
+        await _desktopRecorder?.stop();
+      } catch (_) {}
+      try {
+        await _desktopRecorder?.dispose();
+      } catch (_) {}
+      _desktopRecorder = null;
+      try {
+        await _desktopController?.close();
+      } catch (_) {}
+      _desktopController = null;
+      _standaloneStream = null;
+      return;
+    }
     try {
       await _methodChannel.invokeMethod('stopStandaloneCapture');
     } catch (e) {
@@ -108,6 +193,14 @@ class SnailAudio {
     bool noiseSuppressionEnabled = true,
   }) async {
     if (!_isValidSampleRate(sampleRate)) return false;
+    // Desktop has no native audio plugin: there is no session to initialize.
+    // Capture starts on demand through the WebRTC path, so this reports
+    // success without touching a channel that does not exist.
+    if (_isDesktop) {
+      _isInitialized = true;
+      _echoGuardEnabled = false;
+      return true;
+    }
     try {
       final result = await _methodChannel.invokeMethod<bool>('initialize', {
         'sampleRate': sampleRate,
@@ -133,6 +226,9 @@ class SnailAudio {
   }
 
   Future<bool> requestMicrophonePermission() async {
+    // Desktop has no runtime permission dialog: the OS grants access on the
+    // first getUserMedia call, and a denial surfaces as a capture failure.
+    if (_isDesktop) return true;
     try {
       return await _methodChannel
               .invokeMethod<bool>('requestMicrophonePermission') ??
@@ -170,6 +266,18 @@ class SnailAudio {
       throw StateError('SnailAudio not initialized. Call initialize() first.');
     }
 
+    // Desktop has no native capture session; the same `record`-based path the
+    // standalone flow uses feeds the session's audio stream.
+    if (_isDesktop) {
+      final started = await _startDesktopCapture(16000);
+      if (started) {
+        _audioStream = _standaloneStream?.map((frame) {
+          return frame['bytes'] as Uint8List;
+        });
+      }
+      return started;
+    }
+
     try {
       final result = await _methodChannel.invokeMethod<bool>('startCapture');
       _isCapturing = result ?? false;
@@ -183,6 +291,13 @@ class SnailAudio {
   /// Stop audio capture.
   Future<void> stopCapture() async {
     if (!_isCapturing) return;
+
+    if (_isDesktop) {
+      await stopStandaloneCapture();
+      _audioStream = null;
+      _isCapturing = false;
+      return;
+    }
 
     try {
       await _methodChannel.invokeMethod('stopCapture');
@@ -223,6 +338,10 @@ class SnailAudio {
     // mute and should not swallow normal speech.
     _playbackUntil =
         DateTime.now().add(Duration(milliseconds: durationMs + 100));
+    // Desktop has no native player. Translated audio is not essential there —
+    // the listener reads subtitles and the guide monitors its own text — so
+    // this is a deliberate no-op rather than a silent failure.
+    if (_isDesktop) return;
     try {
       // Pass the Uint8List straight through. The standard codec maps it to a
       // Java byte[]; converting to List<int> first boxed every single sample
@@ -237,6 +356,7 @@ class SnailAudio {
 
   /// Immediately clears already queued translated speech when the user mutes.
   Future<void> stopPlayback() async {
+    if (_isDesktop) return;
     try {
       await _methodChannel.invokeMethod('stopPlayback');
     } catch (e) {
@@ -247,6 +367,8 @@ class SnailAudio {
   /// Apply a session output choice immediately, including while capture is
   /// already running.
   Future<void> setOutput(AudioOutput output) async {
+    // Desktop has no route control: the OS mixer decides where audio goes.
+    if (_isDesktop) return;
     try {
       await _methodChannel.invokeMethod('setOutput', {'output': output.name});
     } catch (e) {
@@ -266,6 +388,9 @@ class SnailAudio {
   }
 
   Future<void> startSessionKeepAlive() async {
+    // Android-only: keeps a foreground service alive so the OS does not kill
+    // capture. Desktop has no such service.
+    if (_isDesktop) return;
     try {
       await _methodChannel.invokeMethod('startSessionKeepAlive');
     } catch (e) {
@@ -274,6 +399,7 @@ class SnailAudio {
   }
 
   Future<void> stopSessionKeepAlive() async {
+    if (_isDesktop) return;
     try {
       await _methodChannel.invokeMethod('stopSessionKeepAlive');
     } catch (e) {
@@ -313,6 +439,8 @@ class SnailAudio {
   }
 
   Future<void> setInput(AudioInput input) async {
+    // Desktop has a single microphone; there is no phone/headset split.
+    if (_isDesktop) return;
     try {
       await _methodChannel.invokeMethod('setInput', {'input': input.name});
     } catch (e) {
