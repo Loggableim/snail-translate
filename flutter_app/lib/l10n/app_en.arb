@@ -685,5 +685,10 @@
   "guideTranscriptCopied": "Transcript copied to clipboard",
   "listenerRemovedByGuide": "The guide removed you from the session.",
   "listenerAskQuestion": "Ask the guide",
-  "listenerQuestionSent": "Question sent"
+  "listenerQuestionSent": "Question sent",
+  "contactsRequestReceived": "Contact request received",
+  "contactsRequestAccepted": "Contact request accepted",
+  "contactsRequestDeclined": "Contact request declined",
+  "contactsSendRequest": "Add as contact",
+  "contactsSelfScan": "That is your own QR code"
 }

@@ -671,5 +671,10 @@
   "guideTranscriptCopied": "Transkript in die Zwischenablage kopiert",
   "listenerRemovedByGuide": "Der Guide hat dich aus der Session entfernt.",
   "listenerAskQuestion": "Frage an den Guide",
-  "listenerQuestionSent": "Frage gesendet"
+  "listenerQuestionSent": "Frage gesendet",
+  "contactsRequestReceived": "Kontaktanfrage empfangen",
+  "contactsRequestAccepted": "Kontaktanfrage angenommen",
+  "contactsRequestDeclined": "Kontaktanfrage abgelehnt",
+  "contactsSendRequest": "Als Kontakt hinzufügen",
+  "contactsSelfScan": "Das ist dein eigener QR-Code"
 }

@@ -21,5 +21,7 @@ enum ProtocolMessageType {
   listenerLeft,
   listenerKick,
   listenerKicked,
+  contactRequest,
+  contactResponse,
   error,
 }

@@ -28,13 +28,21 @@ class ContactService extends ChangeNotifier {
   }
 
   /// Add a contact from QR payload. New contacts start as pending.
-  Future<bool> addFromQr(String payload) async {
+  ///
+  /// Returns false for a payload that is not a Snail identity. Scanning one's
+  /// own QR code is rejected explicitly: it would create a pending contact
+  /// with the user's own id, which can never be accepted by the other side and
+  /// makes the list look broken.
+  Future<bool> addFromQr(String payload, {String? ownUserId}) async {
     final uri = Uri.tryParse(payload.trim());
     if (uri == null || uri.scheme != 'snail' || uri.host != 'user') {
       return false;
     }
     final userId = uri.pathSegments.isEmpty ? '' : uri.pathSegments.first;
     if (userId.isEmpty) return false;
+    if (ownUserId != null && ownUserId.isNotEmpty && userId == ownUserId) {
+      return false;
+    }
     final username = uri.queryParameters['name']?.trim();
     final agreementPublicKey = uri.queryParameters['agree']?.trim();
     if (_contacts.any((contact) => contact.userId == userId)) return true;

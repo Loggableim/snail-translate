@@ -671,5 +671,10 @@
   "guideTranscriptCopied": "Transcription copiée dans le presse-papiers",
   "listenerRemovedByGuide": "Le guide vous a retiré de la session.",
   "listenerAskQuestion": "Poser une question au guide",
-  "listenerQuestionSent": "Question envoyée"
+  "listenerQuestionSent": "Question envoyée",
+  "contactsRequestReceived": "Demande de contact reçue",
+  "contactsRequestAccepted": "Demande de contact acceptée",
+  "contactsRequestDeclined": "Demande de contact refusée",
+  "contactsSendRequest": "Ajouter comme contact",
+  "contactsSelfScan": "C'est votre propre code QR"
 }

@@ -671,5 +671,10 @@
   "guideTranscriptCopied": "Trascrizione copiata negli appunti",
   "listenerRemovedByGuide": "La guida ti ha rimosso dalla sessione.",
   "listenerAskQuestion": "Chiedi alla guida",
-  "listenerQuestionSent": "Domanda inviata"
+  "listenerQuestionSent": "Domanda inviata",
+  "contactsRequestReceived": "Richiesta di contatto ricevuta",
+  "contactsRequestAccepted": "Richiesta di contatto accettata",
+  "contactsRequestDeclined": "Richiesta di contatto rifiutata",
+  "contactsSendRequest": "Aggiungi come contatto",
+  "contactsSelfScan": "Questo è il tuo codice QR"
 }

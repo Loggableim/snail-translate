@@ -62,7 +62,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
     controller.dispose();
     if (!mounted || payload == null) return;
-    final ok = await context.read<ContactService>().addFromQr(payload);
+    final identity = context.read<UserIdentityService>();
+    final ok = await context
+        .read<ContactService>()
+        .addFromQr(payload, ownUserId: identity.identity?.userId);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(l10n.contactsInvalidId)));
@@ -230,7 +233,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                         if (value == null) continue;
                         setState(
                             () => _scanStep = _ContactScanStep.detected);
-                        final ok = await contacts.addFromQr(value);
+                        final ok = await contacts.addFromQr(value,
+                            ownUserId: identity.identity?.userId);
                         if (ok && mounted) {
                           setState(() => _scanStep = _ContactScanStep.idle);
                         } else if (mounted) {

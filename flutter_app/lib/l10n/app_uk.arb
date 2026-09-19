@@ -671,5 +671,10 @@
   "guideTranscriptCopied": "Транскрипт скопійовано в буфер обміну",
   "listenerRemovedByGuide": "Гід видалив вас із сеансу.",
   "listenerAskQuestion": "Запитати гіда",
-  "listenerQuestionSent": "Питання надіслано"
+  "listenerQuestionSent": "Питання надіслано",
+  "contactsRequestReceived": "Отримано запит на контакт",
+  "contactsRequestAccepted": "Запит на контакт прийнято",
+  "contactsRequestDeclined": "Запит на контакт відхилено",
+  "contactsSendRequest": "Додати як контакт",
+  "contactsSelfScan": "Це ваш власний QR-код"
 }

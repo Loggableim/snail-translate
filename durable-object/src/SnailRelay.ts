@@ -57,7 +57,7 @@ interface SessionState {
 }
 
 interface ClientMessage {
-  type: "auth" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end" | "subtitle" | "listener_kick";
+  type: "auth" | "fish_tts_config" | "fish_tts_text" | "fish_tts_flush" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "end" | "subtitle" | "listener_kick" | "contact_request" | "contact_response";
   token?: string;
   protocolVersion?: number;
   agreementPublicKey?: string;
@@ -78,12 +78,14 @@ interface ClientMessage {
   temperature?: number;
   topP?: number;
   speed?: number;
-  // Guide-mode moderation
+  // Guide-mode moderation and contact exchange
   listenerId?: string;
+  userId?: string;
+  accepted?: boolean;
 }
 
 interface ServerMessage {
-  type: "auth_ok" | "auth_error" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end" | "subtitle" | "listener_joined" | "listener_left" | "listener_kicked";
+  type: "auth_ok" | "auth_error" | "chat" | "voice" | "edit" | "delete" | "signal" | "ping" | "chat_history" | "delivery_ack" | "error" | "peer_joined" | "peer_left" | "session_end" | "subtitle" | "listener_joined" | "listener_left" | "listener_kicked" | "contact_request" | "contact_response";
   sampleRate?: number;
   messageId?: string;
   text?: string;
@@ -770,6 +772,57 @@ export class SnailRelay implements DurableObject {
             count: this.session.listenerSockets.size,
           });
           await this.saveState();
+          break;
+        }
+
+        case "contact_request": {
+          if (!authenticated || !msg.userId?.trim()) {
+            this.send(ws, { type: "error", error: "Invalid contact request" });
+            return;
+          }
+          // Contact exchange is a peer-to-peer handshake: both sides must be
+          // present, because the request carries the sender's agreement key
+          // and the answer has to come back the same way. A guide room has no
+          // peer slot, so the request is refused rather than silently lost.
+          if (this.session.mode === "guide") {
+            this.send(ws, { type: "error", error: "Contact exchange is not available in guide mode" });
+            return;
+          }
+          const peer = this.getPeer(ws);
+          if (!peer) {
+            this.send(ws, { type: "error", error: "No peer connected" });
+            return;
+          }
+          this.send(peer, {
+            type: "contact_request",
+            userId: msg.userId.trim(),
+            username: msg.text?.trim() || undefined,
+            agreementPublicKey: msg.agreementPublicKey?.trim() || undefined,
+            timestamp: msg.timestamp || Date.now(),
+          });
+          break;
+        }
+
+        case "contact_response": {
+          if (!authenticated || !msg.userId?.trim()) {
+            this.send(ws, { type: "error", error: "Invalid contact response" });
+            return;
+          }
+          if (this.session.mode === "guide") {
+            this.send(ws, { type: "error", error: "Contact exchange is not available in guide mode" });
+            return;
+          }
+          const peer = this.getPeer(ws);
+          if (!peer) {
+            this.send(ws, { type: "error", error: "No peer connected" });
+            return;
+          }
+          this.send(peer, {
+            type: "contact_response",
+            userId: msg.userId.trim(),
+            accepted: msg.accepted === true,
+            timestamp: msg.timestamp || Date.now(),
+          });
           break;
         }
 

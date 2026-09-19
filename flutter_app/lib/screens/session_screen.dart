@@ -22,6 +22,8 @@ import '../services/audio_policy.dart';
 import '../services/audio_processor.dart';
 import '../services/speech_turn_buffer.dart';
 import '../services/session_playback_buffer.dart';
+import '../services/contact_service.dart';
+import '../models/snail_contact.dart';
 import '../services/error_logger.dart';
 import '../controllers/session_controller.dart';
 import '../l10n/app_localizations.dart';
@@ -287,6 +289,15 @@ class _SessionScreenState extends State<SessionScreen>
     audioService.localAgreementPublicKey =
         identityService.identity?.agreementPublicKey;
     audioService.sharedSecretDeriver = identityService.deriveSharedSecret;
+    // Contact exchange rides the same relay connection: the peer is only
+    // reachable while both devices are in the session, which is exactly when
+    // a contact request makes sense.
+    audioService.onContactRequest = (request) {
+      unawaited(_handleContactRequest(request, identityService));
+    };
+    audioService.onContactResponse = (response) {
+      unawaited(_handleContactResponse(response, identityService));
+    };
     if (session != null) {
       final microphoneGranted = await _snailAudio.requestMicrophonePermission();
       if (!microphoneGranted) {
@@ -653,6 +664,8 @@ class _SessionScreenState extends State<SessionScreen>
     _audioService.onFallbackPcmAudio = null;
     _audioService.onSignal = null;
     _audioService.onAuthenticated = null;
+    _audioService.onContactRequest = null;
+    _audioService.onContactResponse = null;
     _p2p.dispose();
     _playbackBuffer.clear();
     _snailAudio.dispose();
@@ -660,6 +673,51 @@ class _SessionScreenState extends State<SessionScreen>
     _sessionUiRevision.dispose();
     _audioService.disconnect();
     super.dispose();
+  }
+
+  /// Stores an incoming contact request as a pending contact.
+  Future<void> _handleContactRequest(
+      Map<String, dynamic> request, UserIdentityService identityService) async {
+    final userId = request['userId'] as String?;
+    if (userId == null || userId.isEmpty) return;
+    if (userId == identityService.identity?.userId) return;
+    final contacts = context.read<ContactService>();
+    final added = await contacts.addFromQr(
+      'snail://user/$userId'
+      '?name=${Uri.encodeComponent(request['text'] as String? ?? 'Snail User')}'
+      '${request['agreementPublicKey'] == null ? '' : '&agree=${Uri.encodeQueryComponent(request['agreementPublicKey'] as String)}'}',
+      ownUserId: identityService.identity?.userId,
+    );
+    if (!mounted || !added) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context).contactsRequestReceived)),
+    );
+  }
+
+  /// Applies the peer's answer to our own contact request.
+  Future<void> _handleContactResponse(
+      Map<String, dynamic> response, UserIdentityService identityService) async {
+    final userId = response['userId'] as String?;
+    if (userId == null || userId.isEmpty) return;
+    final contacts = context.read<ContactService>();
+    final contact = contacts.contacts
+        .where((c) => c.userId == userId)
+        .cast<SnailContact?>()
+        .firstWhere((c) => true, orElse: () => null);
+    if (contact == null) return;
+    if (response['accepted'] == true) {
+      await contacts.accept(contact);
+    } else {
+      await contacts.reject(contact);
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(response['accepted'] == true
+            ? AppLocalizations.of(context).contactsRequestAccepted
+            : AppLocalizations.of(context).contactsRequestDeclined),
+      ),
+    );
   }
 
   Future<void> _processFish(ProviderConfig config) async {

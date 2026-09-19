@@ -671,5 +671,10 @@
   "guideTranscriptCopied": "스크립트를 클립보드에 복사했습니다",
   "listenerRemovedByGuide": "가이드가 당신을 세션에서 제거했습니다.",
   "listenerAskQuestion": "가이드에게 질문",
-  "listenerQuestionSent": "질문을 보냈습니다"
+  "listenerQuestionSent": "질문을 보냈습니다",
+  "contactsRequestReceived": "연락처 요청을 받았습니다",
+  "contactsRequestAccepted": "연락처 요청을 수락했습니다",
+  "contactsRequestDeclined": "연락처 요청을 거절했습니다",
+  "contactsSendRequest": "연락처로 추가",
+  "contactsSelfScan": "이것은 본인의 QR 코드입니다"
 }

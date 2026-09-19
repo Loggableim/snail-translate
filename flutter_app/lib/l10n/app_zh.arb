@@ -671,5 +671,10 @@
   "guideTranscriptCopied": "文字记录已复制到剪贴板",
   "listenerRemovedByGuide": "讲者已将你移出会话。",
   "listenerAskQuestion": "向讲者提问",
-  "listenerQuestionSent": "问题已发送"
+  "listenerQuestionSent": "问题已发送",
+  "contactsRequestReceived": "已收到联系人请求",
+  "contactsRequestAccepted": "已接受联系人请求",
+  "contactsRequestDeclined": "已拒绝联系人请求",
+  "contactsSendRequest": "添加为联系人",
+  "contactsSelfScan": "这是你自己的二维码"
 }

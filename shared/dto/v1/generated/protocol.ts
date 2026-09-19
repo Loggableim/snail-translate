@@ -20,4 +20,6 @@ export type ProtocolMessageType =
   | "listener_left"
   | "listener_kick"
   | "listener_kicked"
+  | "contact_request"
+  | "contact_response"
   | "error";

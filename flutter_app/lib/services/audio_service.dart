@@ -41,6 +41,10 @@ class AudioService extends ChangeNotifier {
   void Function(List<String> listenerIds)? onListenerListChanged;
   /// Guide mode: the host removed this listener.
   VoidCallback? onKicked;
+  /// A contact request arrived from the peer.
+  void Function(Map<String, dynamic> request)? onContactRequest;
+  /// The peer answered our contact request.
+  void Function(Map<String, dynamic> response)? onContactResponse;
   Future<String?> Function()? sessionTokenRefresher;
   String? localAgreementPublicKey;
   Future<String?> Function(String peerPublicKey)? sharedSecretDeriver;
@@ -308,6 +312,14 @@ class AudioService extends ChangeNotifier {
           }
           notifyListeners();
           break;
+        case 'contact_request':
+          onContactRequest?.call(Map<String, dynamic>.from(msg));
+          notifyListeners();
+          break;
+        case 'contact_response':
+          onContactResponse?.call(Map<String, dynamic>.from(msg));
+          notifyListeners();
+          break;
         case 'error':
           ErrorLogger.I.log(
             provider: 'websocket',
@@ -497,6 +509,40 @@ class AudioService extends ChangeNotifier {
     _channel?.sink.add(jsonEncode({
       'type': 'listener_kick',
       'listenerId': listenerId,
+    }));
+  }
+
+  /// Asks the connected peer to become a contact.
+  ///
+  /// Carries this device's own id and agreement key so the peer can store a
+  /// usable contact without a second round trip.
+  void sendContactRequest({
+    required String userId,
+    String? username,
+    String? agreementPublicKey,
+  }) {
+    if (!_isConnected || !_isAuthenticated || userId.isEmpty) return;
+    _channel?.sink.add(jsonEncode({
+      'type': 'contact_request',
+      'userId': userId,
+      if (username != null && username.isNotEmpty) 'text': username,
+      if (agreementPublicKey != null && agreementPublicKey.isNotEmpty)
+        'agreementPublicKey': agreementPublicKey,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    }));
+  }
+
+  /// Answers a contact request from the peer.
+  void sendContactResponse({
+    required String userId,
+    required bool accepted,
+  }) {
+    if (!_isConnected || !_isAuthenticated || userId.isEmpty) return;
+    _channel?.sink.add(jsonEncode({
+      'type': 'contact_response',
+      'userId': userId,
+      'accepted': accepted,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
     }));
   }
 

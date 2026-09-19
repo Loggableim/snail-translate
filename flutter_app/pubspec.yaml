@@ -26,6 +26,7 @@ dependencies:
   package_info_plus: ^9.0.1
   cryptography: ^2.7.0
   flutter_tts: ^4.2.0
+  record: ^6.2.1
 
 dev_dependencies:
   flutter_test:

@@ -17,6 +17,7 @@
         "chat_history", "delivery_ack",
         "peer_joined", "peer_left", "session_end",
         "subtitle", "listener_joined", "listener_left", "listener_kick", "listener_kicked",
+        "contact_request", "contact_response",
         "error"
       ]
     },
@@ -144,6 +145,30 @@
       "required": ["type"],
       "properties": {
         "type": { "const": "listener_kicked" }
+      }
+    },
+    "ContactRequestMessage": {
+      "type": "object",
+      "required": ["type", "userId", "timestamp"],
+      "properties": {
+        "type": { "const": "contact_request" },
+        "userId": { "type": "string", "minLength": 1 },
+        "username": { "type": "string", "maxLength": 80 },
+        "agreementPublicKey": {
+          "type": "string",
+          "description": "base64-encoded X.509 P-256 public key for ECDH"
+        },
+        "timestamp": { "type": "integer" }
+      }
+    },
+    "ContactResponseMessage": {
+      "type": "object",
+      "required": ["type", "userId", "accepted", "timestamp"],
+      "properties": {
+        "type": { "const": "contact_response" },
+        "userId": { "type": "string", "minLength": 1 },
+        "accepted": { "type": "boolean" },
+        "timestamp": { "type": "integer" }
       }
     },
     "ErrorMessage": {

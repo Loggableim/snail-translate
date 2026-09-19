@@ -671,5 +671,10 @@
   "guideTranscriptCopied": "文字起こしをクリップボードにコピーしました",
   "listenerRemovedByGuide": "ガイドがあなたをセッションから削除しました。",
   "listenerAskQuestion": "ガイドに質問",
-  "listenerQuestionSent": "質問を送信しました"
+  "listenerQuestionSent": "質問を送信しました",
+  "contactsRequestReceived": "連絡先リクエストを受信しました",
+  "contactsRequestAccepted": "連絡先リクエストを承認しました",
+  "contactsRequestDeclined": "連絡先リクエストを拒否しました",
+  "contactsSendRequest": "連絡先に追加",
+  "contactsSelfScan": "これはあなた自身のQRコードです"
 }

@@ -504,3 +504,72 @@ describe("SnailRelay guide mode", () => {
     expect(messagesOf(host, "error")[0].error).toContain("Listener not found");
   });
 });
+
+describe("SnailRelay contact exchange", () => {
+  it("forwards a contact request to the peer", async () => {
+    const { relay } = await initializedRelay();
+    const host = await connect(relay, "host", "host");
+    const guest = await connect(relay, "guest", "guest");
+
+    host.socket.send(JSON.stringify({
+      type: "contact_request",
+      userId: "device-a",
+      text: "Alice",
+      agreementPublicKey: "key-a",
+      timestamp: 1,
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const request = messagesOf(guest, "contact_request")[0];
+    expect(request.userId).toBe("device-a");
+    expect(request.username).toBe("Alice");
+    expect(request.agreementPublicKey).toBe("key-a");
+    // The sender does not receive its own request back.
+    expect(messagesOf(host, "contact_request")).toHaveLength(0);
+  });
+
+  it("forwards an acceptance back to the requester", async () => {
+    const { relay } = await initializedRelay();
+    const host = await connect(relay, "host", "host");
+    const guest = await connect(relay, "guest", "guest");
+
+    guest.socket.send(JSON.stringify({
+      type: "contact_response",
+      userId: "device-b",
+      accepted: true,
+      timestamp: 2,
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const response = messagesOf(host, "contact_response")[0];
+    expect(response.userId).toBe("device-b");
+    expect(response.accepted).toBe(true);
+  });
+
+  it("refuses a contact request without a connected peer", async () => {
+    const { relay } = await initializedRelay();
+    const host = await connect(relay, "host", "host");
+
+    host.socket.send(JSON.stringify({
+      type: "contact_request",
+      userId: "device-a",
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(messagesOf(host, "error")[0].error).toContain("No peer connected");
+  });
+
+  it("refuses contact exchange in a guide room", async () => {
+    const { relay } = await initializedRelay({ mode: "guide", listenerLanguages: ["en"] });
+    const host = await connect(relay, "host", "host");
+
+    host.socket.send(JSON.stringify({
+      type: "contact_request",
+      userId: "device-a",
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(messagesOf(host, "error")[0].error)
+      .toContain("Contact exchange is not available in guide mode");
+  });
+});
