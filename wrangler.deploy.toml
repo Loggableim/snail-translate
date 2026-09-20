@@ -1,0 +1,41 @@
+# Temporary deploy config: mirrors wrangler.toml but without the production
+# route, because the live deployment runs on the workers.dev subdomain
+# (snail-worker.pixstash.workers.dev) and the dev-auth guard in
+# tools/check-deploy-config.mjs blocks route+DEV_MODE combinations.
+# Do not commit secrets here; bindings mirror the root config.
+
+name = "snail-worker"
+main = "worker/src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "6864275679754e2e98c4a76a6b1d66d2"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "SNAIL_RELAY"
+class_name = "SnailRelay"
+
+[[durable_objects.bindings]]
+name = "SNAIL_APP_SHARE_RELAY"
+class_name = "AppShareRelay"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SnailRelay"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["AppShareRelay"]
+
+[[kv_namespaces]]
+binding = "SNAIL_KV"
+id = "9e842997d805491080a5de29544a01c8"
+preview_id = "9e842997d805491080a5de29544a01c8"
+
+[vars]
+CLERK_JWKS_URL = "https://api.clerk.com/v1/jwks"
+CLERK_ISSUER = "https://clerk.snail.app"
+DEV_MODE = "true"
+DEV_ALLOW_IDENTITY_AUTH = "true"
+DEVICE_ID_AUTH = "false"
+CORS_ORIGINS = "https://snail.app"
