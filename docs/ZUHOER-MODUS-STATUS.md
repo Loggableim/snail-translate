@@ -20,6 +20,7 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 | E2E Guide-Flow (lokal) | `python tools/desktop_test/e2e_guide.py http://127.0.0.1:8791` | **11/11 Checks** |
 | E2E Guide-Flow (Produktion) | `python tools/desktop_test/e2e_guide.py https://snail-worker.pixstash.workers.dev` | **11/11 Checks** |
 | Zwei-Geräte-Lauf | Phone-Guide + Desktop-Listener, lokaler Worker | **Untertitel angekommen** |
+| Lasttest 50 Zuhörer | `python tools/desktop_test/load_test_listeners.py` | **50/50 beliefert, 51. abgewiesen** (lokal + Produktion) |
 | Produktions-Deploy | `wrangler deploy --config wrangler.deploy.toml` | Version `580f8cab` live |
 
 ## Punkte-Status
@@ -135,6 +136,28 @@ echte Sprache kosten).
 gefächert worden wäre, wird jetzt **vor jedem Provider-Aufruf** verworfen —
 der Listener-Zähler blieb bei 0, keine Untertitel.
 
+### Lasttest — 50 Zuhörer
+
+`tools/desktop_test/load_test_listeners.py` verbindet 50 Zuhörer, publiziert
+einen Untertitel und prüft, dass ihn alle erhalten und der 51. abgewiesen wird.
+
+**Ergebnis — lokal und gegen Produktion identisch:**
+
+```
+connected 50 listeners
+relay reports listenerCount: 50
+subtitle delivered to 50/50 listeners
+51st listener refused: Room is full
+```
+
+**Dabei gefunden und behoben:** Die App sendete ihre Geräte-Identität **nicht**
+beim WebSocket-Upgrade. Das Upgrade-Rate-Limit des Workers greift dann auf die
+Client-IP — eine Zuhörerschaft hinter einem gemeinsamen NAT (Reisegruppe im
+Hotel-WLAN, alle im selben Raum) teilte sich einen 40/Minute-Eimer, und ab dem
+41. wäre jeder abgewiesen worden. Genau der Kern-Anwendungsfall des Modus.
+`AudioService.localIdentityId` wird jetzt von Session-, Guide- und
+Listener-Screen gesetzt und als Upgrade-Header mitgesendet.
+
 ### Desktop-Hälfte — als Testvehikel
 
 Die Windows-App läuft, enumeriert **13 echte Mikrofone** und startet Capture
@@ -157,8 +180,6 @@ Klick-Durchlauf auf beiden Geräten.
 - **Kein Live-Provider-Test für OpenAI/Gemini.** Der Fish-Pfad lief auf
   Hardware (s. „Zwei-Geräte-Lauf"); die OpenAI- und Gemini-Pfade der
   Guide-Pipeline wurden nur gegen Fakes getestet.
-- **Kein Lasttest mit vielen Zuhörern.** Alle Läufe nutzten einen oder zwei
-  Listener; das Verhalten bei 50 (Cap) ist nicht geprüft.
 
 ## Betriebsrisiken
 
