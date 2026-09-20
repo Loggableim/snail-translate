@@ -17,9 +17,22 @@ import urllib.request
 import websockets
 
 
-def post(url, api_key, body=None):
+# Cloudflare's bot protection rejects the default urllib User-Agent with
+# error 1010 before the request ever reaches the worker.
+USER_AGENT = "snail-e2e/1.0"
+
+
+def post(url, api_key, body=None, identity=None):
     data = json.dumps(body).encode() if body is not None else None
-    headers = {"X-API-Key": api_key}
+    headers = {"User-Agent": USER_AGENT}
+    if api_key:
+        headers["X-API-Key"] = api_key
+    if identity:
+        # Production runs DEV_MODE with DEV_ALLOW_IDENTITY_AUTH, so a valid
+        # Snail identity authenticates without the worker's DEV_API_KEY. The
+        # worker only accepts /^[a-f0-9-]{16,80}$/i — anything else is
+        # silently rejected as Unauthorized.
+        headers["X-Snail-Identity"] = identity
     if data:
         headers["Content-Type"] = "application/json"
     request = urllib.request.Request(url, data=data, method="POST", headers=headers)
@@ -27,8 +40,12 @@ def post(url, api_key, body=None):
         return response.status, json.loads(response.read())
 
 
-def get(url):
-    with urllib.request.urlopen(url, timeout=15) as response:
+def get(url, identity=None):
+    headers = {"User-Agent": USER_AGENT}
+    if identity:
+        headers["X-Snail-Identity"] = identity
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=15) as response:
         return response.status, json.loads(response.read())
 
 
@@ -79,6 +96,9 @@ async def recv_until(socket, wanted, timeout=8.0):
 async def main():
     base = sys.argv[1].rstrip("/")
     api_key = sys.argv[2] if len(sys.argv) > 2 else "local-dev-api-key"
+    # Production authenticates through a Snail identity (DEV_ALLOW_IDENTITY_AUTH);
+    # the local dev worker accepts the API key. A valid identity works on both.
+    identity = "abcdef0123456789abcdef01"
     results = []
 
     def check(name, ok, detail=""):
@@ -88,13 +108,13 @@ async def main():
     # 1. Create the guide room.
     status, room = post(f"{base}/api/rooms", api_key, {
         "mode": "guide", "sourceLang": "de", "listenerLanguages": ["en", "fr"],
-    })
+    }, identity=identity)
     check("create guide room", status == 201 and room.get("mode") == "guide",
           f"room={room.get('roomId')} mode={room.get('mode')}")
     room_id = room["roomId"]
 
     # 2. Public status reports the guide room.
-    status, info = get(f"{base}/api/rooms/{room_id}/status")
+    status, info = get(f"{base}/api/rooms/{room_id}/status", identity=identity)
     check("status reports guide mode",
           status == 200 and info.get("mode") == "guide"
           and info.get("listenerLanguages") == ["en", "fr"],
@@ -102,7 +122,7 @@ async def main():
 
     # 3. A guest join is refused with the fallback code.
     try:
-        post(f"{base}/api/rooms/{room_id}/join", api_key)
+        post(f"{base}/api/rooms/{room_id}/join", api_key, identity=identity)
         check("guest join refused", False, "join unexpectedly succeeded")
     except urllib.error.HTTPError as error:
         body = json.loads(error.read())
@@ -117,7 +137,9 @@ async def main():
           str(message))
 
     # 5. A listener joins through the listen endpoint.
-    status, listener_session = post(f"{base}/api/rooms/{room_id}/listen", api_key)
+    status, listener_session = post(
+        f"{base}/api/rooms/{room_id}/listen", api_key, identity=identity
+    )
     check("listener token minted",
           status == 200 and listener_session.get("mode") == "guide",
           f"langs={listener_session.get('listenerLanguages')}")
@@ -161,7 +183,9 @@ async def main():
           str(message))
 
     # 9. A late listener receives the transcript.
-    status, late_session = post(f"{base}/api/rooms/{room_id}/listen", api_key)
+    status, late_session = post(
+        f"{base}/api/rooms/{room_id}/listen", api_key, identity=identity
+    )
     late = await connect(
         relay_url_for(base, late_session["relayUrl"]), late_session["sessionToken"]
     )

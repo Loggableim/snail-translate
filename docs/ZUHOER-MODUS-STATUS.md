@@ -17,8 +17,9 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 | DO-Tests | `cd durable-object && npx vitest run` | **43/43 grün** (19 neue) |
 | Protokoll-Drift | `node tools/generate-protocol.mjs` + diff | keine Drift (22 Typen) |
 | l10n-Parität | Skript über alle 9 `app_*.arb` | 0 fehlend / 0 überzählig |
-| E2E Guide-Flow | `python tools/desktop_test/e2e_guide.py` | **11/11 Checks** (lokal) |
-| Produktions-Deploy | `wrangler deploy --config wrangler.deploy.toml` | Version `580f8cab` live; alle neuen Routen erreichbar |
+| E2E Guide-Flow (lokal) | `python tools/desktop_test/e2e_guide.py http://127.0.0.1:8791` | **11/11 Checks** |
+| E2E Guide-Flow (Produktion) | `python tools/desktop_test/e2e_guide.py https://snail-worker.pixstash.workers.dev` | **11/11 Checks** |
+| Produktions-Deploy | `wrangler deploy --config wrangler.deploy.toml` | Version `580f8cab` live |
 
 ## Punkte-Status
 
@@ -84,12 +85,14 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 ### Protokoll-Flow — end-to-end gegen echte Infrastruktur
 
 `tools/desktop_test/e2e_guide.py` fährt den kompletten Guide-Flow gegen einen
-laufenden Worker (lokal via `wrangler dev`): Raum anlegen, öffentlicher Status,
-Gast-Join-Ablehnung, Guide- und Listener-Auth, Listener-Benachrichtigung,
-Untertitel-Fan-out, Publish-Ablehnung für Listener, Transkript für Spät-Joiner.
+laufenden Worker: Raum anlegen, öffentlicher Status, Gast-Join-Ablehnung,
+Guide- und Listener-Auth, Listener-Benachrichtigung, Untertitel-Fan-out,
+Publish-Ablehnung für Listener, Transkript für Spät-Joiner.
 
-**Ergebnis: 11/11 Checks bestanden.** Damit ist der Zwei-Geräte-Flow auf
-Protokollebene nachgewiesen — ohne zweites Gerät.
+**Ergebnis: 11/11 Checks — lokal (`wrangler dev`) und gegen Produktion
+(`snail-worker.pixstash.workers.dev`).** Damit ist der Zwei-Geräte-Flow auf
+Protokollebene vollständig nachgewiesen, inklusive WebSocket-Fan-out über das
+echte Relay.
 
 ### Desktop-Hälfte — als Testvehikel
 
@@ -110,12 +113,10 @@ Protokollebene verifiziert statt per Klick.
   Die Desktop-UI lässt sich per Skript nur eingeschränkt bedienen.
 - **Kein Live-Provider-Test.** Die Guide-Pipeline (ASR → MT × N) lief nur
   gegen Fakes in Widget-/Unit-Tests, nicht gegen Fish Audio oder OpenAI.
-- **Produktions-E2E nicht mit Auth gefahren.** Der Worker ist deployt
-  (Version `580f8cab`) und alle neuen Routen antworten in Produktion
-  (`/listen` → 401, `/status` → „Room not found", `/join` → 401 statt 404).
-  Der vollständige E2E-Lauf mit 11/11 Checks lief gegen einen lokalen Worker;
-  gegen Produktion fehlt der `DEV_API_KEY`, der dort als Secret liegt und
-  bewusst nicht im Repository ist. Ein Lauf mit dem echten Key steht aus.
+- **Manueller Zwei-Geräte-Durchlauf mit Sprache.** Der Protokoll-Flow ist
+  lokal und in Produktion mit je 11/11 Checks belegt; ein Durchlauf mit echter
+  Sprachausgabe (Mikrofon → ASR → MT → Untertitel auf einem zweiten Bildschirm)
+  wurde nicht gefahren.
 
 ## Betriebsrisiken
 
