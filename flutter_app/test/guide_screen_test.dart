@@ -11,6 +11,7 @@ import 'package:snail/screens/guide_screen.dart';
 import 'package:snail/services/audio_service.dart';
 import 'package:snail/services/provider_config_service.dart';
 import 'package:snail/services/session_service.dart';
+import 'package:snail/services/user_identity_service.dart';
 import 'package:snail/theme/app_theme.dart';
 
 /// A config service with a fixed provider, bypassing secure storage.
@@ -27,6 +28,9 @@ Widget _wrap(Widget child, {ProviderConfigService? providerConfig}) {
     providers: [
       ChangeNotifierProvider(create: (_) => SessionService()),
       ChangeNotifierProvider(create: (_) => AudioService()),
+      // The screen reads the device identity to send it on the websocket
+      // upgrade, so the provider must exist in the test tree too.
+      ChangeNotifierProvider(create: (_) => UserIdentityService()),
       // Registered as the base type: `context.watch<ProviderConfigService>()`
       // does not resolve a subtype registration.
       ChangeNotifierProvider<ProviderConfigService>(
