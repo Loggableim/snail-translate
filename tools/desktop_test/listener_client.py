@@ -12,6 +12,8 @@ Usage:
 import asyncio
 import json
 import sys
+import urllib.parse
+import urllib.request
 
 import websockets
 
@@ -20,8 +22,6 @@ async def main():
     base = sys.argv[1].rstrip("/")
     room_id = sys.argv[2]
     api_key = sys.argv[3] if len(sys.argv) > 3 else "local-dev-api-key"
-
-    import urllib.request
 
     # 1. Mint a listener token through the worker.
     request = urllib.request.Request(
@@ -40,11 +40,17 @@ async def main():
           f"languages={session.get('listenerLanguages')}")
 
     # 2. Open the relay socket and authenticate.
-    relay_url = session["relayUrl"]
-    # The worker reports the production host; the local dev worker serves the
-    # same path on its own port.
-    relay_url = relay_url.replace("wss://snail.dominik.in", base.replace("http://", "ws://"))
-    relay_url = relay_url.replace("wss://", "ws://")
+    # The worker derives the relay URL from its own request host, which under
+    # `wrangler dev` is the configured production route. The relay lives on
+    # the worker being tested, so host and scheme come from the base URL.
+    relay = urllib.parse.urlparse(session["relayUrl"])
+    worker = urllib.parse.urlparse(base)
+    scheme = "wss" if worker.scheme == "https" else "ws"
+    relay_url = urllib.parse.urlunparse(
+        (scheme, worker.netloc, relay.path, relay.params, relay.query,
+         relay.fragment)
+    )
+    print(f"relay: {relay_url}")
 
     async with websockets.connect(relay_url) as socket:
         await socket.send(json.dumps({

@@ -163,6 +163,15 @@ class _GuideScreenState extends State<GuideScreen> {
       if (!mounted) return;
     }
 
+    // Mark the session as running BEFORE subscribing: capture frames start
+    // arriving immediately, and a `_running` check that is still false would
+    // silently drop the first turns — with a short utterance that is the
+    // whole test.
+    setState(() {
+      _running = true;
+      _starting = false;
+    });
+
     _captureSubscription = _audio.standaloneStream?.listen((frame) {
       if (!mounted || !_running) return;
       final bytes = frame['bytes'] as Uint8List;
@@ -179,11 +188,6 @@ class _GuideScreenState extends State<GuideScreen> {
       if (config.provider == TranslationProvider.openAi) {
         _drainOpenAiTurns(config);
       }
-    });
-
-    setState(() {
-      _running = true;
-      _starting = false;
     });
   }
 
