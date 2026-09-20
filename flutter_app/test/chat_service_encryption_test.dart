@@ -9,7 +9,7 @@ void main() {
       () async {
     final service = ChatService();
     service.setConversationCrypto(
-        ChatCryptoService.fromSharedSecret(List<int>.filled(32, 7)));
+        await ChatCryptoService.derive(List<int>.filled(32, 7)));
     final wireMessages = <String>[];
     service.onSend = (message) {
       wireMessages.add(message);
@@ -22,7 +22,7 @@ void main() {
     final wire = jsonDecode(wireMessages.single) as Map<String, dynamic>;
     expect(wire['text'], isNot('secret phrase'));
     expect(
-      await ChatCryptoService.fromSharedSecret(List<int>.filled(32, 7))
+      await (await ChatCryptoService.derive(List<int>.filled(32, 7)))
           .decrypt(wire['text'] as String),
       'secret phrase',
     );
@@ -30,7 +30,7 @@ void main() {
 
   test('decrypts encrypted incoming messages and keeps legacy plaintext',
       () async {
-    final crypto = ChatCryptoService.fromSharedSecret(List<int>.filled(32, 8));
+    final crypto = await ChatCryptoService.derive(List<int>.filled(32, 8));
     final service = ChatService()..setConversationCrypto(crypto);
     final encrypted = await crypto.encrypt('incoming secret');
 
@@ -62,7 +62,7 @@ void main() {
     service.canSend = () => false;
     service.sendChat('queued secret');
     service.setConversationCrypto(
-        ChatCryptoService.fromSharedSecret(List<int>.filled(32, 9)));
+        await ChatCryptoService.derive(List<int>.filled(32, 9)));
     service.canSend = () => true;
 
     await Future<void>.delayed(Duration.zero);
@@ -76,9 +76,9 @@ void main() {
   test('round trips one chat message through an opaque relay payload', () async {
     final key = List<int>.filled(32, 10);
     final sender = ChatService()
-      ..setConversationCrypto(ChatCryptoService.fromSharedSecret(key));
+      ..setConversationCrypto(await ChatCryptoService.derive(key));
     final receiver = ChatService()
-      ..setConversationCrypto(ChatCryptoService.fromSharedSecret(key));
+      ..setConversationCrypto(await ChatCryptoService.derive(key));
     final relayPayloads = <String>[];
     sender.onSend = (message) {
       relayPayloads.add(message);
@@ -97,10 +97,10 @@ void main() {
   test('decrypts P2P chat messages that were encrypted on the wire', () async {
     final key = List<int>.filled(32, 11);
     final sender = ChatService()
-      ..setConversationCrypto(ChatCryptoService.fromSharedSecret(key))
+      ..setConversationCrypto(await ChatCryptoService.derive(key))
       ..isP2pConnected = () => true;
     final receiver = ChatService()
-      ..setConversationCrypto(ChatCryptoService.fromSharedSecret(key));
+      ..setConversationCrypto(await ChatCryptoService.derive(key));
     final p2pPayloads = <Map<String, dynamic>>[];
     sender.onP2pSend = p2pPayloads.add;
 

@@ -413,8 +413,10 @@ class AudioService extends ChangeNotifier {
     final sharedSecret = await derive(peerPublicKey);
     if (sharedSecret == null || sharedSecret.isEmpty) return;
     try {
+      // derive() runs the raw ECDH output through HKDF before it becomes an
+      // AES key; the raw bytes are not uniformly random.
       chat.setConversationCrypto(
-          ChatCryptoService.fromBase64SharedSecret(sharedSecret));
+          await ChatCryptoService.fromBase64SharedSecret(sharedSecret));
     } catch (error, stackTrace) {
       ErrorLogger.I.log(
         provider: 'chat',
