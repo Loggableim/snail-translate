@@ -11,7 +11,7 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 | Check | Befehl | Ergebnis |
 |---|---|---|
 | Flutter-Analyse | `flutter analyze` (vendored SDK) | No issues found |
-| Flutter-Tests | `flutter test` | **235 grün, 1 skip** (37 neue) |
+| Flutter-Tests | `flutter test` | **245 grün, 1 skip** (47 neue) |
 | Worker-Tests | `cd worker && npx vitest run` | **33/33 grün** (9 neue) |
 | DO-Typcheck | `cd durable-object && npx tsc --noEmit` | clean |
 | DO-Tests | `cd durable-object && npx vitest run` | **43/43 grün** (19 neue) |
@@ -120,15 +120,20 @@ bevor `_running` gesetzt war — der Listener verwirft Frames, solange
 zeigte sich das als „Warte auf Sprache …", obwohl das Mikrofon nachweislich
 lief.
 
-**Offener Qualitätsbefund:** Fish ASR halluziniert bei Hintergrundgeräuschen
-in **lateinischer Schrift** — beobachtet wurden tschechische Sätze
-(„šápy třeba jsou zemným výrobem", „Víš, jak mám resti kvalních spal") in
-einem deutschen Gespräch. Der bestehende `isImplausibleTranscript`-Guard
-prüft die Schrift und greift hier **nicht**, weil Tschechisch wie Deutsch
-lateinisch ist. Für den Betrieb heißt das: In lauter Umgebung können falsche
-Sätze im Transkript landen. Eine Sprach-Erkennung pro Turn (Fish liefert
-`language`) oder ein Plausibilitäts-Check gegen die erwartete Sprache wäre
-der nächste Schritt.
+**Gefunden und behoben:** Fish ASR halluzinierte bei Hintergrundgeräuschen in
+**lateinischer Schrift** — beobachtet wurden tschechische Sätze
+(„šápy třeba jsou zemným výrobem") in einem deutschen Gespräch. Der
+Schrift-basierte Guard greift dort nicht, weil beide Alphabete lateinisch
+sind. Fish liefert pro Transkript eine erkannte Sprache, also nutzt der Guide
+jetzt `transcribeDetected` und die Pipeline verwirft einen Turn, wenn diese
+Sprache von der Quellsprache abweicht. Eine fehlende Erkennung wird
+akzeptiert (Fish lässt das Feld bei kurzen Clips weg — ein Verwerfen würde
+echte Sprache kosten).
+
+**Auf dem Gerät verifiziert:** Eine niederländische Erfindung
+(„Juist. Ja. Vroeger nou."), die zuvor übersetzt und an alle Zuhörer
+gefächert worden wäre, wird jetzt **vor jedem Provider-Aufruf** verworfen —
+der Listener-Zähler blieb bei 0, keine Untertitel.
 
 ### Desktop-Hälfte — als Testvehikel
 
@@ -146,10 +151,6 @@ Protokollebene verifiziert statt per Klick.
 - **Kein Live-Provider-Test für OpenAI/Gemini.** Der Fish-Pfad lief auf
   Hardware (s. „Zwei-Geräte-Lauf"); die OpenAI- und Gemini-Pfade der
   Guide-Pipeline wurden nur gegen Fakes getestet.
-- **ASR-Halluzination in lateinischer Schrift.** Beim Zwei-Geräte-Lauf
-  erkannte Fish ASR tschechische Sätze aus Hintergrundgeräuschen in einem
-  deutschen Gespräch; der Schrift-basierte Guard greift dort nicht. Details
-  im Abschnitt „Zwei-Geräte-Lauf".
 - **Kein Lasttest mit vielen Zuhörern.** Alle Läufe nutzten einen oder zwei
   Listener; das Verhalten bei 50 (Cap) ist nicht geprüft.
 
