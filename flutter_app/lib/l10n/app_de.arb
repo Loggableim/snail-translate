@@ -676,5 +676,16 @@
   "contactsRequestAccepted": "Kontaktanfrage angenommen",
   "contactsRequestDeclined": "Kontaktanfrage abgelehnt",
   "contactsSendRequest": "Als Kontakt hinzufügen",
-  "contactsSelfScan": "Das ist dein eigener QR-Code"
+  "contactsSelfScan": "Das ist dein eigener QR-Code",
+  "voiceRecordTooltip": "Sprachnachricht aufnehmen",
+  "voiceRecordingLabel": "Aufnahme läuft … {time}",
+  "@voiceRecordingLabel": {
+    "description": "Voice recording indicator with elapsed time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "voiceMicUnavailable": "Mikrofon konnte nicht gestartet werden."
 }

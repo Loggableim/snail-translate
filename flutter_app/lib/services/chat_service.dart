@@ -25,7 +25,9 @@ class ChatService extends ChangeNotifier {
   bool _conversationDirty = false;
 
   /// Callback to send a raw JSON message through the WebSocket.
-  void Function(String jsonMessage)? onSend;
+  /// Sends one wire message. Returns false when the transport refused it, so
+  /// the caller can re-queue instead of losing the message.
+  bool Function(String jsonMessage)? onSend;
   bool Function()? canSend;
 
   /// Callback to send via P2P (WebRTC data channel).
@@ -213,7 +215,11 @@ class ChatService extends ChangeNotifier {
       final id = original['messageId'];
       if (id is String && !_inFlight.add(id)) continue;
       if (_crypto == null) {
-        onSend?.call(jsonEncode(original));
+        // A refused send must stay queued: `_inFlight` is cleared so the next
+        // flush attempt retries it instead of skipping it forever.
+        if (onSend?.call(jsonEncode(original)) == false && id is String) {
+          _inFlight.remove(id);
+        }
         continue;
       }
       final message = await _prepareWireMessage(original);
@@ -222,7 +228,9 @@ class ChatService extends ChangeNotifier {
         _outbox[index] = message;
         await _persistOutbox();
       }
-      onSend?.call(jsonEncode(message));
+      if (onSend?.call(jsonEncode(message)) == false && id is String) {
+        _inFlight.remove(id);
+      }
     }
   }
 
@@ -235,8 +243,15 @@ class ChatService extends ChangeNotifier {
     final p2pAvailable = isP2pConnected?.call() == true && onP2pSend != null;
     if (p2pAvailable) onP2pSend!.call(message);
     if (relayAvailable) {
-      onSend!(jsonEncode(message));
-      if (id is String) _inFlight.add(id);
+      // The channel can die between the `canSend()` check above and the send
+      // itself. When that happens the message must go back into the outbox —
+      // marking it in-flight and dropping it loses it permanently.
+      final sent = onSend!(jsonEncode(message));
+      if (sent) {
+        if (id is String) _inFlight.add(id);
+      } else if (!p2pAvailable) {
+        _queue(message);
+      }
     } else if (!p2pAvailable) {
       _queue(message);
     }
@@ -289,6 +304,77 @@ class ChatService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Voice notes ────────────────────────────────────────────────────
+
+  /// Adds a voice note received over the relay.
+  ///
+  /// Voice payloads are not encrypted by the v1 text envelope (the relay caps
+  /// them at 64 KB and stores them in the history), so they are added as-is.
+  Future<void> addIncomingVoice(Map<String, dynamic> value) async {
+    final message = ChatMessage.fromJson(value, '');
+    if (message.id.isEmpty || _hasMessage(message.id)) return;
+    _messages.add(message);
+  }
+
+  /// Sends a recorded voice note.
+  ///
+  /// [audioData] is base64-encoded PCM16. The relay rejects anything above
+  /// 64 KB, so callers must keep recordings short — the recorder enforces the
+  /// duration limit before this is called.
+  Future<void> sendVoice({
+    required String audioData,
+    required int durationMs,
+    String mimeType = 'audio/pcm16',
+    int sampleRate = 16000,
+    String sourceLang = 'de',
+    String targetLang = 'en',
+  }) async {
+    if (audioData.isEmpty || durationMs <= 0) return;
+    final messageId = _uuid.v4();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final message = <String, dynamic>{
+      'type': 'voice',
+      'messageId': messageId,
+      'audioData': audioData,
+      'mimeType': mimeType,
+      'sampleRate': sampleRate,
+      'durationMs': durationMs,
+      'timestamp': timestamp,
+    };
+    final relayAvailable = onSend != null && (canSend?.call() ?? true);
+    final p2pAvailable = isP2pConnected?.call() == true && onP2pSend != null;
+    _messages.add(ChatMessage(
+      id: messageId,
+      text: '',
+      senderId: 'local',
+      sourceLang: sourceLang,
+      targetLang: targetLang,
+      timestamp: DateTime.fromMillisecondsSinceEpoch(timestamp),
+      outgoing: true,
+      status: relayAvailable || p2pAvailable
+          ? MessageStatus.sent
+          : MessageStatus.queued,
+      kind: ChatMessageKind.voice,
+      audioData: audioData,
+      mimeType: mimeType,
+      sampleRate: sampleRate,
+      durationMs: durationMs,
+    ));
+    notifyListeners();
+    unawaited(persistConversation(immediate: true));
+    if (p2pAvailable) onP2pSend?.call(message);
+    if (relayAvailable) {
+      final sent = onSend?.call(jsonEncode(message)) ?? false;
+      if (sent) {
+        _inFlight.add(messageId);
+      } else if (!p2pAvailable) {
+        await _queue(message);
+      }
+    } else if (!p2pAvailable) {
+      await _queue(message);
+    }
+  }
+
   // ── Outgoing ───────────────────────────────────────────────────────
 
   Future<void> sendChat(String text,
@@ -334,9 +420,18 @@ class ChatService extends ChangeNotifier {
     if (!relayAvailable && !p2pAvailable) {
       unawaited(_queue(message));
     } else if (relayAvailable) {
-      onSend?.call(jsonEncode(message));
+      // A refused send goes back into the outbox; marking it in-flight and
+      // dropping it would lose the message for good. The bubble must also stop
+      // claiming "sent" — the user would otherwise believe a message that is
+      // still queued had already arrived.
+      final sent = onSend?.call(jsonEncode(message)) ?? false;
       final id = message['messageId'];
-      if (id is String) _inFlight.add(id);
+      if (sent) {
+        if (id is String) _inFlight.add(id);
+      } else if (!p2pAvailable) {
+        unawaited(_queue(message));
+        if (id is String) updateMessageStatus(id, MessageStatus.queued);
+      }
     }
   }
 
@@ -347,9 +442,14 @@ class ChatService extends ChangeNotifier {
     if (!relayAvailable && !p2pAvailable) {
       await _queue(wireMessage);
     } else if (relayAvailable) {
-      onSend?.call(jsonEncode(wireMessage));
+      final sent = onSend?.call(jsonEncode(wireMessage)) ?? false;
       final id = wireMessage['messageId'];
-      if (id is String) _inFlight.add(id);
+      if (sent) {
+        if (id is String) _inFlight.add(id);
+      } else if (!p2pAvailable) {
+        await _queue(wireMessage);
+        if (id is String) updateMessageStatus(id, MessageStatus.queued);
+      }
     }
   }
 

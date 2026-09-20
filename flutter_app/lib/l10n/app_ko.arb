@@ -676,5 +676,16 @@
   "contactsRequestAccepted": "연락처 요청을 수락했습니다",
   "contactsRequestDeclined": "연락처 요청을 거절했습니다",
   "contactsSendRequest": "연락처로 추가",
-  "contactsSelfScan": "이것은 본인의 QR 코드입니다"
+  "contactsSelfScan": "이것은 본인의 QR 코드입니다",
+  "voiceRecordTooltip": "음성 메시지 녹음",
+  "voiceRecordingLabel": "녹음 중… {time}",
+  "@voiceRecordingLabel": {
+    "description": "Voice recording indicator with elapsed time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "voiceMicUnavailable": "마이크를 시작할 수 없습니다."
 }

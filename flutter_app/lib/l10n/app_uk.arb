@@ -676,5 +676,16 @@
   "contactsRequestAccepted": "Запит на контакт прийнято",
   "contactsRequestDeclined": "Запит на контакт відхилено",
   "contactsSendRequest": "Додати як контакт",
-  "contactsSelfScan": "Це ваш власний QR-код"
+  "contactsSelfScan": "Це ваш власний QR-код",
+  "voiceRecordTooltip": "Записати голосове повідомлення",
+  "voiceRecordingLabel": "Запис… {time}",
+  "@voiceRecordingLabel": {
+    "description": "Voice recording indicator with elapsed time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "voiceMicUnavailable": "Не вдалося запустити мікрофон."
 }

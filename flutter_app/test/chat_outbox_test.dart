@@ -8,7 +8,10 @@ void main() {
   test('queues while relay is unauthenticated and flushes once', () {
     final service = ChatService();
     final sent = <String>[];
-    service.onSend = sent.add;
+    service.onSend = (message) {
+      sent.add(message);
+      return true;
+    };
     service.canSend = () => false;
 
     service.sendChat('offline');
@@ -24,7 +27,7 @@ void main() {
 
   test('queues edit and delete operations while offline', () {
     final service = ChatService();
-    service.onSend = (_) {};
+    service.onSend = (_) => true;
     service.canSend = () => false;
     service.sendChat('before');
     final id = service.messages.single.id;
@@ -45,7 +48,10 @@ void main() {
 
     service.flushOutbox();
     final sent = <String>[];
-    service.onSend = sent.add;
+    service.onSend = (message) {
+      sent.add(message);
+      return true;
+    };
     service.flushOutbox();
 
     expect(sent, hasLength(1));

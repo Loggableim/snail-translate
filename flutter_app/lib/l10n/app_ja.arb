@@ -676,5 +676,16 @@
   "contactsRequestAccepted": "連絡先リクエストを承認しました",
   "contactsRequestDeclined": "連絡先リクエストを拒否しました",
   "contactsSendRequest": "連絡先に追加",
-  "contactsSelfScan": "これはあなた自身のQRコードです"
+  "contactsSelfScan": "これはあなた自身のQRコードです",
+  "voiceRecordTooltip": "ボイスメッセージを録音",
+  "voiceRecordingLabel": "録音中… {time}",
+  "@voiceRecordingLabel": {
+    "description": "Voice recording indicator with elapsed time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "voiceMicUnavailable": "マイクを起動できませんでした。"
 }

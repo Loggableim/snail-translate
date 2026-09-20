@@ -152,7 +152,10 @@ void main() {
         listen: false);
     // Capture what the screen hands to the relay.
     final sent = <String>[];
-    relay.chat.onSend = (jsonMessage) => sent.add(jsonMessage);
+    relay.chat.onSend = (jsonMessage) {
+      sent.add(jsonMessage);
+      return true;
+    };
 
     await tester.enterText(find.byType(TextField), 'Wo sind wir?');
     await tester.tap(find.byIcon(Icons.send_rounded));

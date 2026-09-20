@@ -59,6 +59,13 @@ class AudioService extends ChangeNotifier {
   bool Function()? isP2pConnected;
   int _reconnectAttempt = 0;
   Timer? _reconnectTimer;
+  /// Keeps the relay socket warm.
+  ///
+  /// The relay answers `ping`, but nothing ever sent one, so a NAT or proxy
+  /// could drop the idle connection without the app noticing until the next
+  /// send failed — reconnect then started late and messages sat in the outbox.
+  Timer? _keepaliveTimer;
+  static const _keepaliveInterval = Duration(seconds: 25);
   Session? _session;
   Map<String, dynamic>? _fishTtsConfig;
   int _listenerCount = 0;
@@ -110,10 +117,39 @@ class AudioService extends ChangeNotifier {
     return _doConnect();
   }
 
+  /// Sends a periodic ping so an idle socket is not dropped silently.
+  void _startKeepalive() {
+    _keepaliveTimer?.cancel();
+    _keepaliveTimer = Timer.periodic(_keepaliveInterval, (_) {
+      if (!_isConnected || !_isAuthenticated) return;
+      try {
+        _channel?.sink.add(jsonEncode({'type': 'ping'}));
+      } catch (_) {
+        // A closed socket reports through onDone; nothing to do here.
+      }
+    });
+  }
+
+  void _stopKeepalive() {
+    _keepaliveTimer?.cancel();
+    _keepaliveTimer = null;
+  }
+
   void _wireChatService() {
     chat.onSend = (jsonMessage) {
-      if (_isConnected && _isAuthenticated) {
-        _channel?.sink.add(jsonMessage);
+      // Returns whether the message actually left the device. A false answer
+      // makes ChatService re-queue it: the channel can die between the
+      // `canSend()` check and this call, and silently dropping the message
+      // there loses it for good.
+      if (!_isConnected || !_isAuthenticated) return false;
+      final sink = _channel?.sink;
+      if (sink == null) return false;
+      try {
+        sink.add(jsonMessage);
+        return true;
+      } catch (_) {
+        // A locally closed socket throws before its stream reports onDone.
+        return false;
       }
     };
     chat.canSend = () => _isConnected && _isAuthenticated;
@@ -210,6 +246,7 @@ class AudioService extends ChangeNotifier {
             onListenerCountChanged?.call(authCount);
           }
           _sendFishTtsConfig();
+          _startKeepalive();
           onAuthenticated?.call();
           chat.flushOutbox();
           notifyListeners();
@@ -251,6 +288,17 @@ class AudioService extends ChangeNotifier {
         case 'chat':
           unawaited(chat
               .addIncomingChatSecure(Map<String, dynamic>.from(msg))
+              .then((_) {
+            chat.persistConversation();
+            notifyListeners();
+          }));
+          break;
+        case 'voice':
+          // The relay forwards voice notes (base64 audio, capped at 64 KB) and
+          // stores them in the history. Without this case the app dropped them
+          // silently, so the whole feature was unreachable.
+          unawaited(chat
+              .addIncomingVoice(Map<String, dynamic>.from(msg))
               .then((_) {
             chat.persistConversation();
             notifyListeners();
@@ -340,6 +388,11 @@ class AudioService extends ChangeNotifier {
             context: 'ws.message',
             error: msg['error'] ?? 'Unknown error',
           );
+          break;
+        case 'ping':
+        case 'pong':
+          // Keepalive answer. Receiving it is the whole point — it proves the
+          // socket is still alive, so there is nothing to handle.
           break;
         default:
           ErrorLogger.I.log(
@@ -563,6 +616,7 @@ class AudioService extends ChangeNotifier {
   void disconnect() {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _stopKeepalive();
     _subscription?.cancel();
     _subscription = null;
     _channel?.sink.close();

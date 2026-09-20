@@ -11,7 +11,10 @@ void main() {
     service.setConversationCrypto(
         ChatCryptoService.fromSharedSecret(List<int>.filled(32, 7)));
     final wireMessages = <String>[];
-    service.onSend = wireMessages.add;
+    service.onSend = (message) {
+      wireMessages.add(message);
+      return true;
+    };
 
     await service.sendChat('secret phrase');
 
@@ -52,7 +55,10 @@ void main() {
       () async {
     final service = ChatService();
     final wireMessages = <String>[];
-    service.onSend = wireMessages.add;
+    service.onSend = (message) {
+      wireMessages.add(message);
+      return true;
+    };
     service.canSend = () => false;
     service.sendChat('queued secret');
     service.setConversationCrypto(
@@ -74,7 +80,10 @@ void main() {
     final receiver = ChatService()
       ..setConversationCrypto(ChatCryptoService.fromSharedSecret(key));
     final relayPayloads = <String>[];
-    sender.onSend = relayPayloads.add;
+    sender.onSend = (message) {
+      relayPayloads.add(message);
+      return true;
+    };
 
     await sender.sendChat('end to end message');
     expect(relayPayloads, hasLength(1));
