@@ -47,6 +47,7 @@ class _GuideScreenState extends State<GuideScreen> {
         _relay?.sendSubtitle(
             text: text, sourceLang: sourceLang, targetLang: targetLang),
     isImplausible: FishAudioAsrService.isImplausibleTranscript,
+    isWrongLanguage: FishAudioAsrService.isWrongDetectedLanguage,
   );
 
   final Set<String> _listenerLanguages = <String>{};
@@ -210,13 +211,16 @@ class _GuideScreenState extends State<GuideScreen> {
     if (pcm == null) return;
     _fishBusy = true;
     try {
-      final transcript = await _fishAsr.transcribe(
+      // transcribeDetected also reports the language Fish heard. The guide
+      // needs it: the script guard cannot catch an invention written in the
+      // same alphabet as the expected language.
+      final asr = await _fishAsr.transcribeDetected(
         apiKey: config.apiKey,
         pcm16: pcm,
         sampleRate: 16000,
         language: null,
       );
-      final source = transcript.trim();
+      final source = asr.text.trim();
       if (source.isEmpty) return;
       // Fish ASR invents whole sentences on echo, noise or silence. A
       // wrong-language invention would be translated into every listener
@@ -225,7 +229,7 @@ class _GuideScreenState extends State<GuideScreen> {
           source, _guideLanguage)) {
         return;
       }
-      await _publish(source, config);
+      await _publish(source, config, detectedLanguage: asr.language);
     } catch (_) {
       // A single failed turn must not tear down the session.
     } finally {
@@ -239,7 +243,8 @@ class _GuideScreenState extends State<GuideScreen> {
   /// Translates one source line into every offered language and publishes
   /// each result. The guide's own language is skipped — listeners who speak
   /// it read the original.
-  Future<void> _publish(String source, ProviderConfig config) async {
+  Future<void> _publish(String source, ProviderConfig config,
+      {String? detectedLanguage}) async {
     final relay = _relay;
     if (relay == null) return;
     final sourceLang = _guideLanguage;
@@ -255,6 +260,7 @@ class _GuideScreenState extends State<GuideScreen> {
       sourceLang: sourceLang,
       listenerLanguages: _listenerLanguages.toList(growable: false),
       config: config,
+      detectedLanguage: detectedLanguage,
     );
   }
 

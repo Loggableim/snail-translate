@@ -11,6 +11,7 @@ class GuidePipeline {
     required this.translate,
     required this.publish,
     required this.isImplausible,
+    required this.isWrongLanguage,
   });
 
   /// Translation backend. Injected so tests can supply a fake.
@@ -32,6 +33,12 @@ class GuidePipeline {
   /// ASR hallucination guard. Injected so the pipeline stays testable.
   final bool Function(String text, String expectedLanguage) isImplausible;
 
+  /// Rejects a transcript whose *detected language* contradicts
+  /// [expectedLanguage]. Catches Latin-script inventions that the script-based
+  /// guard cannot see.
+  final bool Function(String? detectedLanguage, String expectedLanguage)
+      isWrongLanguage;
+
   /// Processes one completed turn.
   ///
   /// Returns the subtitles that were published, in target-language order.
@@ -42,6 +49,7 @@ class GuidePipeline {
     required String sourceLang,
     required List<String> listenerLanguages,
     required ProviderConfig config,
+    String? detectedLanguage,
   }) async {
     final text = source.trim();
     if (text.isEmpty) return const <PublishedSubtitle>[];
@@ -49,6 +57,11 @@ class GuidePipeline {
     // language and shown to the whole audience, so it is dropped before any
     // translation call is made.
     if (isImplausible(text, sourceLang)) return const <PublishedSubtitle>[];
+    // The script guard cannot see an invention written in the same alphabet,
+    // so the provider's own language detection decides those.
+    if (isWrongLanguage(detectedLanguage, sourceLang)) {
+      return const <PublishedSubtitle>[];
+    }
 
     final targets = listenerLanguages
         .where((lang) => lang != sourceLang)

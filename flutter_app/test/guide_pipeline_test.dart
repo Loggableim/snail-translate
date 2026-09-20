@@ -44,6 +44,7 @@ void main() {
             published.add(PublishedSubtitle(
                 text: text, sourceLang: sourceLang, targetLang: targetLang)),
         isImplausible: (_, __) => false,
+        isWrongLanguage: (_, __) => false,
       );
 
       final result = await pipeline.processTurn(
@@ -69,6 +70,7 @@ void main() {
             published.add(PublishedSubtitle(
                 text: text, sourceLang: sourceLang, targetLang: targetLang)),
         isImplausible: (_, __) => false,
+        isWrongLanguage: (_, __) => false,
       );
 
       await pipeline.processTurn(
@@ -96,6 +98,7 @@ void main() {
         // The Fish ASR hallucination guard: a Chinese lyric in a German
         // conversation must never reach the audience.
         isImplausible: (text, expected) => text.contains('大鱼'),
+        isWrongLanguage: (_, __) => false,
       );
 
       final result = await pipeline.processTurn(
@@ -120,6 +123,7 @@ void main() {
             published.add(PublishedSubtitle(
                 text: text, sourceLang: sourceLang, targetLang: targetLang)),
         isImplausible: (_, __) => false,
+        isWrongLanguage: (_, __) => false,
       );
 
       await pipeline.processTurn(
@@ -144,6 +148,7 @@ void main() {
             published.add(PublishedSubtitle(
                 text: text, sourceLang: sourceLang, targetLang: targetLang)),
         isImplausible: (_, __) => false,
+        isWrongLanguage: (_, __) => false,
       );
 
       expect(
@@ -178,6 +183,7 @@ void main() {
         },
         publish: ({required text, required sourceLang, required targetLang}) {},
         isImplausible: (_, __) => false,
+        isWrongLanguage: (_, __) => false,
       );
 
       final watch = Stopwatch()..start();
@@ -191,6 +197,89 @@ void main() {
 
       expect(translator.requested, hasLength(0));
       expect(watch.elapsedMilliseconds, lessThan(140));
+    });
+
+    test('drops a turn whose detected language contradicts the source',
+        () async {
+      final translator = _FakeTranslator();
+      final published = <PublishedSubtitle>[];
+      final pipeline = GuidePipeline(
+        translate: translator.call,
+        publish: ({required text, required sourceLang, required targetLang}) =>
+            published.add(PublishedSubtitle(
+                text: text, sourceLang: sourceLang, targetLang: targetLang)),
+        isImplausible: (_, __) => false,
+        // The script guard cannot see this: Czech and German share the Latin
+        // alphabet, so only the provider's detection catches it.
+        isWrongLanguage: (detected, expected) =>
+            detected != null && detected != expected,
+      );
+
+      final result = await pipeline.processTurn(
+        source: 'šápy třeba jsou zemným výrobem',
+        sourceLang: 'de',
+        listenerLanguages: ['en'],
+        config: _config,
+        detectedLanguage: 'cs',
+      );
+
+      expect(result, isEmpty);
+      expect(published, isEmpty);
+      // No provider call was made for the invention.
+      expect(translator.requested, isEmpty);
+    });
+
+    test('accepts a turn when the provider omits the detected language',
+        () async {
+      final translator = _FakeTranslator();
+      final published = <PublishedSubtitle>[];
+      final pipeline = GuidePipeline(
+        translate: translator.call,
+        publish: ({required text, required sourceLang, required targetLang}) =>
+            published.add(PublishedSubtitle(
+                text: text, sourceLang: sourceLang, targetLang: targetLang)),
+        isImplausible: (_, __) => false,
+        // Fish omits the field for short clips; rejecting those would drop
+        // real speech.
+        isWrongLanguage: (detected, expected) =>
+            detected != null && detected != expected,
+      );
+
+      final result = await pipeline.processTurn(
+        source: 'Guten Tag',
+        sourceLang: 'de',
+        listenerLanguages: ['en'],
+        config: _config,
+        detectedLanguage: null,
+      );
+
+      expect(result, hasLength(1));
+      expect(published.single.targetLang, 'en');
+    });
+
+    test('accepts a turn whose detected language matches the source',
+        () async {
+      final translator = _FakeTranslator();
+      final published = <PublishedSubtitle>[];
+      final pipeline = GuidePipeline(
+        translate: translator.call,
+        publish: ({required text, required sourceLang, required targetLang}) =>
+            published.add(PublishedSubtitle(
+                text: text, sourceLang: sourceLang, targetLang: targetLang)),
+        isImplausible: (_, __) => false,
+        isWrongLanguage: (detected, expected) =>
+            detected != null && detected != expected,
+      );
+
+      final result = await pipeline.processTurn(
+        source: 'Guten Tag',
+        sourceLang: 'de',
+        listenerLanguages: ['en'],
+        config: _config,
+        detectedLanguage: 'de',
+      );
+
+      expect(result, hasLength(1));
     });
   });
 }

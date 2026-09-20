@@ -77,4 +77,75 @@ void main() {
       );
     });
   });
+
+  /// The script guard cannot see an invention written in the same alphabet as
+  /// the expected language. On a real two-device run Fish ASR produced Czech
+  /// sentences from background noise in a German conversation, and the whole
+  /// audience saw them. Fish reports a detected language per transcript, so
+  /// that is what decides these.
+  group('isWrongDetectedLanguage', () {
+    test('rejects a Czech detection for a German turn', () {
+      expect(
+        FishAudioAsrService.isWrongDetectedLanguage('cs', 'de'),
+        isTrue,
+      );
+    });
+
+    test('accepts a matching detection', () {
+      expect(
+        FishAudioAsrService.isWrongDetectedLanguage('de', 'de'),
+        isFalse,
+      );
+    });
+
+    test('accepts a regional tag for the same language', () {
+      // Fish may answer "de-DE"; the normalizer reduces it to "de".
+      expect(
+        FishAudioAsrService.isWrongDetectedLanguage('de-DE', 'de'),
+        isFalse,
+      );
+    });
+
+    test('accepts an English language name for the same language', () {
+      expect(
+        FishAudioAsrService.isWrongDetectedLanguage('German', 'de'),
+        isFalse,
+      );
+    });
+
+    test('accepts a missing detection', () {
+      // Fish omits the field for short clips; rejecting those would drop real
+      // speech.
+      expect(
+        FishAudioAsrService.isWrongDetectedLanguage(null, 'de'),
+        isFalse,
+      );
+      expect(
+        FishAudioAsrService.isWrongDetectedLanguage('auto', 'de'),
+        isFalse,
+      );
+    });
+
+    test('accepts any detection when the expected language is unknown', () {
+      expect(
+        FishAudioAsrService.isWrongDetectedLanguage('cs', 'auto'),
+        isFalse,
+      );
+    });
+
+    test('rejects a Latin-script mismatch the script guard would miss', () {
+      // The exact case from the hardware run: Czech text, German expectation.
+      const invented = 'šápy třeba jsou zemným výrobem';
+      expect(
+        FishAudioAsrService.isImplausibleTranscript(invented, 'de'),
+        isFalse,
+        reason: 'the script guard cannot see this — both are Latin',
+      );
+      expect(
+        FishAudioAsrService.isWrongDetectedLanguage('cs', 'de'),
+        isTrue,
+        reason: 'the language check catches it',
+      );
+    });
+  });
 }

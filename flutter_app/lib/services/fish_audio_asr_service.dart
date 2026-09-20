@@ -137,6 +137,27 @@ class FishAudioAsrService {
     return false;
   }
 
+  /// True when the transcript's *detected language* contradicts the language
+  /// the speaker is expected to use.
+  ///
+  /// [isImplausibleTranscript] only catches wrong scripts, so a Latin-script
+  /// invention passes it: on a real two-device run Fish ASR produced Czech
+  /// sentences ("šápy třeba jsou zemným výrobem") from background noise in a
+  /// German conversation, and the whole audience saw them. Fish reports a
+  /// detected language per transcript, so comparing that against the expected
+  /// source language closes the gap for languages that share an alphabet.
+  ///
+  /// A null or unknown detection is accepted: the provider omits the field for
+  /// short clips, and rejecting those would drop real speech.
+  static bool isWrongDetectedLanguage(
+      String? detectedLanguage, String expectedLanguage) {
+    final detected = normalizeLanguage(detectedLanguage);
+    if (detected == null) return false;
+    final expected = normalizeLanguage(expectedLanguage);
+    if (expected == null) return false;
+    return detected != expected;
+  }
+
   String _normalizeToken(String value) {
     var token = value.trim();
     if (token.toLowerCase().startsWith('bearer ')) {
