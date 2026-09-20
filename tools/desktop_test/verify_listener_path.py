@@ -53,8 +53,9 @@ async def main():
             "token": session["sessionToken"],
         }))
 
-        deadline = asyncio.get_event_loop().time() + 60
+        deadline = asyncio.get_event_loop().time() + 90
         subtitles = []
+        live = []
         while asyncio.get_event_loop().time() < deadline:
             try:
                 raw = await asyncio.wait_for(socket.recv(), timeout=5)
@@ -71,13 +72,16 @@ async def main():
                 subtitles.extend(
                     entry for entry in history if entry.get("type") == "subtitle"
                 )
-                print(f"history: {len(subtitles)} subtitles")
+                print(f"history: {len(subtitles)} subtitles (from earlier turns)")
             elif kind == "subtitle":
+                # A live subtitle: this is what the screen renders as it
+                # arrives, and the only proof the guide is publishing now.
                 subtitles.append(message)
-                print(f"live subtitle [{message.get('targetLang')}] "
+                live.append(message)
+                print(f"LIVE subtitle [{message.get('targetLang')}] "
                       f"{str(message.get('text'))[:60]}")
-            if len(subtitles) >= 3:
-                break
+                if len(live) >= 2:
+                    break
 
     # The screen needs targetLang to filter, text to render and sourceLang for
     # the annotation. A payload missing any of them renders nothing.
@@ -85,15 +89,18 @@ async def main():
         s for s in subtitles
         if s.get("targetLang") and s.get("text") and s.get("sourceLang")
     ]
-    print(f"\nsubtitles received: {len(subtitles)}")
+    print(f"\nsubtitles received: {len(subtitles)} "
+          f"({len(live)} live, {len(subtitles) - len(live)} from history)")
     print(f"renderable (all fields present): {len(complete)}")
-    for entry in complete[:3]:
-        print(f"  [{entry['sourceLang']}->{entry['targetLang']}] "
+    for entry in live[:3]:
+        print(f"  live [{entry['sourceLang']}->{entry['targetLang']}] "
               f"{str(entry['text'])[:60]}")
-    if complete:
-        print("\nLISTENER PATH OK")
+    if live and len(complete) == len(subtitles):
+        print("\nLISTENER PATH OK — live subtitles arrived and are renderable")
+    elif live:
+        print("\nLIVE SUBTITLES ARRIVED but some payloads are incomplete")
     else:
-        print("\nNO RENDERABLE SUBTITLE ARRIVED")
+        print("\nNO LIVE SUBTITLE ARRIVED (history only)")
 
 
 if __name__ == "__main__":

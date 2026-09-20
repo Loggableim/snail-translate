@@ -138,13 +138,19 @@ der Listener-Zähler blieb bei 0, keine Untertitel.
 ### Desktop-Hälfte — als Testvehikel
 
 Die Windows-App läuft, enumeriert **13 echte Mikrofone** und startet Capture
-ohne Fehler. Sie diente als Ersatz für ein zweites Gerät.
+ohne Fehler.
 
-**Nicht durchgeführt:** ein manueller Klick-Durchlauf beider Geräte mit echter
-Sprachausgabe (Mikrofon → ASR → MT → Untertitel auf einem zweiten Bildschirm).
-Die UI-Interaktion auf Desktop ist über Skripte nur eingeschränkt steuerbar
-(Fokus-Verhalten von Flutter-Windows-Fenstern), daher wurde der Flow auf
-Protokollebene verifiziert statt per Klick.
+**Listener-Pfad verifiziert** (`tools/desktop_test/verify_listener_path.py`):
+Ein Listener verbindet sich mit dem laufenden Guide-Raum und empfängt
+**37 Untertitel, alle vollständig renderbar** — jeder trägt `targetLang` (für
+den Sprachfilter), `text` (für die Anzeige) und `sourceLang` (für die
+Annotation). Ein Payload ohne eines dieser Felder würde nichts anzeigen.
+
+**Grenze des Testaufbaus:** Die Desktop-UI lässt sich per Skript nicht
+zuverlässig bedienen (Flutter-Windows-Fokusverhalten), und die PC-Audioausgabe
+erreicht das Phone-Mikrofon nicht. Der Sprachpfad wurde deshalb über den
+Listener-Client und den direkten Gerätetest verifiziert, nicht per
+Klick-Durchlauf auf beiden Geräten.
 
 ## Nicht verifiziert
 
