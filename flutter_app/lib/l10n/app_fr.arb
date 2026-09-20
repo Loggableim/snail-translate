@@ -687,5 +687,13 @@
       }
     }
   },
-  "voiceMicUnavailable": "Le microphone n'a pas pu démarrer."
+  "voiceMicUnavailable": "Le microphone n'a pas pu démarrer.",
+  "fingerprintTitle": "Numéro de sécurité",
+  "fingerprintNoPeer": "Pas encore d'interlocuteur. Le numéro de sécurité apparaît une fois connectés.",
+  "fingerprintHeadline": "Comparez ce numéro",
+  "fingerprintExplain": "Lisez-le à voix haute ou regardez l'autre appareil. Si les deux numéros correspondent, personne ne peut lire.",
+  "fingerprintCopy": "Copier le numéro",
+  "fingerprintCopied": "Numéro de sécurité copié.",
+  "fingerprintMatchMeaning": "Identiques : la connexion est sûre. Personne n'est au milieu.",
+  "fingerprintMismatchMeaning": "Différents : quelque chose ne va pas. N'utilisez pas ce chat avant d'avoir clarifié."
 }

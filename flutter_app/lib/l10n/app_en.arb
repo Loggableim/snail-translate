@@ -701,5 +701,13 @@
       }
     }
   },
-  "voiceMicUnavailable": "The microphone could not be started."
+  "voiceMicUnavailable": "The microphone could not be started.",
+  "fingerprintTitle": "Safety number",
+  "fingerprintNoPeer": "No conversation partner yet. The safety number appears once you are connected.",
+  "fingerprintHeadline": "Compare this number",
+  "fingerprintExplain": "Read it aloud to each other, or look at the other device. If both numbers match, nobody can read along.",
+  "fingerprintCopy": "Copy number",
+  "fingerprintCopied": "Safety number copied.",
+  "fingerprintMatchMeaning": "Same: the connection is secure. Nobody is in the middle.",
+  "fingerprintMismatchMeaning": "Different: something is wrong. Do not use this chat until you have sorted it out."
 }

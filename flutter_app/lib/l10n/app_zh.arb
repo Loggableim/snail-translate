@@ -687,5 +687,13 @@
       }
     }
   },
-  "voiceMicUnavailable": "无法启动麦克风。"
+  "voiceMicUnavailable": "无法启动麦克风。",
+  "fingerprintTitle": "安全号码",
+  "fingerprintNoPeer": "还没有对话伙伴。连接后安全号码会显示。",
+  "fingerprintHeadline": "请核对这个号码",
+  "fingerprintExplain": "互相念出来，或看对方的设备。如果两个号码一致，就没有人能窃听。",
+  "fingerprintCopy": "复制号码",
+  "fingerprintCopied": "安全号码已复制。",
+  "fingerprintMatchMeaning": "一致：连接安全。中间没有人。",
+  "fingerprintMismatchMeaning": "不一致：有问题。在弄清楚之前请不要使用此聊天。"
 }

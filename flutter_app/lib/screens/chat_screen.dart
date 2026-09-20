@@ -161,6 +161,14 @@ class _ChatScreenState extends State<ChatScreen> {
                       fontSize: 11, fontWeight: FontWeight.normal))
             ]),
         actions: [
+          // The safety number is only meaningful once a peer key exists, so
+          // the entry point appears with the conversation.
+          if (audio.keyFingerprint != null)
+            IconButton(
+                tooltip: l10n.fingerprintTitle,
+                icon: const Icon(Icons.verified_user_outlined),
+                onPressed: () =>
+                    Navigator.pushNamed(context, '/fingerprint')),
           if (audio.pendingCount > 0)
             Padding(
               padding: const EdgeInsets.only(right: 12),

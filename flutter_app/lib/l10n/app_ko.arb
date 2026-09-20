@@ -687,5 +687,13 @@
       }
     }
   },
-  "voiceMicUnavailable": "마이크를 시작할 수 없습니다."
+  "voiceMicUnavailable": "마이크를 시작할 수 없습니다.",
+  "fingerprintTitle": "보안 번호",
+  "fingerprintNoPeer": "아직 대화 상대가 없습니다. 연결되면 보안 번호가 표시됩니다.",
+  "fingerprintHeadline": "이 번호를 비교하세요",
+  "fingerprintExplain": "소리 내어 읽거나 상대 기기를 확인하세요. 번호가 일치하면 아무도 엿볼 수 없습니다.",
+  "fingerprintCopy": "번호 복사",
+  "fingerprintCopied": "보안 번호를 복사했습니다.",
+  "fingerprintMatchMeaning": "일치: 연결이 안전합니다. 중간에 아무도 없습니다.",
+  "fingerprintMismatchMeaning": "불일치: 문제가 있습니다. 해결될 때까지 이 채팅을 사용하지 마세요."
 }

@@ -687,5 +687,13 @@
       }
     }
   },
-  "voiceMicUnavailable": "マイクを起動できませんでした。"
+  "voiceMicUnavailable": "マイクを起動できませんでした。",
+  "fingerprintTitle": "安全番号",
+  "fingerprintNoPeer": "まだ相手がいません。接続すると安全番号が表示されます。",
+  "fingerprintHeadline": "この番号を照合してください",
+  "fingerprintExplain": "声に出して読み合うか、相手の画面を確認してください。番号が一致すれば、誰も傍受できません。",
+  "fingerprintCopy": "番号をコピー",
+  "fingerprintCopied": "安全番号をコピーしました。",
+  "fingerprintMatchMeaning": "一致：接続は安全です。間に誰もいません。",
+  "fingerprintMismatchMeaning": "不一致：問題があります。解決するまでこのチャットを使わないでください。"
 }

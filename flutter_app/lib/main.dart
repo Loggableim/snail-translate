@@ -24,6 +24,7 @@ import 'screens/join_screen.dart';
 import 'screens/session_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/identity_qr_screen.dart';
+import 'screens/key_fingerprint_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/provider_settings_screen.dart';
 import 'screens/history_screen.dart';
@@ -153,6 +154,7 @@ class SnailApp extends StatelessWidget {
               '/app-share': (_) => const AppShareScreen(),
               '/profile': (_) => const ProfileScreen(),
               '/paywall': (_) => const PaywallScreen(),
+              '/fingerprint': (_) => const KeyFingerprintScreen(),
             },
           );
         },

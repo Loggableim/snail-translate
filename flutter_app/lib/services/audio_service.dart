@@ -6,6 +6,7 @@ import 'package:web_socket_channel/io.dart';
 import '../models/session.dart';
 import '../models/chat_message.dart';
 import 'chat_service.dart';
+import 'key_fingerprint.dart';
 import 'error_logger.dart';
 import 'chat_crypto_service.dart';
 import '../generated/protocol.dart';
@@ -48,6 +49,19 @@ class AudioService extends ChangeNotifier {
   void Function(Map<String, dynamic> response)? onContactResponse;
   Future<String?> Function()? sessionTokenRefresher;
   String? localAgreementPublicKey;
+  KeyFingerprint? _keyFingerprint;
+
+  /// Safety number for the current conversation, or null when no peer key has
+  /// been exchanged yet.
+  ///
+  /// Two people compare this out of band. Matching values prove the relay did
+  /// not substitute a key; differing values mean it did.
+  KeyFingerprint? get keyFingerprint => _keyFingerprint;
+
+  /// Sets the fingerprint directly, for tests that need a conversation
+  /// without running the full peer-key exchange.
+  @visibleForTesting
+  set keyFingerprintForTest(KeyFingerprint? value) => _keyFingerprint = value;
   /// This device's Snail identity, sent as a header on the WebSocket upgrade.
   ///
   /// The worker's upgrade rate limit keys on the identity when present and on
@@ -417,6 +431,12 @@ class AudioService extends ChangeNotifier {
       // AES key; the raw bytes are not uniformly random.
       chat.setConversationCrypto(
           await ChatCryptoService.fromBase64SharedSecret(sharedSecret));
+      // The fingerprint is what proves no relay sat in the middle. It is
+      // derived here, where the secret exists, and surfaced for the user to
+      // compare out of band.
+      _keyFingerprint =
+          await KeyFingerprint.fromBase64SharedSecret(sharedSecret);
+      notifyListeners();
     } catch (error, stackTrace) {
       ErrorLogger.I.log(
         provider: 'chat',
