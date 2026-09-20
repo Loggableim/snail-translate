@@ -19,6 +19,7 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 | l10n-Parität | Skript über alle 9 `app_*.arb` | 0 fehlend / 0 überzählig |
 | E2E Guide-Flow (lokal) | `python tools/desktop_test/e2e_guide.py http://127.0.0.1:8791` | **11/11 Checks** |
 | E2E Guide-Flow (Produktion) | `python tools/desktop_test/e2e_guide.py https://snail-worker.pixstash.workers.dev` | **11/11 Checks** |
+| Zwei-Geräte-Lauf | Phone-Guide + Desktop-Listener, lokaler Worker | **Untertitel angekommen** |
 | Produktions-Deploy | `wrangler deploy --config wrangler.deploy.toml` | Version `580f8cab` live |
 
 ## Punkte-Status
@@ -94,6 +95,41 @@ Publish-Ablehnung für Listener, Transkript für Spät-Joiner.
 Protokollebene vollständig nachgewiesen, inklusive WebSocket-Fan-out über das
 echte Relay.
 
+### Zwei-Geräte-Lauf — auf Hardware
+
+Guide auf dem Nothing Phone 3a Pro, Listener als Desktop-Client, beide gegen
+einen lokalen Worker (`adb reverse` leitet Phone-localhost auf den PC).
+
+**Ergebnis: der komplette Flow läuft.** Das Phone-Mikrofon nimmt Sprache auf,
+Fish ASR transkribiert, die Übersetzung (de→en) wird als `subtitle` über den
+Relay gefan-out, und der Listener empfängt sie:
+
+```
+src=de -> tgt=en: yeah, yeah, one more thing.
+src=de -> tgt=en: why? oh, because that effect is already slow.
+src=de -> tgt=en: This is kind of meaningful, and this is why.
+```
+
+Der Guide zeigte live „1 Zuhörer verbunden", den Zähler, die Fragenliste und
+den „Transkript kopieren"-Button; der Listener-Chip mit „Zuhörer entfernen"
+war sichtbar.
+
+**Dabei gefunden und behoben:** Die Capture-Subscription wurde registriert,
+bevor `_running` gesetzt war — der Listener verwirft Frames, solange
+`_running` false ist, also gingen die ersten Turns verloren. Auf dem Gerät
+zeigte sich das als „Warte auf Sprache …", obwohl das Mikrofon nachweislich
+lief.
+
+**Offener Qualitätsbefund:** Fish ASR halluziniert bei Hintergrundgeräuschen
+in **lateinischer Schrift** — beobachtet wurden tschechische Sätze
+(„šápy třeba jsou zemným výrobem", „Víš, jak mám resti kvalních spal") in
+einem deutschen Gespräch. Der bestehende `isImplausibleTranscript`-Guard
+prüft die Schrift und greift hier **nicht**, weil Tschechisch wie Deutsch
+lateinisch ist. Für den Betrieb heißt das: In lauter Umgebung können falsche
+Sätze im Transkript landen. Eine Sprach-Erkennung pro Turn (Fish liefert
+`language`) oder ein Plausibilitäts-Check gegen die erwartete Sprache wäre
+der nächste Schritt.
+
 ### Desktop-Hälfte — als Testvehikel
 
 Die Windows-App läuft, enumeriert **13 echte Mikrofone** und startet Capture
@@ -107,16 +143,15 @@ Protokollebene verifiziert statt per Klick.
 
 ## Nicht verifiziert
 
-- **Manueller Zwei-Geräte-Durchlauf mit Sprache.** Der Protokoll-Flow ist mit
-  11/11 Checks belegt, aber ein Durchlauf mit echter Sprachausgabe (Mikrofon →
-  ASR → MT → Untertitel auf einem zweiten Bildschirm) wurde nicht gefahren.
-  Die Desktop-UI lässt sich per Skript nur eingeschränkt bedienen.
-- **Kein Live-Provider-Test.** Die Guide-Pipeline (ASR → MT × N) lief nur
-  gegen Fakes in Widget-/Unit-Tests, nicht gegen Fish Audio oder OpenAI.
-- **Manueller Zwei-Geräte-Durchlauf mit Sprache.** Der Protokoll-Flow ist
-  lokal und in Produktion mit je 11/11 Checks belegt; ein Durchlauf mit echter
-  Sprachausgabe (Mikrofon → ASR → MT → Untertitel auf einem zweiten Bildschirm)
-  wurde nicht gefahren.
+- **Kein Live-Provider-Test für OpenAI/Gemini.** Der Fish-Pfad lief auf
+  Hardware (s. „Zwei-Geräte-Lauf"); die OpenAI- und Gemini-Pfade der
+  Guide-Pipeline wurden nur gegen Fakes getestet.
+- **ASR-Halluzination in lateinischer Schrift.** Beim Zwei-Geräte-Lauf
+  erkannte Fish ASR tschechische Sätze aus Hintergrundgeräuschen in einem
+  deutschen Gespräch; der Schrift-basierte Guard greift dort nicht. Details
+  im Abschnitt „Zwei-Geräte-Lauf".
+- **Kein Lasttest mit vielen Zuhörern.** Alle Läufe nutzten einen oder zwei
+  Listener; das Verhalten bei 50 (Cap) ist nicht geprüft.
 
 ## Betriebsrisiken
 
