@@ -17,7 +17,8 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 | DO-Tests | `cd durable-object && npx vitest run` | **43/43 grün** (19 neue) |
 | Protokoll-Drift | `node tools/generate-protocol.mjs` + diff | keine Drift (22 Typen) |
 | l10n-Parität | Skript über alle 9 `app_*.arb` | 0 fehlend / 0 überzählig |
-| E2E Guide-Flow | `python tools/desktop_test/e2e_guide.py` | **11/11 Checks** |
+| E2E Guide-Flow | `python tools/desktop_test/e2e_guide.py` | **11/11 Checks** (lokal) |
+| Produktions-Deploy | `wrangler deploy --config wrangler.deploy.toml` | Version `580f8cab` live; alle neuen Routen erreichbar |
 
 ## Punkte-Status
 
@@ -109,10 +110,12 @@ Protokollebene verifiziert statt per Klick.
   Die Desktop-UI lässt sich per Skript nur eingeschränkt bedienen.
 - **Kein Live-Provider-Test.** Die Guide-Pipeline (ASR → MT × N) lief nur
   gegen Fakes in Widget-/Unit-Tests, nicht gegen Fish Audio oder OpenAI.
-- **Kein Worker-Deploy.** Die neuen Endpunkte (`/listen`, `mode=guide`,
-  `listener_kick`, `contact_request`) sind lokal gegen `wrangler dev` und in
-  Tests verifiziert; der deployte Worker ist weiterhin die alte Version. Für
-  den Betrieb auf echten Geräten muss zuerst deployt werden.
+- **Produktions-E2E nicht mit Auth gefahren.** Der Worker ist deployt
+  (Version `580f8cab`) und alle neuen Routen antworten in Produktion
+  (`/listen` → 401, `/status` → „Room not found", `/join` → 401 statt 404).
+  Der vollständige E2E-Lauf mit 11/11 Checks lief gegen einen lokalen Worker;
+  gegen Produktion fehlt der `DEV_API_KEY`, der dort als Secret liegt und
+  bewusst nicht im Repository ist. Ein Lauf mit dem echten Key steht aus.
 
 ## Betriebsrisiken
 
