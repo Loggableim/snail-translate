@@ -325,6 +325,19 @@ async function createSessionToken(
 
 // ── Handlers ──────────────────────────────────────────────────────────
 
+/**
+ * Builds the relay WebSocket URL for a room.
+ *
+ * The scheme must follow the request: a local `wrangler dev` worker is served
+ * over http, and a `wss://` URL pointing at it fails to connect. Production
+ * stays on wss because the request arrives over https.
+ */
+function relayUrlFor(request: Request, roomId: string): string {
+  const url = new URL(request.url);
+  const scheme = url.protocol === "https:" ? "wss" : "ws";
+  return `${scheme}://${url.host}/ws?room=${roomId}`;
+}
+
 async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get("Origin") || "";
   const userId = await getUserId(request, env);
@@ -399,10 +412,9 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
     }),
   }));
 
-  const relayHost = new URL(request.url).host;
   return json({
     roomId, sessionToken,
-    relayUrl: `wss://${relayHost}/ws?room=${roomId}`,
+    relayUrl: relayUrlFor(request, roomId),
     iceServers: iceServers(env),
     sourceLang: body.sourceLang || "de",
     targetLang: body.targetLang || "en",
@@ -462,10 +474,9 @@ async function handleJoinRoom(request: Request, env: Env, roomId: string): Promi
     env
   );
 
-  const relayHost = new URL(request.url).host;
   return json({
     roomId, sessionToken,
-    relayUrl: `wss://${relayHost}/ws?room=${roomId}`,
+    relayUrl: relayUrlFor(request, roomId),
     iceServers: iceServers(env),
     // The guest hears the host's language translated into the guest-side
     // direction, so the room's negotiated pair is mirrored for this client.
@@ -512,10 +523,9 @@ async function handleListenRoom(request: Request, env: Env, roomId: string): Pro
     env
   );
 
-  const relayHost = new URL(request.url).host;
   return json({
     roomId, sessionToken,
-    relayUrl: `wss://${relayHost}/ws?room=${roomId}`,
+    relayUrl: relayUrlFor(request, roomId),
     // The guide's language is the source every listener reads from; the
     // listener's own language is chosen in the app from `listenerLanguages`.
     sourceLang: roomState.sourceLang,

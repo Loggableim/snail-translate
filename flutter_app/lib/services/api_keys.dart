@@ -8,7 +8,17 @@ class ApiKeys {
 
   // Worker credentials
   static const devApiKey = String.fromEnvironment('SNAIL_DEV_API_KEY');
-  static const workerUrl = "https://snail-worker.pixstash.workers.dev";
+
+  /// Relay gateway base URL.
+  ///
+  /// Overridable at build time so a local `wrangler dev` worker can be used
+  /// for two-device testing without touching production:
+  ///   flutter run --dart-define=SNAIL_WORKER_URL=http://127.0.0.1:8791
+  /// The default stays the deployed worker, so a normal build is unchanged.
+  static const workerUrl = String.fromEnvironment(
+    'SNAIL_WORKER_URL',
+    defaultValue: "https://snail-worker.pixstash.workers.dev",
+  );
   // Public fallback used only when the worker response omits its download URL.
   static const appShareUrl = workerUrl;
 }
