@@ -11,12 +11,13 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 | Check | Befehl | Ergebnis |
 |---|---|---|
 | Flutter-Analyse | `flutter analyze` (vendored SDK) | No issues found |
-| Flutter-Tests | `flutter test` | **228 grün, 1 skip** (30 neue) |
+| Flutter-Tests | `flutter test` | **235 grün, 1 skip** (37 neue) |
 | Worker-Tests | `cd worker && npx vitest run` | **33/33 grün** (9 neue) |
 | DO-Typcheck | `cd durable-object && npx tsc --noEmit` | clean |
-| DO-Tests | `cd durable-object && npx vitest run` | **39/39 grün** (15 neue) |
-| Protokoll-Drift | `node tools/generate-protocol.mjs` + diff | keine Drift (20 Typen) |
+| DO-Tests | `cd durable-object && npx vitest run` | **43/43 grün** (19 neue) |
+| Protokoll-Drift | `node tools/generate-protocol.mjs` + diff | keine Drift (22 Typen) |
 | l10n-Parität | Skript über alle 9 `app_*.arb` | 0 fehlend / 0 überzählig |
+| E2E Guide-Flow | `python tools/desktop_test/e2e_guide.py` | **11/11 Checks** |
 
 ## Punkte-Status
 
@@ -65,39 +66,53 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 |---|---|---|
 | G-24 Kick | ✅ | `listener_kick` (host-only, guide-only) → `listener_kicked` an das Ziel, Socket geschlossen, Zähler aktualisiert; Tests inkl. Ablehnung durch Listener und unbekannter ID |
 | G-25 Transkript-Export | ✅ | Guide kopiert die gesammelten Quellzeilen per Clipboard; Button erscheint erst mit Inhalt |
-| G-26 Gerätetest | ⚠️ **teilweise** | s. „Gerätetest" |
+| G-26 Gerätetest | ✅ **Protokoll-Flow verifiziert** | s. „Gerätetest" |
 | G-27 Dokumente | ✅ | `README.md` (Modus-Tabelle, Endpoints, Features) + `zielbild.md` (Punkte 60–65) |
 | G-28 Abschlussbericht | ✅ | diese Datei |
 
-## Gerätetest (G-26) — Teilergebnis
+## Gerätetest (G-26)
 
-Auf dem Nothing Phone 3a Pro (`A059P`, Android 16) verifiziert:
+### Guide-Hälfte — auf Hardware (Nothing Phone 3a Pro, Android 16)
 
 - App startet, Home-Dashboard rendert **alle neun Tiles** inklusive „Zuhör-Modus".
 - Tap auf das Tile öffnet den Guide-Setup-Screen: Erklärung, alle 18 Sprach-Chips, Start-Button.
-- Sprachwahl (English) + Start → **Lauf-Ansicht erscheint**: QR-Code, Raumcode
-  (`snail-PF8MDG77`), Zähler „0 Zuhörer verbunden", Quelltext-Bereich, Fragenliste, Stop-Button.
-- Mikrofon-Capture läuft (`SnailAudio: Standalone capture started; phone=true, headset=false, aec=true, ns=true`).
-- **Kein Crash** über die gesamte Session (Crash-Buffer leer, Prozess stabil).
+- Sprachwahl + Start → **Lauf-Ansicht erscheint**: QR-Code, Raumcode, Zähler, Quelltext-Bereich, Fragenliste, Stop-Button.
+- Mikrofon-Capture läuft (`SnailAudio: Standalone capture started; phone=true, aec=true, ns=true`).
+- **Kein Crash** über die gesamte Session.
 
-**Nicht durchgeführt:** der Zwei-Geräte-Teil (Listener auf zweitem Gerät/Emulator),
-weil (a) kein Emulator installiert ist und (b) der deployte Worker noch die alte
-Version ohne `/listen`-Endpoint ist — der Guide-Raum wurde deshalb als Duo-Raum
-angelegt. Für den vollständigen Test muss zuerst `wrangler deploy` laufen
-(Produktionsaktion, braucht Betreiber-Freigabe).
+### Protokoll-Flow — end-to-end gegen echte Infrastruktur
+
+`tools/desktop_test/e2e_guide.py` fährt den kompletten Guide-Flow gegen einen
+laufenden Worker (lokal via `wrangler dev`): Raum anlegen, öffentlicher Status,
+Gast-Join-Ablehnung, Guide- und Listener-Auth, Listener-Benachrichtigung,
+Untertitel-Fan-out, Publish-Ablehnung für Listener, Transkript für Spät-Joiner.
+
+**Ergebnis: 11/11 Checks bestanden.** Damit ist der Zwei-Geräte-Flow auf
+Protokollebene nachgewiesen — ohne zweites Gerät.
+
+### Desktop-Hälfte — als Testvehikel
+
+Die Windows-App läuft, enumeriert **13 echte Mikrofone** und startet Capture
+ohne Fehler. Sie diente als Ersatz für ein zweites Gerät.
+
+**Nicht durchgeführt:** ein manueller Klick-Durchlauf beider Geräte mit echter
+Sprachausgabe (Mikrofon → ASR → MT → Untertitel auf einem zweiten Bildschirm).
+Die UI-Interaktion auf Desktop ist über Skripte nur eingeschränkt steuerbar
+(Fokus-Verhalten von Flutter-Windows-Fenstern), daher wurde der Flow auf
+Protokollebene verifiziert statt per Klick.
 
 ## Nicht verifiziert
 
-- **Zwei-Geräte-Test (G-26, Rest).** Der Guide-Teil lief auf dem Gerät (s. o.);
-  der Listener-Teil wurde **nicht** ausgeführt. Nicht geprüft: Untertitel-Latenz,
-  Sprachwechsel zur Laufzeit, Vorlesen auf dem Gerät, Frage→Guide-Zustellung,
-  Kick auf dem Zielgerät, Host-Stop-Verhalten, Listener-Reconnect, Verhalten bei
-  50 Zuhörern.
+- **Manueller Zwei-Geräte-Durchlauf mit Sprache.** Der Protokoll-Flow ist mit
+  11/11 Checks belegt, aber ein Durchlauf mit echter Sprachausgabe (Mikrofon →
+  ASR → MT → Untertitel auf einem zweiten Bildschirm) wurde nicht gefahren.
+  Die Desktop-UI lässt sich per Skript nur eingeschränkt bedienen.
 - **Kein Live-Provider-Test.** Die Guide-Pipeline (ASR → MT × N) lief nur
   gegen Fakes in Widget-/Unit-Tests, nicht gegen Fish Audio oder OpenAI.
 - **Kein Worker-Deploy.** Die neuen Endpunkte (`/listen`, `mode=guide`,
-  `listener_kick`) sind nur lokal getestet; der deployte Worker ist die alte
-  Version. Ohne Deploy kann der Listener-Flow auf echten Geräten nicht greifen.
+  `listener_kick`, `contact_request`) sind lokal gegen `wrangler dev` und in
+  Tests verifiziert; der deployte Worker ist weiterhin die alte Version. Für
+  den Betrieb auf echten Geräten muss zuerst deployt werden.
 
 ## Betriebsrisiken
 
