@@ -32,6 +32,16 @@ class RealtimeTurn {
 class OpenAiRealtimeService extends ChangeNotifier
     implements LiveTranslationProvider {
   static const _endpoint = 'wss://api.openai.com/v1/realtime/translations';
+
+  /// Overridable realtime endpoint.
+  ///
+  /// The guide's OpenAI path could only ever be exercised against the live
+  /// API, which needs a real key. Pointing this at a local mock lets the
+  /// protocol handling (turn completion, transcript deltas, audio deltas) be
+  /// tested end to end without one.
+  static String endpointOverride = _endpoint;
+
+  static String get _activeEndpoint => endpointOverride;
   static const _model = 'gpt-realtime-translate';
   static const _maxAudioChunks = 96;
 
@@ -164,7 +174,7 @@ class OpenAiRealtimeService extends ChangeNotifier
     if (key == null || language == null || language.isEmpty) return;
     _state = 'connecting';
     notifyListeners();
-    final uri = Uri.parse('$_endpoint?model=$_model');
+    final uri = Uri.parse('$_activeEndpoint?model=$_model');
     try {
       final channel = IOWebSocketChannel.connect(uri, headers: {
         'Authorization': 'Bearer $key',
@@ -387,7 +397,9 @@ class OpenAiRealtimeService extends ChangeNotifier
     if (!(_closeCompleter?.isCompleted ?? true)) _closeCompleter!.complete();
     _connected = false;
     if (!_closing) _state = 'degraded';
-    notifyListeners();
+    // The socket can close after dispose() (teardown races the transport), so
+    // notifying unconditionally throws "used after being disposed".
+    if (!_disposed) notifyListeners();
     _scheduleReconnect();
   }
 
@@ -395,7 +407,9 @@ class OpenAiRealtimeService extends ChangeNotifier
   /// If the credential itself expired or the connection remains unavailable,
   /// the UI stays in `degraded` and the caller can establish a fresh session.
   void _scheduleReconnect() {
-    if (_closing || _apiKey == null || _reconnectTimer != null) return;
+    if (_disposed || _closing || _apiKey == null || _reconnectTimer != null) {
+      return;
+    }
     if (_reconnectAttempts >= _maxReconnectAttempts) return;
     _state = 'reconnecting';
     // Discard any audio still buffered from the old connection to prevent
