@@ -9,6 +9,7 @@ import '../models/translation_languages.dart';
 import '../services/audio_service.dart';
 import '../services/session_service.dart';
 import '../services/tts_queue_policy.dart';
+import '../services/user_identity_service.dart';
 
 /// One subtitle line as shown to a listener.
 class _SubtitleLine {
@@ -102,6 +103,10 @@ class _ListenerScreenState extends State<ListenerScreen> {
 
     final relay = context.read<AudioService>();
     _relay = relay;
+    // Sent as an upgrade header so the worker's rate limit counts per device,
+    // not per IP — a tour group on one wifi must not share a bucket.
+    relay.localIdentityId =
+        context.read<UserIdentityService>().identity?.userId;
     relay.onSubtitle = _onSubtitle;
     relay.onKicked = _onKicked;
     await relay.connect(session);

@@ -305,6 +305,9 @@ class _SessionScreenState extends State<SessionScreen>
     final identityService = context.read<UserIdentityService>();
     audioService.localAgreementPublicKey =
         identityService.identity?.agreementPublicKey;
+    // Sent as an upgrade header so the worker's rate limit counts per device,
+    // not per IP — an audience behind one NAT must not share a bucket.
+    audioService.localIdentityId = identityService.identity?.userId;
     audioService.sharedSecretDeriver = identityService.deriveSharedSecret;
     // Contact exchange rides the same relay connection: the peer is only
     // reachable while both devices are in the session, which is exactly when

@@ -17,6 +17,7 @@ import '../services/session_service.dart';
 import '../services/snail_audio.dart';
 import '../services/speech_turn_buffer.dart';
 import '../services/translation_service.dart';
+import '../services/user_identity_service.dart';
 
 /// Guide mode: one speaker, N listeners.
 ///
@@ -113,6 +114,10 @@ class _GuideScreenState extends State<GuideScreen> {
 
     final relay = context.read<AudioService>();
     _relay = relay;
+    // Sent as an upgrade header so the worker's rate limit counts per device,
+    // not per IP — an audience behind one NAT must not share a bucket.
+    relay.localIdentityId =
+        context.read<UserIdentityService>().identity?.userId;
     relay.onSubtitle = null;
     relay.onListenerCountChanged = (count) {
       if (mounted) setState(() => _listenerCount = count);

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
 import '../models/session.dart';
 import '../models/chat_message.dart';
 import 'chat_service.dart';
@@ -47,6 +48,13 @@ class AudioService extends ChangeNotifier {
   void Function(Map<String, dynamic> response)? onContactResponse;
   Future<String?> Function()? sessionTokenRefresher;
   String? localAgreementPublicKey;
+  /// This device's Snail identity, sent as a header on the WebSocket upgrade.
+  ///
+  /// The worker's upgrade rate limit keys on the identity when present and on
+  /// the client IP otherwise. Without it, an audience behind one NAT (a tour
+  /// group on hotel wifi, everyone in the same room) shares a single bucket
+  /// and the 41st listener is refused — exactly the guide-mode use case.
+  String? localIdentityId;
   Future<String?> Function(String peerPublicKey)? sharedSecretDeriver;
   bool Function()? isP2pConnected;
   int _reconnectAttempt = 0;
@@ -123,7 +131,13 @@ class AudioService extends ChangeNotifier {
         _session = _session!.copyWith(sessionToken: refreshed.trim());
       }
       final uri = Uri.parse(_session!.relayUrl);
-      _channel = WebSocketChannel.connect(uri);
+      // The identity travels as an upgrade header so the worker's rate limit
+      // counts per device instead of per IP: an audience sharing one NAT must
+      // not be throttled as if it were a single client.
+      final identity = localIdentityId?.trim();
+      _channel = (identity != null && identity.isNotEmpty)
+          ? IOWebSocketChannel.connect(uri, headers: {'X-Snail-Identity': identity})
+          : WebSocketChannel.connect(uri);
       await _channel!.ready;
       _isConnected = true;
       _isAuthenticated = false;
