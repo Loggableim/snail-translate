@@ -11,7 +11,7 @@ nachgewiesen ist. Er belegt den implementierten und verifizierten Stand.
 | Check | Befehl | Ergebnis |
 |---|---|---|
 | Flutter-Analyse | `flutter analyze` (vendored SDK) | No issues found |
-| Flutter-Tests | `flutter test` | **245 grün, 1 skip** (47 neue) |
+| Flutter-Tests | `flutter test` | **251 grün, 1 skip** (53 neue) |
 | Worker-Tests | `cd worker && npx vitest run` | **33/33 grün** (9 neue) |
 | DO-Typcheck | `cd durable-object && npx tsc --noEmit` | clean |
 | DO-Tests | `cd durable-object && npx vitest run` | **43/43 grün** (19 neue) |
@@ -158,6 +158,24 @@ Hotel-WLAN, alle im selben Raum) teilte sich einen 40/Minute-Eimer, und ab dem
 `AudioService.localIdentityId` wird jetzt von Session-, Guide- und
 Listener-Screen gesetzt und als Upgrade-Header mitgesendet.
 
+### OpenAI-Pfad — gegen einen Mock-Server
+
+Der OpenAI-Zweig der Guide-Pipeline ließ sich bisher nur gegen die echte API
+testen, für die dem Deployment der Schlüssel fehlt. Der Endpoint ist jetzt
+überschreibbar (`OpenAiRealtimeService.endpointOverride`), und ein lokaler
+Mock spricht dieselben Nachrichtentypen. Verifiziert sind damit:
+
+- Verbindungsaufbau und `ready`-Zustand
+- ein abgeschlossener Turn mit Quell- und Zieltext
+- Akkumulation der Transkript-Deltas über einen Turn
+- Zählung der Speech-Starts (Barge-in-Reaktion)
+- Audioübertragung als base64-`append`-Nachricht
+
+**Dabei gefunden und behoben:** `_onDone` benachrichtigte Listener ohne
+Dispose-Guard — ein Socket, der nach dem Teardown schließt, warf „used after
+being disposed". `_scheduleReconnect` konnte zudem nach dem Dispose einen
+Timer armen.
+
 ### Desktop-Hälfte — als Testvehikel
 
 Die Windows-App läuft, enumeriert **13 echte Mikrofone** und startet Capture
@@ -177,9 +195,12 @@ Klick-Durchlauf auf beiden Geräten.
 
 ## Nicht verifiziert
 
-- **Kein Live-Provider-Test für OpenAI/Gemini.** Der Fish-Pfad lief auf
-  Hardware (s. „Zwei-Geräte-Lauf"); die OpenAI- und Gemini-Pfade der
-  Guide-Pipeline wurden nur gegen Fakes getestet.
+- **Kein Live-Test gegen die echten Provider-APIs.** Der Fish-Pfad lief auf
+  Hardware (s. „Zwei-Geräte-Lauf"); der OpenAI-Pfad ist gegen einen lokalen
+  Mock verifiziert (s. „OpenAI-Pfad"), nicht gegen `api.openai.com` — dem
+  Deployment fehlt der Schlüssel. Der Gemini-Pfad ist im Guide-Modus gar
+  nicht wählbar (Gemini Live kann keinen Text übersetzen) und wird dort
+  bewusst abgelehnt.
 
 ## Betriebsrisiken
 
