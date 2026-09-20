@@ -51,18 +51,32 @@ Zuhörer‑Handy / Web‑Client (Untertitel + optional TTS)
   * UI: `ListenerScreen` – Untertitel‑View, TTS‑Toggle, Frage‑Button
 
 ## Datenformate
-* **Subtitle‑Message**
+
+> **Hinweis:** Dieses Dokument war der erste Entwurf. Die maßgebliche
+> Spezifikation ist `docs/ZUHOER-MODUS.md`; das umgesetzte Verhalten ist in
+> `docs/ZUHOER-MODUS-STATUS.md` belegt. Das Subtitle-Format unten wurde
+> entsprechend korrigiert.
+
+* **Subtitle‑Message** — eine Nachricht **pro Zielsprache** (nicht eine
+  Nachricht mit allen Übersetzungen). Der Relay fächert jede einzeln an alle
+  Listener auf; jeder Listener filtert lokal nach `targetLang`. Das hält den
+  Sprachwechsel zur Laufzeit ohne Re-Subscribe möglich und erlaubt es einem
+  Listener, Original und Übersetzung parallel zu sehen.
   ```ts
   type SubtitleMessage = {
     type: "subtitle";
     messageId: string;
-    text: string;          // original
-    translations: {
-      [lang: string]: string; // e.g. { "en": "Hello", "fr": "Bonjour" }
-    };
+    text: string;          // translated text for targetLang
+    sourceLang: string;    // e.g. "de"
+    targetLang: string;    // e.g. "en"
+    senderId?: string;
     timestamp: number;
   };
   ```
+  Text ist auf 2000 Zeichen begrenzt. Nur der Host darf senden; ein Listener
+  erhält `error "Only the host can send subtitles"`. Jede Subtitle landet
+  zusätzlich in `chatHistory`, damit Spät-Joiner das Transkript über
+  `chat_history` erhalten.
 * **Chat‑Message** bleibt unverändert, aber `role` = `listener` → nur an Host.
 
 ## Cap‑Check & Sicherheit
@@ -79,14 +93,25 @@ Zuhörer‑Handy / Web‑Client (Untertitel + optional TTS)
   * Listener‑Screen → Untertitel‑Anzeige + TTS‑Toggle
 
 ## Nächste Schritte
-1. **Design‑Doc fertigstellen** (dies hier) → Commit in `docs/guide-mode.md`
-2. **Relay‑DO** – neue SessionState, Listener‑Socket‑Logik
-3. **Worker** – neue Endpoints
-4. **Flutter‑App** – Guide‑ und Listener‑Screens + Audio‑Service‑Erweiterungen
-5. **Tests** – Unit + Widget
+
+Alle Schritte sind erledigt — der Modus ist implementiert, getestet und
+deployt:
+
+1. ~~Design‑Doc fertigstellen~~ → dieses Dokument, plus die maßgebliche
+   Spezifikation `docs/ZUHOER-MODUS.md`.
+2. ~~Relay‑DO~~ → `mode`, `listenerSockets`, Listener-Rolle, `subtitle`-Fan-out,
+   Hibernation-Restore, Cleanup.
+3. ~~Worker~~ → `mode=guide` bei der Raum-Erstellung, `POST /api/rooms/:id/listen`,
+   `GET /api/rooms/:id/status`, Guide-Room-Guard auf `/join`.
+4. ~~Flutter‑App~~ → `GuideScreen`, `ListenerScreen`, Home-Tile, QR-Routing,
+   Desktop-Support.
+5. ~~Tests~~ → 43 DO-Tests, 33 Worker-Tests, 235 Flutter-Tests, 11/11
+   E2E-Checks lokal und in Produktion, Zwei-Geräte-Lauf auf Hardware.
+
+Details und die verbleibenden offenen Punkte: `docs/ZUHOER-MODUS-STATUS.md`.
 
 ## Hinweise
-* Der Guide‑Mode ist **nicht** ein Sub‑Modus von `duo`. Es ist ein eigener Modus, weil die Logik (1 → N) nicht mit 1 ↔ 1‑Übersetzung zusammenpasst.
+* Der Guide‑Mode ist **nicht** ein Sub‑Modus von `duo`. Es ist ein eigener Modus, weil die Logik (1 → N) nicht mit 1 ↔ 1‑Übersetzung zusammenpasst.
 * Für die erste Version bleibt der Guide‑Mode **free** – keine Quota‑Kosten. Listener brauchen keinen Key.
 * TTS‑Fallback: Falls `flutter_tts` nicht verfügbar ist, wird nur der Untertitel angezeigt.
 
@@ -94,4 +119,5 @@ Zuhörer‑Handy / Web‑Client (Untertitel + optional TTS)
 
 **Autor:** `logga` – 2026‑09‑18
 
-**Status:** Draft – bitte Feedback geben (Issues oder Pull‑Requests).
+**Status:** Umgesetzt. Maßgebliche Spezifikation: `docs/ZUHOER-MODUS.md`.
+Umsetzungsnachweis: `docs/ZUHOER-MODUS-STATUS.md`.
